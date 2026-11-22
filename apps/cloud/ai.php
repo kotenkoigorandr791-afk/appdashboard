@@ -30,7 +30,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/includes/ai_config_store.php';
 require_once __DIR__ . '/includes/ai_proxy.php';
-require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once dirname(__DIR__, 2) . '/shell/storage_helper.php';
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 if (PHP_SAPI === 'cli' && isset($argv[1])) {
     $action = (string)$argv[1];

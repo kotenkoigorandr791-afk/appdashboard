@@ -29,25 +29,35 @@ services:
     container_name: appdashboard-pgbouncer
     restart: unless-stopped
     environment:
-      DB_HOST: appdashboard-db
+      # Default: container DB. On hosts with external Postgres set
+      # PGBOUNCER_DB_HOST=host.docker.internal (one shared backend for the whole app).
+      DB_HOST: "${PGBOUNCER_DB_HOST:-appdashboard-db}"
       DB_PORT: "5432"
       DB_NAME: appdashboard
       DB_USER: appdashboard
       DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
       AUTH_TYPE: scram-sha-256
-      POOL_MODE: session
+      # Transaction pool sized for ~150 concurrent users: many clients share
+      # ≤ DEFAULT+RESERVE backends. Keeps headroom on shared host Postgres
+      # (Immich/Gitea/etc.) instead of one-connection-per-FPM-worker.
+      POOL_MODE: transaction
       SERVER_RESET_QUERY: DISCARD ALL
+      # Required in transaction mode: otherwise SET ROLE / set_config leak across clients.
+      SERVER_RESET_QUERY_ALWAYS: "1"
       MAX_CLIENT_CONN: "10000"
-      DEFAULT_POOL_SIZE: "${PGBOUNCER_POOL_SIZE:-250}"
-      RESERVE_POOL_SIZE: "20"
-      MIN_POOL_SIZE: "10"
+      DEFAULT_POOL_SIZE: "${PGBOUNCER_POOL_SIZE:-64}"
+      RESERVE_POOL_SIZE: "${PGBOUNCER_RESERVE_POOL_SIZE:-16}"
+      MIN_POOL_SIZE: "${PGBOUNCER_MIN_POOL_SIZE:-8}"
+      MAX_DB_CONNECTIONS: "${PGBOUNCER_MAX_DB_CONNECTIONS:-80}"
       SERVER_IDLE_TIMEOUT: "120"
-      QUERY_WAIT_TIMEOUT: "30"
+      QUERY_WAIT_TIMEOUT: "60"
       IGNORE_STARTUP_PARAMETERS: extra_float_digits,options
     ulimits:
       nofile:
         soft: 65535
         hard: 65535
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     expose:
       - "5432"
     depends_on:
@@ -93,11 +103,12 @@ services:
       - "8100"
     environment:
       APP_DB_CONFIG: /opt/AppDashboard/data/db.env
-      DB_HOST: "${DB_HOST:-appdashboard-db}"
+      DB_HOST: "${APP_DB_HOST:-appdashboard-pgbouncer}"
       DB_PORT: "5432"
       DB_NAME: appdashboard
       DB_USER: appdashboard
       DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
+      APP_DB_PERSISTENT: "0"
       MODELS_ROOT: /opt/ApplicationData/models
       HF_HOME: /opt/ApplicationData/models/huggingface
       U2NET_HOME: /opt/ApplicationData/models/rembg
@@ -139,7 +150,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        APP_VERSION: ${APP_VERSION:-1.10.11}
+        APP_VERSION: ${APP_VERSION:-1.10.12}
         APP_GIT_COMMIT: ${APP_GIT_COMMIT:-}
         APP_BUILD_DATE: ${APP_BUILD_DATE:-}
     image: ${APPDASHBOARD_IMAGE:-ihorkotenko/appdashboard:latest}
@@ -178,7 +189,7 @@ services:
     environment:
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-1}"
-      APP_VERSION: "${APP_VERSION:-1.10.11}"
+      APP_VERSION: "${APP_VERSION:-1.10.12}"
       # Single source of truth for public hostnames. Entrypoint derives ai./search./git./...
       BASE_DOMAIN: "${BASE_DOMAIN:-localhost}"
       APP_PUBLIC_SCHEME: "${APP_PUBLIC_SCHEME:-http}"
@@ -210,6 +221,11 @@ services:
       DB_NAME: appdashboard
       DB_USER: appdashboard
       DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
+      APP_DB_PERSISTENT: "0"
+      PHP_FPM_MAX_CHILDREN: "${PHP_FPM_MAX_CHILDREN:-128}"
+      PHP_FPM_START_SERVERS: "${PHP_FPM_START_SERVERS:-32}"
+      PHP_FPM_MIN_SPARE: "${PHP_FPM_MIN_SPARE:-16}"
+      PHP_FPM_MAX_SPARE: "${PHP_FPM_MAX_SPARE:-64}"
       REDIS_HOST: appdashboard-redis
       REDIS_PORT: "6379"
       REDIS_DATABASE: "0"

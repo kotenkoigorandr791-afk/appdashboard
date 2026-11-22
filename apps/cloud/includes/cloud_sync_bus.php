@@ -7,8 +7,8 @@ const CLOUD_SYNC_BUS_MAX_BYTES = 1048576;
 function cloud_sync_bus_dir(): string {
     // Runtime state must never be written into the code tree: the repository is
     // a bind mount, so such writes would bypass the APPDATA volume and backups.
-    $base = getenv('APPDATA_BASE_DIR');
-    if (!is_string($base) || trim($base) === '') $base = '/opt/ApplicationData';
+    if (!function_exists('appdata_base_dir')) require_once dirname(__DIR__, 3) . '/shell/storage_helper.php';
+    $base = appdata_base_dir();
     $dir = rtrim($base, '/') . '/cloud_runtime/sync_bus';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
     return $dir;

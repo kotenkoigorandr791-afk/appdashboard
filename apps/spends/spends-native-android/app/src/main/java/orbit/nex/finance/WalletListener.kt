@@ -90,15 +90,20 @@ class WalletListener : NotificationListenerService() {
             val base = snapshot.currency.ifBlank { "USD" }
             val session = runCatching { app.store.session.first() }.getOrNull()
             val converted = baseAmount(app.api, session, parsed, base, app.store)
-            if (!parsed.matched || converted == null) {
+            if (converted == null) {
                 app.store.saveExtras(
                     extrasNow.copy(
-                        disputes = addDispute(
-                            extrasNow.disputes,
-                            disputeOf(parsed, base, title, text, if (converted == null) "rate_missing" else "store_not_found"),
-                        ),
+                        disputes = addDispute(extrasNow.disputes, disputeOf(parsed, base, title, text, "rate_missing")),
                     ),
                 )
+                notifyCapture(this@WalletListener, parsed)
+                return@launch
+            }
+            if (!parsed.matched) {
+                // No store was confidently matched: surface it in Pending so the
+                // user can confirm or pick a store, instead of a dispute that is
+                // never resolved automatically.
+                enqueuePending(app.store, parsed, converted)
                 notifyCapture(this@WalletListener, parsed)
                 return@launch
             }
@@ -249,6 +254,15 @@ private suspend fun logWalletError(store: SessionStore, message: String) {
 internal fun addDispute(list: List<Dispute>, item: Dispute): List<Dispute> =
     if (list.any { it.source == item.source && it.raw == item.raw && it.amount == item.amount }) list else list + item
 
+/** Queues an unmatched wallet capture for manual store confirmation on the Pending screen. */
+internal suspend fun enqueuePending(store: SessionStore, parsed: WalletNotification, amount: Double) {
+    val today = LocalDate.now().toString()
+    val item = orbit.nex.finance.data.PendingCapture(date = today, store = parsed.store, amount = amount, raw = parsed.raw)
+    val extras = store.extrasNow()
+    if (extras.pending.any { it.date == item.date && it.store == item.store && it.amount == item.amount }) return
+    store.saveExtras(extras.copy(pending = extras.pending + item))
+}
+
 /**
  * Scans the notifications that are on screen right now. Only Google Wallet
  * packages are inspected; every successfully stored charge is removed from the
@@ -307,14 +321,14 @@ object WalletScanner {
                 conflicts++
                 continue
             }
-            if (!parsed.matched) {
-                disputes = addDispute(disputes, disputeOf(parsed, base, title, text))
-                conflicts++
-                continue
-            }
             val converted = baseAmount(api, session, parsed, base, store)
             if (converted == null) {
                 disputes = addDispute(disputes, disputeOf(parsed, base, title, text, "rate_missing"))
+                conflicts++
+                continue
+            }
+            if (!parsed.matched) {
+                enqueuePending(store, parsed, converted)
                 conflicts++
                 continue
             }

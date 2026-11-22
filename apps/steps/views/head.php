@@ -1102,6 +1102,13 @@
         .location-tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
         .location-tool-card { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid rgba(127,127,127,.16); border-radius: 12px; background: rgba(127,127,127,.05); }
         .location-tool-card h4 { margin: 0; font-size: 13px; }
+        .places-manager-modal { position: fixed; inset: 0; z-index: 11000; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; padding: 12px; }
+        .places-manager-modal[hidden] { display: none !important; }
+        .places-manager-card { width: min(920px, 100%); height: min(86vh, 820px); background: var(--surface, #12141a); border-radius: 18px 18px 12px 12px; border: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.45); }
+        .places-manager-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; }
+        .places-manager-top h3 { margin: 0; font-size: 16px; }
+        .places-manager-map { flex: 1; min-height: 240px; background: #0b0d12; }
+        .places-manager-bottom { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; padding: 10px 12px 14px; border-top: 1px solid rgba(255,255,255,.08); }
         .location-tool-row { display: flex; gap: 6px; flex-wrap: wrap; }
         .location-tool-row input { min-width: 0; flex: 1 1 90px; font-size: 12px; padding: 5px 7px; }
         .location-tool-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; padding: 4px 0; border-top: 1px solid rgba(127,127,127,.1); }
@@ -1115,9 +1122,41 @@
         .immich-card { display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(127,127,127,.16); border-radius: 10px; overflow: hidden; padding-bottom: 6px; background: rgba(127,127,127,.05); }
         .immich-card img { width: 100%; height: 105px; object-fit: cover; background: rgba(127,127,127,.12); }
         .immich-card span { font-size: 10px; padding: 0 6px; color: var(--muted-text); }
-        .map-photo-marker { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #f59e0b; color: #111; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+        .map-photo-marker { background: transparent !important; border: 0 !important; overflow: visible !important; }
+        .map-photo-marker-ring { position: relative; display: block; box-sizing: border-box; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #f59e0b; box-shadow: 0 2px 10px rgba(0,0,0,.45); background: #1f2937; }
+        .map-photo-marker-ring.is-loading { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); }
+        .map-photo-marker-ring .map-photo-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #111; font-size: 14px; z-index: 1; pointer-events: none; }
+        .map-photo-marker-ring img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; opacity: 0; border: 0; z-index: 2; }
+        .map-photo-marker-ring img.is-ready { opacity: 1; }
+        .map-photo-marker-ring.is-ready .map-photo-fallback { display: none; }
+        .map-photo-marker .map-photo-count { position: absolute; top: -6px; right: -8px; z-index: 3; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #111; color: #fff; font-size: 11px; line-height: 18px; text-align: center; border: 1px solid rgba(255,255,255,.55); font-style: normal; font-weight: 700; }
+        .leaflet-popup.photo-md3-leaflet .leaflet-popup-content-wrapper { background: transparent; box-shadow: none; padding: 0; border: 0; }
+        .leaflet-popup.photo-md3-leaflet .leaflet-popup-content { margin: 0; width: auto !important; }
+        .leaflet-popup.photo-md3-leaflet .leaflet-popup-tip { background: rgba(20,22,28,.92); }
+        .leaflet-popup.photo-md3-leaflet a.leaflet-popup-close-button { display: none; }
+        .photo-md3-pop { width: min(280px, 82vw); background: rgba(18,20,26,.94); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.45); backdrop-filter: blur(10px); }
+        .photo-md3-media { position: relative; background: #0b0d12; line-height: 0; min-height: 96px; }
+        .photo-md3-media img { width: 100%; height: auto; max-height: min(56vh, 420px); object-fit: contain; object-position: center; display: block; opacity: 0; transition: opacity .25s ease; vertical-align: top; }
+        .photo-md3-media img.is-ready { opacity: 1; }
+        .photo-md3-skeleton { position: absolute; inset: 0; background: linear-gradient(110deg, #1a1d24 20%, #2a2f3a 40%, #1a1d24 60%); background-size: 200% 100%; animation: photoMd3Shimmer 1.2s linear infinite; }
+        .photo-md3-actions { display: flex; gap: 6px; padding: 8px; }
+        .photo-md3-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 34px; border: 0; border-radius: 12px; background: rgba(255,255,255,.08); color: #f3f4f6; font-size: 12px; cursor: pointer; }
+        .photo-md3-btn:hover { background: rgba(255,255,255,.14); }
+        .photo-md3-btn.primary { background: #f59e0b; color: #111; font-weight: 600; }
+        .photo-md3-info { display: none; padding: 0 10px 10px; color: #d1d5db; font-size: 11px; line-height: 1.45; }
+        .photo-md3-info.is-open { display: block; }
+        .photo-md3-info div + div { margin-top: 4px; opacity: .85; }
+        .photo-md3-lightbox { position: fixed; inset: 0; z-index: 12000; background: rgba(0,0,0,.82); display: flex; align-items: center; justify-content: center; padding: 24px; }
+        .photo-md3-lightbox[hidden] { display: none !important; }
+        .photo-md3-lightbox-card { width: min(720px, 92vw); max-height: 92vh; background: #111318; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 24px 80px rgba(0,0,0,.55); display: flex; flex-direction: column; }
+        .photo-md3-lightbox-top { display: flex; justify-content: flex-end; gap: 8px; padding: 10px; }
+        .photo-md3-lightbox-media { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #000; width: 100%; padding: 0; }
+        .photo-md3-lightbox-media img { max-width: 100%; max-height: min(78vh, 860px); width: auto; height: auto; object-fit: contain; }
+        .photo-md3-lightbox-meta { padding: 12px 14px 16px; color: #e5e7eb; font-size: 13px; }
+        @keyframes photoMd3Shimmer { to { background-position-x: -200%; } }
         .map-place-photo { background: transparent !important; border: 0 !important; }
-        .map-place-photo-ring { display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #22c55e; box-shadow: 0 2px 8px rgba(0,0,0,.45); background: #1f2937; }
+        .map-place-photo-ring { display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #0ea5e9; box-shadow: 0 2px 8px rgba(0,0,0,.45); background: #1f2937; }
+        .map-live-heading { display: inline-block; transform-origin: 50% 55%; }
         .map-place-photo-ring img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .visit-pop-photo, .visit-editor-photo { width: 72px; height: 72px; border-radius: 50%; overflow: hidden; margin: 0 0 8px; border: 2px solid rgba(255,255,255,.35); box-shadow: 0 2px 10px rgba(0,0,0,.35); }
         .visit-pop-photo img, .visit-editor-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -3829,6 +3868,10 @@ height: 48px;
 .map-hud h3 i { color: #38bdf8; }
 .map-hud p {
     margin: 0;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     padding: 8px 12px;
     border-radius: 12px;
     max-width: 100%;
@@ -4039,9 +4082,16 @@ height: 48px;
 .map-stage .leaflet-control-zoom { border: none; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.42); }
 .map-stage .leaflet-control-zoom a { width: 34px; height: 34px; line-height: 34px; background: rgba(11,17,23,0.78); color: #dbeafe; border-bottom: 1px solid rgba(255,255,255,0.1); }
 .map-stage .leaflet-control-zoom a:hover { background: rgba(56,189,248,0.24); color: #fff; }
-.map-stage .leaflet-bottom .leaflet-control-scale { margin: 0 0 22px 14px; }
+.map-stage .map-locate-control { margin-bottom: 10px; border: none; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.42); }
+.map-stage .map-locate-control a.map-locate-btn {
+    width: 34px; height: 34px; line-height: 34px; display: flex; align-items: center; justify-content: center;
+    background: rgba(11,17,23,0.78); color: #7dd3fc; font-size: 14px;
+}
+.map-stage .map-locate-control a.map-locate-btn:hover { background: rgba(56,189,248,0.24); color: #fff; }
+.map-stage .leaflet-bottom.leaflet-left { margin-bottom: 8px; }
+.map-stage .leaflet-bottom .leaflet-control-scale { margin: 0 0 36px 14px; }
 .map-stage .leaflet-control-scale-line { background: rgba(11,17,23,0.6); color: #cbd5e1; border-color: rgba(255,255,255,0.4); border-radius: 6px; padding: 2px 7px; }
-.map-stage .leaflet-control-attribution { background: rgba(11,17,23,0.55) !important; color: #94a3b8 !important; font-size: 9px !important; border-radius: 6px; }
+.map-stage .leaflet-control-attribution { background: rgba(11,17,23,0.55) !important; color: #94a3b8 !important; font-size: 9px !important; border-radius: 6px; margin: 0 0 4px 8px !important; }
 .map-stage .leaflet-control-attribution a { color: #7dd3fc !important; }
 .map-stage .leaflet-popup-content-wrapper { background: rgba(13,20,27,0.94); color: #e2e8f0; border-radius: 12px; border: 1px solid rgba(148,163,184,0.28); box-shadow: 0 18px 40px rgba(0,0,0,0.5); }
 .map-stage .leaflet-popup-content { margin: 10px 12px; font-size: 12px; }
@@ -5082,7 +5132,7 @@ iframe.render-preview-media { height: 60vh; }
 .app-steps textarea { transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast); }
 /* Icon-only controls own their geometry (pills and squares); the generic rule
    only applies to text buttons. */
-.app-steps button:not(.maplibregl-ctrl-icon):not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out):not(.mode-switch-btn):not(.map-day-btn):not(.map-sidebar-show):not(.map-reset-btn):not(.trip-close):not(.chart-nav) { min-height: var(--control-height); border-radius: var(--radius-sm); }
+.app-steps button:not(.maplibregl-ctrl-icon):not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out):not(.map-locate-btn):not(.mode-switch-btn):not(.map-day-btn):not(.map-sidebar-show):not(.map-reset-btn):not(.trip-close):not(.chart-nav) { min-height: var(--control-height); border-radius: var(--radius-sm); }
 .app-steps button:disabled { cursor: not-allowed; opacity: .52; }
 .app-steps button:not(:disabled):active { transform: translateY(1px); }
 .app-steps .app-icon { display: inline-block; width: 1em; font-family: "Font Awesome 6 Free"; font-size: 18px; font-style: normal; font-weight: 900; line-height: 1; text-align: center; }
@@ -5449,6 +5499,65 @@ body.md3-steps.light .picker-x:hover {
     border-color: #CBD5E1 !important;
     color: #0F172A !important;
 }
+
+        /* --- Mobile/tablet top bar fit (last-loaded, overrides shell + app rules) --- */
+        @media (max-width: 900px) {
+            body.md3-steps .app-steps.md3 .app-brand { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+            body.md3-steps .app-steps.md3 .app-brand-text { min-width: 0; overflow: hidden; }
+            body.md3-steps .app-steps.md3 .app-brand-text h1 { overflow: hidden; text-overflow: ellipsis; }
+            body.md3-steps .app-steps.md3 .mode-switch span.mode-label { display: none; }
+            body.md3-steps .app-steps.md3 .mode-switch { flex: 0 0 auto; }
+            body.md3-steps .app-steps.md3 .mode-switch-btn { flex-shrink: 0; padding: 0 12px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions { width: auto; flex: 0 1 auto; min-width: 0; justify-content: flex-end; margin-left: auto; }
+        }
+        @media (max-width: 640px) {
+            body.md3-steps .app-steps.md3 { --topbar-height: 109px; } /* two-row bar, keeps .app-steps padding in sync */
+            body.md3-steps .app-steps.md3 .app-topbar { height: auto; min-height: 0; padding-top: 8px; padding-bottom: 8px; }
+            body.md3-steps .app-steps.md3 .app-topbar-inner { height: auto; flex-wrap: wrap; row-gap: 8px; column-gap: 8px; }
+            body.md3-steps .app-steps.md3 .app-brand { order: 0; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions { order: 1; gap: 4px; }
+            body.md3-steps .app-steps.md3 .mode-switch { order: 2; flex: 1 0 100%; height: 38px; margin: 0; padding: 3px; justify-content: center; }
+            body.md3-steps .app-steps.md3 .mode-switch-btn { flex: 1 1 0; justify-content: center; padding: 0 10px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #sharepoint-share-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #add-steps-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stepmonitor-apk-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stats-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #settings-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #info-button,
+            body.md3-steps .app-steps.md3 #user-button,
+            body.md3-steps .app-steps.md3 .topbar-icon-btn { width: 34px; height: 34px; min-width: 34px; min-height: 34px; font-size: 19px; }
+        }
+        @media (max-width: 480px) {
+            body.md3-steps .app-steps.md3 { --topbar-height: 97px; }
+            body.md3-steps .app-steps.md3 .app-brand-mark { width: 32px; height: 32px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions { gap: 3px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #sharepoint-share-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #add-steps-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stepmonitor-apk-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stats-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #settings-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #info-button,
+            body.md3-steps .app-steps.md3 #user-button,
+            body.md3-steps .app-steps.md3 .topbar-icon-btn { width: 30px; height: 30px; min-width: 30px; min-height: 30px; font-size: 17px; }
+        }
+        @media (max-width: 340px) {
+            body.md3-steps .app-steps.md3 { --topbar-height: 89px; }
+            body.md3-steps .app-steps.md3 .app-brand { display: none; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions { gap: 2px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #sharepoint-share-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #add-steps-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stepmonitor-apk-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stats-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #settings-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #info-button,
+            body.md3-steps .app-steps.md3 #user-button,
+            body.md3-steps .app-steps.md3 .topbar-icon-btn { width: 28px; height: 28px; min-width: 28px; min-height: 28px; font-size: 16px; }
+        }
+        /* Add-steps tab bar must not widen the modal at phone widths */
+        @media (max-width: 900px) {
+            body.md3-steps #add-steps-modal .add-tab-bar { align-self: stretch; width: auto; max-width: 100%; min-width: 0; box-sizing: border-box; }
+            body.md3-steps #add-steps-modal .add-tab { min-width: 0; }
+        }
 </style>
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>

@@ -139,10 +139,14 @@ final class StepsGeolocationPlaceResolver
     public static function store(PDO $pdo, string $visitId, string $owner, ?array $selected, string $status, string $method, float $confidence, array $candidates): void
     {
         $el = $selected['element'] ?? null;
+        $placeId = null;
+        if ($status === 'confirmed' && is_array($el) && trim((string)($el['name'] ?? '')) !== '' && isset($el['lat'], $el['lon'])) {
+            $placeId = self::upsertSavedPlace($pdo, $owner, $el);
+        }
         $pdo->prepare(
-            "UPDATE geo_visits SET osm_type = :t, osm_id = :i, display_name = :n, category = :c, address = :a, detection_status = :s, detection_method = :m, confidence = :conf, resolved_at = now(), retry_after = NULL, resolve_attempts = 0, updated_at = now() WHERE id = :id AND user_email = :o"
+            "UPDATE geo_visits SET place_id = COALESCE(:place, place_id), osm_type = :t, osm_id = :i, display_name = :n, category = :c, address = :a, detection_status = :s, detection_method = :m, confidence = :conf, resolved_at = now(), retry_after = NULL, resolve_attempts = 0, updated_at = now() WHERE id = :id AND user_email = :o"
         )->execute([
-            ':t' => $el['osm_type'] ?? null, ':i' => $el['osm_id'] ?? null, ':n' => $el['name'] ?? '', ':c' => $el ? self::categoryLabel($el) : '',
+            ':place' => $placeId, ':t' => $el['osm_type'] ?? null, ':i' => $el['osm_id'] ?? null, ':n' => $el['name'] ?? '', ':c' => $el ? self::categoryLabel($el) : '',
             ':a' => $el['address'] ?? '', ':s' => $status, ':m' => $method, ':conf' => $confidence, ':id' => $visitId, ':o' => $owner,
         ]);
         $pdo->prepare('DELETE FROM geo_visit_candidates WHERE visit_id = :id')->execute([':id' => $visitId]);
@@ -158,6 +162,37 @@ final class StepsGeolocationPlaceResolver
                 ], JSON_UNESCAPED_UNICODE),
             ]);
         }
+    }
+
+    /** Mirror a confirmed OSM match into the owner's saved Places catalog. */
+    private static function upsertSavedPlace(PDO $pdo, string $owner, array $el): ?string
+    {
+        $name = trim((string)($el['name'] ?? ''));
+        if ($name === '') return null;
+        $lat = (float)$el['lat'];
+        $lon = (float)$el['lon'];
+        $tag = substr(preg_replace('/[^a-z0-9_]+/i', '_', self::categoryLabel($el)) ?: 'place', 0, 32);
+        $existing = $pdo->prepare(
+            "SELECT id FROM geo_places
+              WHERE user_email = :o AND deleted_at IS NULL
+                AND ST_DWithin(position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 40)
+                AND lower(name) = lower(:n)
+              ORDER BY ST_Distance(position::geography, ST_SetSRID(ST_MakePoint(:lon2, :lat2), 4326)::geography)
+              LIMIT 1"
+        );
+        $existing->execute([':o' => $owner, ':lon' => $lon, ':lat' => $lat, ':n' => $name, ':lon2' => $lon, ':lat2' => $lat]);
+        $id = $existing->fetchColumn();
+        if ($id) return (string)$id;
+        $id = StepsGeolocationPlaces::uuid();
+        $pdo->prepare(
+            "INSERT INTO geo_places(id, user_email, name, tag, position, radius_m, notes, timezone, is_active)
+             VALUES(:id, :o, :n, :t, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), 80, :notes, 'UTC', true)"
+        )->execute([
+            ':id' => $id, ':o' => $owner, ':n' => $name, ':t' => $tag ?: 'place',
+            ':lon' => $lon, ':lat' => $lat,
+            ':notes' => 'osm:' . (string)($el['osm_type'] ?? '') . ':' . (string)($el['osm_id'] ?? ''),
+        ]);
+        return $id;
     }
 
     public static function categoryLabel(array $el): string

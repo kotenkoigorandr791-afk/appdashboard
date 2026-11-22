@@ -1194,7 +1194,7 @@ async function ensureQrCodeStyling() {
     if (typeof QRCodeStyling !== 'undefined') return QRCodeStyling;
     await new Promise(function (resolve, reject) {
         var s = document.createElement('script');
-        s.src = '/project/assets/qr-code-loader.js?v=1';
+        s.src = '/shell/assets/qr-code-loader.js?v=1';
         s.async = true;
         s.onload = resolve;
         s.onerror = reject;

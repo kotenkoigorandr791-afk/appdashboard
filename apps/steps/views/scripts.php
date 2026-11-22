@@ -1,5 +1,5 @@
-    <script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
-    <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
+    <script src="/shell/sharepoint/assets/js/qr-code.js?v=5"></script>
+    <script src="/shell/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
     <?php
     // The share endpoint verifies X-SharePoint-CSRF against the session token, so
     // the page has to publish it. Without this every create/list call answered
@@ -7,7 +7,7 @@
     if (empty($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(24));
     ?>
     <script>window.SHAREPOINT_CSRF=<?= json_encode($_SESSION['sharepoint_csrf']) ?>;</script>
-    <script src="/project/sharepoint/assets/js/share-modal.js?v=13"></script>
+    <script src="/shell/sharepoint/assets/js/share-modal.js?v=13"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var shareButton = document.getElementById('sharepoint-share-button');
@@ -4365,6 +4365,78 @@
                     await loadLocationTools();
                 } catch (e) { if (status) status.textContent = e.message; }
             });
+            (function setupPlacesManager(){
+                const modal = document.getElementById('location-places-manager');
+                const openBtn = document.getElementById('location-places-manager-open');
+                const closeBtn = document.getElementById('location-places-manager-close');
+                const fromInput = document.getElementById('location-places-recalc-from');
+                const toInput = document.getElementById('location-places-recalc-to');
+                const runBtn = document.getElementById('location-places-recalc-run');
+                const statusEl = document.getElementById('location-places-recalc-status');
+                const mapHost = document.getElementById('location-places-manager-map');
+                if (!modal || !openBtn || !mapHost) return;
+                let managerMap = null;
+                let managerLayer = null;
+                const today = new Date();
+                const monthAgo = new Date(today.getTime() - 30 * 86400000);
+                const isoDay = (d) => d.toISOString().slice(0, 10);
+                if (fromInput && !fromInput.value) fromInput.value = isoDay(monthAgo);
+                if (toInput && !toInput.value) toInput.value = isoDay(today);
+                async function loadManagerPlaces(){
+                    if (!window.L) return;
+                    if (!managerMap) {
+                        managerMap = L.map(mapHost, { zoomControl: true });
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '&copy; OpenStreetMap',
+                            maxZoom: 19,
+                        }).addTo(managerMap);
+                        managerLayer = L.layerGroup().addTo(managerMap);
+                        managerMap.setView([50.45, 30.52], 11);
+                    }
+                    setTimeout(() => managerMap.invalidateSize(), 50);
+                    managerLayer.clearLayers();
+                    try {
+                        const places = await toolsCall('/apps/steps/api/session_gateway.php?endpoint=places', null);
+                        const rows = places.places || [];
+                        const bounds = [];
+                        rows.forEach((p) => {
+                            if (!Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) return;
+                            const m = L.circleMarker([p.latitude, p.longitude], { radius: 8, color: '#fff', weight: 1.5, fillColor: '#28aa6e', fillOpacity: 0.9 });
+                            m.bindPopup(String(p.name || 'Place'));
+                            m.addTo(managerLayer);
+                            bounds.push([p.latitude, p.longitude]);
+                        });
+                        const stops = await toolsCall('/apps/steps/api/session_gateway.php?endpoint=geolocation_stops&limit=100', null).catch(() => null);
+                        (stops && stops.visits ? stops.visits : []).forEach((v) => {
+                            const lat = Number(v.latitude ?? v.lat), lon = Number(v.longitude ?? v.lon);
+                            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+                            const m = L.circleMarker([lat, lon], { radius: 6, color: '#fff', weight: 1, fillColor: '#f59e0b', fillOpacity: 0.85 });
+                            m.bindPopup(String(v.display_name || v.place_name || v.category || 'Visit'));
+                            m.addTo(managerLayer);
+                            bounds.push([lat, lon]);
+                        });
+                        if (bounds.length) managerMap.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
+                    } catch (e) {
+                        if (statusEl) statusEl.textContent = e.message || String(e);
+                    }
+                }
+                openBtn.addEventListener('click', () => { modal.hidden = false; loadManagerPlaces(); });
+                closeBtn?.addEventListener('click', () => { modal.hidden = true; });
+                modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.hidden = true; });
+                runBtn?.addEventListener('click', async () => {
+                    if (!fromInput?.value || !toInput?.value) return;
+                    if (statusEl) statusEl.textContent = toolsText('location_places_recalc_working', 'Queuing…');
+                    try {
+                        const from = new Date(fromInput.value + 'T00:00:00').toISOString();
+                        const to = new Date(toInput.value + 'T23:59:59').toISOString();
+                        const data = await toolsCall(placePrefsApi, { action: 'recalculate', from, to });
+                        if (statusEl) statusEl.textContent = toolsText('location_places_recalc_queued', 'Recalculation queued.') + (data.queued?.run_id ? ' #' + String(data.queued.run_id).slice(0, 8) : '');
+                        await loadLocationTools();
+                    } catch (e) {
+                        if (statusEl) statusEl.textContent = e.message || String(e);
+                    }
+                });
+            })();
             document.getElementById('location-quality-reprocess')?.addEventListener('click', async () => {
                 const status = document.getElementById('location-tools-status');
                 try { await toolsCall(qualityApi, { action: 'reprocess' }); if (status) status.textContent = toolsText('location_quality_queued', 'Quality recheck queued.'); }
@@ -4530,7 +4602,24 @@
             const immichApi = '/apps/steps/api/session_gateway.php?endpoint=immich';
             let immichGalleryPoll = null;
             function immichText(key, fallback) { return (window.translations && translations[key]) || fallback; }
-            function immichThumb(assetId) { return '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' + encodeURIComponent(assetId); }
+            function immichThumb(assetId, size) {
+                return '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' + encodeURIComponent(assetId) + (size === 'preview' ? '&size=preview' : '');
+            }
+            const immichThumbQueue = [];
+            let immichThumbActive = 0;
+            function pumpImmichThumbs() {
+                while (immichThumbActive < 3 && immichThumbQueue.length) {
+                    const job = immichThumbQueue.shift();
+                    immichThumbActive++;
+                    Promise.resolve().then(job.run).then(job.resolve, job.reject).finally(() => { immichThumbActive--; pumpImmichThumbs(); });
+                }
+            }
+            function enqueueImmichThumb(run) {
+                return new Promise((resolve, reject) => {
+                    immichThumbQueue.push({ run, resolve, reject });
+                    pumpImmichThumbs();
+                });
+            }
             function renderImmich(data) {
                 const host = document.getElementById('immich-gallery');
                 const status = document.getElementById('immich-status');
@@ -4562,7 +4651,17 @@
                     const card = document.createElement('div');
                     card.className = 'immich-card';
                     const img = document.createElement('img');
-                    img.loading = 'lazy'; img.alt = asset.original_filename || ''; img.src = immichThumb(asset.id);
+                    img.loading = 'lazy'; img.alt = asset.original_filename || '';
+                    img.dataset.src = immichThumb(asset.id);
+                    enqueueImmichThumb(() => new Promise((resolve) => {
+                        const kick = () => { img.src = img.dataset.src; resolve(); };
+                        if ('IntersectionObserver' in window) {
+                            const io = new IntersectionObserver((entries) => {
+                                if (entries.some((e) => e.isIntersecting)) { io.disconnect(); kick(); }
+                            }, { rootMargin: '80px' });
+                            io.observe(img);
+                        } else kick();
+                    }));
                     card.appendChild(img);
                     const caption = document.createElement('span');
                     caption.textContent = [String(asset.captured_at || '').slice(0, 16).replace('T', ' '), asset.place_name, asset.trip_title].filter(Boolean).join(' · ');

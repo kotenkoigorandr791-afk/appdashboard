@@ -42,6 +42,7 @@ $allowed = [
     'geolocation_points',
     'geolocation_place_prefs',
     'geolocation_place_photo',
+    'geolocation_live',
     'geolocation_achievements',
     'api_keys',
 ];

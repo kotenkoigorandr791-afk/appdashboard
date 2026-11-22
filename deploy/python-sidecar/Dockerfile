@@ -13,8 +13,7 @@ ENV XDG_DATA_HOME=/opt/ApplicationData/models
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg libgl1 libglib2.0-0 fonts-dejavu-core curl perl xz-utils \
     tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-ukr tesseract-ocr-bel \
-    latexmk texlive-latex-recommended texlive-latex-extra \
-    texlive-fonts-recommended texlive-lang-cyrillic texlive-luatex cm-super \
+    latexmk texlive-full cm-super \
     && rm -rf /var/lib/apt/lists/*
 
 # Fail the image build instead of the user's first compile. The editor sends
@@ -27,6 +26,7 @@ RUN set -eux; \
     printf '\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage[utf8]{inputenc}\n\\usepackage[russian,english]{babel}\n\\begin{document}\nПривет, мир! Тест 0123.\n\\end{document}\n' > t2a.tex; \
     printf '\\documentclass{article}\n\\usepackage{fontspec}\n\\setmainfont{DejaVu Serif}\n\\begin{document}\nПривет, мир! Тест 0123.\n\\end{document}\n' > lua.tex; \
     test -n "$(kpsewhich t2aenc.def)"; \
+    for f in ulem.sty amsmath.sty amssymb.sty tikz.sty pgfplots.sty siunitx.sty biblatex.sty minted.sty listings.sty algorithm2e.sty beamer.cls geometry.sty hyperref.sty; do test -n "$(kpsewhich $f)"; done; \
     latexmk -pdf -interaction=nonstopmode -halt-on-error -quiet t2a.tex; \
     latexmk -lualatex -interaction=nonstopmode -halt-on-error -quiet lua.tex; \
     test -s t2a.pdf; \

@@ -280,6 +280,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
     var portraitOnly by remember { mutableStateOf(prefs.isPortraitOnly()) }
     var showRestartDialog by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
+    var showPlacesSheet by remember { mutableStateOf(false) }
     // Update controls live only here; the home tab no longer carries them.
     val updateChecker = remember { orbit.nex.steps.updates.AppUpdateChecker(context) }
     var updateBusy by remember { mutableStateOf(false) }
@@ -673,7 +674,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                 item {
                     HealthPermissionsScreen(
                         grantedPermissionsSet = grantedPermissions,
-                        onRequestPermissions = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(enabled)) },
+                        onRequestPermissions = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(HealthDataType.values().toSet())) },
                         modifier = Modifier.fillMaxWidth().height(780.dp),
                     )
                 }
@@ -910,6 +911,21 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(stringResource(R.string.places_recalculate_title), style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.places_recalculate_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Button(onClick = { showPlacesSheet = true }, modifier = Modifier.fillMaxWidth()) {
+                                Icon(Icons.Filled.LocationOn, contentDescription = null)
+                                Text(stringResource(R.string.places_recalculate_open), modifier = Modifier.padding(start = Spacing.sm))
+                            }
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.health_export_title), style = MaterialTheme.typography.titleMedium)
                             Button(onClick = { showExportSheet = true }, modifier = Modifier.fillMaxWidth()) {
                                 Icon(Icons.Filled.Download, contentDescription = null)
@@ -931,6 +947,10 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
             }
             }
         }
+    }
+
+    if (showPlacesSheet) {
+        PlacesRecalculateSheet(onDismiss = { showPlacesSheet = false })
     }
 
     if (showExportSheet) {

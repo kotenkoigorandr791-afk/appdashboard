@@ -3,6 +3,7 @@ package orbit.nex.finance
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.BackHandler
@@ -297,6 +298,27 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
             startupScreen = null
         }
         return
+    }
+
+    // Every runtime permission a Spends feature can need (receipt capture,
+    // wallet capture alerts) is requested right after pairing, so none of
+    // those features silently fail later for lack of consent.
+    var runtimePermissionsAsked by remember {
+        mutableStateOf(context.getSharedPreferences("spends_startup", Context.MODE_PRIVATE).getBoolean("runtime_permissions_asked", false))
+    }
+    val runtimePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        context.getSharedPreferences("spends_startup", Context.MODE_PRIVATE).edit().putBoolean("runtime_permissions_asked", true).apply()
+        runtimePermissionsAsked = true
+    }
+    LaunchedEffect(runtimePermissionsAsked) {
+        if (runtimePermissionsAsked) return@LaunchedEffect
+        val permissions = buildList {
+            add(android.Manifest.permission.CAMERA)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+        runtimePermissionLauncher.launch(permissions.toTypedArray())
     }
 
     // A paired account stays fully usable from local storage when the server is

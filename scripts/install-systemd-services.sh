@@ -9,7 +9,7 @@ units=(
   "$ROOT/apps/cloud/cloud-sync-ws.service"
   "$ROOT/apps/cloud/cloud-monaco-collab-ws.service"
   "$ROOT/apps/smart_home/smart-home-ws.service"
-  "$ROOT/project/performance/deploy/performance-monitor-collector.service"
+  "$ROOT/shell/performance/deploy/performance-monitor-collector.service"
   "$ROOT/bot/appdashboard-bot.service"
 )
 for unit in "${units[@]}"; do

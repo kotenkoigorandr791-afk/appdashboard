@@ -72,7 +72,7 @@ test.describe('weather modal — no truncation', () => {
       }
     });
 
-    await page.route('**/project/weather_settings.php', async route => {
+    await page.route('**/shell/weather_settings.php', async route => {
       if (route.request().method() === 'POST') {
         const body = JSON.parse(route.request().postData() || '{}');
         await route.fulfill({

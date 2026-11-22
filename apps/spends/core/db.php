@@ -1,7 +1,7 @@
 <?php
 if (!defined('UPLOAD_SESSIONS_DIR')) {
     $spendsUploadSessions = null;
-    $spendsStorageHelper = dirname(__DIR__, 3) . '/storage_helper.php';
+    $spendsStorageHelper = dirname(__DIR__, 3) . '/shell/storage_helper.php';
     if (is_file($spendsStorageHelper)) {
         require_once $spendsStorageHelper;
         try {

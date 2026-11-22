@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <script>(function(){try{var p=new URLSearchParams(location.search);if(p.get('hideBack')==='1'){document.documentElement.setAttribute('data-embedded','1');}var t=p.get('theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);document.documentElement.style.colorScheme=t;}}catch(e){}})();</script>
+    <title>Terms of Service - Shell App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-light: #eef4ff; --text-light: #16233b;
+            --bg-dark: #0b1220; --text-dark: #e6edf9;
+            --accent: #007bff; --card-bg-light: #ffffff;
+            --card-bg-dark: #141f38; --border-light: #cfddf3;
+            --border-dark: #2b3c61;
+        }
+        html[data-theme="light"] {
+            scrollbar-color: #b6c6e0 #eef4ff;
+            scrollbar-width: thin;
+        }
+        html[data-theme="dark"] {
+            scrollbar-color: #3b5490 #0a1122;
+            scrollbar-width: thin;
+        }
+        html[data-theme="light"]::-webkit-scrollbar { width: 11px; height: 11px; }
+        html[data-theme="light"]::-webkit-scrollbar-track { background: #eef4ff; }
+        html[data-theme="light"]::-webkit-scrollbar-thumb { background: #b6c6e0; border-radius: 6px; border: 2px solid #eef4ff; }
+        html[data-theme="dark"]::-webkit-scrollbar { width: 11px; height: 11px; }
+        html[data-theme="dark"]::-webkit-scrollbar-track { background: #0a1122; }
+        html[data-theme="dark"]::-webkit-scrollbar-thumb { background: #334d85; border-radius: 6px; border: 2px solid #0a1122; }
+        html[data-theme="dark"]::-webkit-scrollbar-thumb:hover { background: #3f5c9e; }
+        html[data-theme="light"] body {
+            background-color: var(--bg-light);
+            color: var(--text-light);
+            background-image: linear-gradient(180deg, #e0edff 0%, #eef4ff 45%, #f5f9ff 100%);
+            background-attachment: fixed;
+        }
+        html[data-theme="dark"] body {
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
+            background-image: radial-gradient(1100px 540px at 18% -12%, rgba(0,123,255,0.22), transparent 60%), linear-gradient(180deg, #0d1728 0%, #0a1122 100%);
+            background-attachment: fixed;
+        }
+        html[data-theme="light"] .card {background-color: var(--card-bg-light); border-color: var(--border-light); box-shadow: 0 10px 30px rgba(21,74,163,0.10);}
+        html[data-theme="dark"] .card {background-color: var(--card-bg-dark); border-color: var(--border-dark); box-shadow: 0 12px 34px rgba(0,0,0,0.35);}
+        body {margin: 0; font-family: system-ui, sans-serif; line-height: 1.6;}
+        header {display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.08); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10;}
+        html[data-theme="light"] header {background: rgba(255,255,255,0.72); border-bottom-color: rgba(0,123,255,0.16);}
+        html[data-theme="dark"] header {background: rgba(10,17,34,0.78); border-bottom-color: rgba(0,123,255,0.28);}
+        .title {font-size: 1.1rem; font-weight: 600;}
+        .controls {display: flex; gap: 10px; align-items: center;}
+        select, button {border-radius: 999px; border: 1px solid rgba(0,0,0,0.15); padding: 6px 10px; font-size: 0.9rem; background: transparent; color: inherit; cursor: pointer;}
+        html[data-theme="light"] select, html[data-theme="light"] button {border-color: rgba(0,123,255,0.28);}
+        button {display: inline-flex; align-items: center; gap: 6px;}
+        button .dot {width: 10px; height: 10px; border-radius: 50%;}
+        .theme-toggle {display: inline-flex; gap: 3px; background: rgba(255,255,255,0.06); border-radius: 30px; padding: 4px; border: 1px solid rgba(96,165,250,0.2); box-shadow: 0 0 20px rgba(59,130,246,0.08), 0 0 0 1px rgba(255,255,255,0.02) inset; transition: all .3s ease; padding: 0;}
+        .theme-toggle:hover {border-color: rgba(96,165,250,0.35); box-shadow: 0 0 25px rgba(59,130,246,0.15), 0 0 0 1px rgba(255,255,255,0.04) inset;}
+        .theme-toggle button {background: transparent; border: none; color: rgba(234,242,251,0.7); padding: 5px 13px; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all .25s cubic-bezier(0.23,1,0.32,1);}
+        .theme-toggle button:hover {color: #eaf2fb; background: rgba(96,165,250,0.12);}
+        .theme-toggle button.active {background: linear-gradient(135deg, rgba(59,130,246,0.4), rgba(34,211,238,0.25)); color: #fff; box-shadow: 0 0 16px rgba(59,130,246,0.4), 0 0 0 1px rgba(96,165,250,0.3) inset; text-shadow: 0 0 8px rgba(96,165,250,0.6);}
+        html[data-theme="light"] .theme-toggle {background: rgba(255,255,255,0.55); border-color: rgba(30,80,140,0.2); box-shadow: 0 0 20px rgba(37,99,235,0.06), 0 0 0 1px rgba(255,255,255,0.5) inset;}
+        html[data-theme="light"] .theme-toggle button {color: rgba(22,50,79,0.65);}
+        html[data-theme="light"] .theme-toggle button:hover {color: #16324f; background: rgba(37,99,235,0.1);}
+        html[data-theme="light"] .theme-toggle button.active {background: linear-gradient(135deg, rgba(37,99,235,0.85), rgba(8,145,178,0.7)); color: #fff; box-shadow: 0 0 16px rgba(37,99,235,0.4), 0 0 0 1px rgba(37,99,235,0.3) inset; text-shadow: 0 0 8px rgba(255,255,255,0.3);}
+        .back-home-btn {
+            border: none;
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #000));
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+            padding: 7px 14px;
+            font-weight: 600;
+        }
+        .back-home-btn:hover {
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+        }
+        main {max-width: 900px; margin: 0 auto; padding: 16px;}
+        .card {border: 1px solid; border-radius: 12px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 20px;}
+        h1 {font-size: 1.6rem; margin-top: 0;}
+        h2 {font-size: 1.1rem; margin-top: 1.8rem; margin-bottom: 12px;}
+        h3 {font-size: 1rem; margin-top: 1.2rem; color: var(--accent);}
+        a {color: var(--accent); text-decoration: none;}
+        a:hover {text-decoration: underline;}
+        ul {padding-left: 20px;}
+        .muted {opacity: 0.7; font-size: 0.85rem;}
+        .feature-list {background: rgba(0,123,255,0.06); padding: 15px; border-radius: 8px; border-left: 4px solid var(--accent);}
+        .warning {background: rgba(255,193,7,0.1); border-left-color: #ffc107; padding: 15px; border-radius: 8px; margin: 15px 0;}
+        html[data-theme="dark"] select {
+            background-color: var(--card-bg-dark);
+            color: var(--text-dark);
+            border-color: var(--border-dark);
+        }
+        html[data-theme="dark"] select option {
+            background-color: var(--card-bg-dark);
+            color: var(--text-dark);
+        }
+        /* Embedded inside the app policy modal (hideBack=1): match the dashboard look, no page chrome. */
+        html[data-embedded="1"] body {
+            background: transparent !important;
+            background-image: none !important;
+            font-family: "Segoe UI", "SF Pro Display", system-ui, -apple-system, sans-serif;
+        }
+        html[data-embedded="1"] header { display: none !important; }
+        html[data-embedded="1"] main { max-width: none; margin: 0; padding: 18px 20px 26px; box-sizing: border-box; }
+        html[data-embedded="1"] .card {
+            background: rgba(18, 24, 32, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 20px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            padding: 24px 26px;
+        }
+        html[data-embedded="1"][data-theme="light"] .card {
+            background: rgba(255, 255, 255, 0.68);
+            border-color: rgba(15, 30, 50, 0.14);
+            box-shadow: 0 18px 50px rgba(30, 50, 80, 0.14);
+        }
+        html[data-embedded="1"] .muted { opacity: 0.65; }
+
+        /* Mobile: one uniform 36px control height, controls on their own row */
+        @media (max-width: 600px) {
+            header { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+            /* logo carries an inline width/height, so it needs !important */
+            header > div:first-child img { width: 28px !important; height: 28px !important; }
+            header .title { font-size: 1rem; }
+            .card { overflow-wrap: anywhere; }
+            .controls { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
+            #backHomeBtn { height: 36px; padding: 0 12px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; box-sizing: border-box; }
+            #languageSelect { height: 36px; padding: 0 10px; border-radius: 10px; font-size: 13px; box-sizing: border-box; }
+            .theme-toggle { height: 36px; padding: 3px; border-radius: 10px; display: inline-flex; align-items: center; box-sizing: border-box; }
+            .theme-toggle button { height: 30px; padding: 0 10px; border-radius: 8px; display: inline-flex; align-items: center; font-size: 12px; line-height: 1; box-sizing: border-box; }
+        }
+        @media (max-width: 380px) {
+            .theme-toggle button { padding: 0 8px; font-size: 11px; }
+            .back-home-btn span[data-i18n] { display: none; }
+        }
+    </style>
+<link rel="icon" href="/shell/assets/privacy-terms.svg" type="image/svg+xml">
+<link rel="shortcut icon" href="/shell/assets/privacy-terms.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/shell/assets/privacy-terms.svg">
+</head>
+<body>
+<header>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <img src="/shell/views/icon.png" alt="Shell App" style="width:32px;height:32px;border-radius:8px;">
+        <div class="title" data-i18n="docTitle"></div>
+    </div>
+    <div class="controls">
+        <button type="button" id="backHomeBtn" class="back-home-btn" aria-label="Home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px;"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            <span data-i18n="backHome">Home</span>
+        </button>
+        <select id="languageSelect">
+            <option value="en">EN</option>
+            <option value="ru">RU</option>
+            <option value="uk">UK</option>
+            <option value="be">BE</option>
+            <option value="pl">PL</option>
+            <option value="cs">CZ</option>
+        </select>
+        <div class="theme-toggle" id="themeToggle">
+            <button type="button" data-theme="dark" class="active">🌙 <span class="theme-label" data-theme-label="dark">Dark</span></button>
+            <button type="button" data-theme="light">☀️ <span class="theme-label" data-theme-label="light">Light</span></button>
+        </div>
+    </div>
+</header>
+
+<main>
+    <article class="card">
+        <h1 data-i18n="mainTitle"></h1>
+        <p class="muted" data-i18n="lastUpdated"></p>
+
+        <h2 data-i18n="section1Title"></h2>
+        <p data-i18n="section1Text"></p>
+
+        <h2 data-i18n="section2Title"></h2>
+        <div class="feature-list">
+            <h3 data-i18n="section2Sub1"></h3>
+            <ul>
+                <li data-i18n="section2Item1"></li>
+                <li data-i18n="section2Item2"></li>
+                <li data-i18n="section2Item3"></li>
+            </ul>
+            <h3 data-i18n="section2Sub2"></h3>
+            <ul>
+                <li data-i18n="section2Item4"></li>
+                <li data-i18n="section2Item5"></li>
+            </ul>
+        </div>
+
+        <h2 data-i18n="section3Title"></h2>
+        <p data-i18n="section3Text"></p>
+
+        <h2 data-i18n="section4Title"></h2>
+        <p data-i18n="section4Text1"></p>
+        <div class="warning">
+            <p data-i18n="section4Warning"></p>
+        </div>
+        <p data-i18n="section4Text2"></p>
+
+        <h2 data-i18n="section5Title"></h2>
+        <p data-i18n="section5Text"></p>
+
+        <h2 data-i18n="section6Title"></h2>
+        <p data-i18n="section6Text"></p>
+
+        <h2 data-i18n="section7Title"></h2>
+        <p data-i18n="section7Text"></p>
+
+        <h2 data-i18n="section8Title"></h2>
+        <p data-i18n="section8Text"></p>
+        <div class="feature-list">
+            <h3 data-i18n="section8Sub1"></h3>
+            <p data-i18n="section8Text1"></p>
+            <h3 data-i18n="section8Sub2"></h3>
+            <p data-i18n="section8Text2"></p>
+            <h3 data-i18n="section8Sub3"></h3>
+            <p data-i18n="section8Text3"></p>
+        </div>
+
+        <p data-i18n="contactText"></p>
+        <p><strong><a href="mailto:home260khersonserver@gmail.com">home260khersonserver@gmail.com</a></strong></p>
+    </article>
+</main>
+
+<script>
+const translations = {
+    en: {
+        docTitle: "Terms of Service - Shell App",
+        mainTitle: "Terms of Service",
+        lastUpdated: "Last updated: December 6, 2025",
+        section1Title: "1. Acceptance of Terms",
+        section1Text: "By accessing or using Shell App, you agree to these Terms governing multi-user management, role-based access, session control, and all platform features.",
+        section2Title: "2. User Responsibilities and Platform Features",
+        section2Sub1: "Account Security and Authentication",
+        section2Item1: "Maintain confidentiality of your credentials. Root users have unrestricted administrative access.",
+        section2Item2: "Use Google OAuth or email/password authentication responsibly.",
+        section2Item3: "Upload only appropriate profile photos following platform guidelines.",
+        section2Sub2: "Personalization Features",
+        section2Item4: "Customize interface with 4 languages (English/Russian/Ukrainian/Belarusian), light/dark themes, and custom accent colors.",
+        section2Item5: "Theme, language, and color preferences saved individually per user account.",
+        section3Title: "3. Role-Based Access Control",
+        section3Text: "Root: Full administrative access to all users, sessions, app restrictions, service configuration. Admin/Manager: Limited user/app management. Guest: Application access only respecting individual restrictions.",
+        section4Title: "4. Session and Activity Management",
+        section4Text1: "All sessions tracked with real-time activity monitoring. Users can view and terminate their own sessions.",
+        section4Warning: "Root users can terminate any session across the platform. Blocked apps enforced per user regardless of session.",
+        section4Text2: "Visit statistics collected for all applications to improve service and resource allocation.",
+        section5Title: "5. Application Usage",
+        section5Text: "Platform hosts multiple applications with individual access controls. Blocked applications respected per user role and configuration. Statistics track usage patterns without personal identification.",
+        section6Title: "6. Service Configuration",
+        section6Text: "Root users configure domain settings, SMTP email servers, Google OAuth credentials. Service provided 'as is' with no warranty for uptime or third-party service availability.",
+        section7Title: "7. Prohibited Activities",
+        section7Text: "Prohibited: attempting to bypass role restrictions, sharing credentials, uploading malicious content, excessive resource usage, interfering with other users' sessions or data.",
+        section8Title: "8. Data Security and Encryption Commitments",
+        section8Text: "Shell App is committed to protecting user data through robust security practices and encryption:",
+        section8Sub1: "Encrypted Data Transmission",
+        section8Text1: "All communication between users and the platform is encrypted using TLS (Transport Layer Security). User credentials, session tokens, personal data, and all sensitive information are protected against interception and man-in-the-middle attacks during transmission.",
+        section8Sub2: "Secure Password Storage",
+        section8Text2: "Passwords are stored using strong cryptographic hashing algorithms (bcrypt/Argon2) with unique salts. Plaintext passwords are never stored, logged, or transmitted in recoverable form. Password reset flows use time-limited, single-use tokens.",
+        section8Sub3: "Infrastructure Security",
+        section8Text3: "Server infrastructure follows security best practices including regular security updates, firewall protection, intrusion detection, access logging, and encrypted database backups. User data at rest is protected through database-level encryption and access controls.",
+        contactText: "Contact for account issues, service questions, or Terms clarification:",
+        backHome: "Home"
+    },
+    ru: {
+        docTitle: "Условия использования - Shell App",
+        mainTitle: "Условия использования",
+        lastUpdated: "Дата обновления: 6 декабря 2025",
+        section1Title: "1. Принятие условий",
+        section1Text: "Доступ или использование Shell App означает согласие с настоящими Условиями, регулирующими многопользовательское управление, доступ по ролям, контроль сессий и все функции платформы.",
+        section2Title: "2. Обязанности пользователей и возможности платформы",
+        section2Sub1: "Безопасность аккаунта и авторизация",
+        section2Item1: "Соблюдайте конфиденциальность учетных данных. Root-пользователи имеют неограниченный административный доступ.",
+        section2Item2: "Ответственно используйте Google OAuth или авторизацию по email/паролю.",
+        section2Item3: "Загружайте только подходящие фото профиля согласно правилам платформы.",
+        section2Sub2: "Возможности персонализации",
+        section2Item4: "Настраивайте интерфейс с 4 языками (английский/русский/украинский/белорусский), светлой/темной темой и пользовательскими цветовыми акцентами.",
+        section2Item5: "Настройки темы, языка и цвета сохраняются индивидуально для каждого аккаунта.",
+        section3Title: "3. Контроль доступа по ролям",
+        section3Text: "Root: полный административный доступ ко всем пользователям, сессиям, ограничениям приложений, настройкам сервиса. Админ/Менеджер: ограниченное управление пользователями/приложениями. Гость: доступ только к приложениям с учетом индивидуальных ограничений.",
+        section4Title: "4. Управление сессиями и активностью",
+        section4Text1: "Все сессии отслеживаются с мониторингом активности в реальном времени. Пользователи могут просматривать и завершать свои сессии.",
+        section4Warning: "Root-пользователи могут завершать любые сессии платформы. Заблокированные приложения применяются ко всем сессиям пользователя.",
+        section4Text2: "Собирается статистика посещений всех приложений для улучшения сервиса и распределения ресурсов.",
+        section5Title: "5. Использование приложений",
+        section5Text: "Платформа размещает несколько приложений с индивидуальным контролем доступа. Учитываются блокировки по ролям пользователя. Статистика собирается без персональной идентификации.",
+        section6Title: "6. Настройка сервиса",
+        section6Text: "Root-пользователи настраивают доменные настройки, SMTP email-серверы, учетные данные Google OAuth. Сервис предоставляется 'как есть' без гарантий доступности.",
+        section7Title: "7. Запрещенные действия",
+        section7Text: "Запрещено: попытки обхода ограничений ролей, передача учетных данных, загрузка вредоносного контента, чрезмерное использование ресурсов, вмешательство в сессии других пользователей.",
+        section8Title: "8. Обязательства по безопасности и шифрованию данных",
+        section8Text: "Shell App берёт на себя обязательства по защите данных пользователей путём внедрения надёжных методов безопасности и шифрования:",
+        section8Sub1: "Шифрование передаваемых данных",
+        section8Text1: "Все коммуникации между пользователями и платформой шифруются с помощью протокола TLS (Transport Layer Security). Учётные данные для входа, токены сессий, личная информация и вся конфиденциальная данные защищены от перехвата и атак типа «человек посередине» при передаче.",
+        section8Sub2: "Безопасное хранение паролей",
+        section8Text2: "Пароли хранятся с использованием стойких криптографических алгоритмов хеширования (bcrypt/Argon2) с уникальными солями. Пароли в открытом виде никогда не хранятся, не логируются и не передаются в восстанавливаемом виде. Процедуры сброса пароля используют одноразовые токены с ограничением по времени.",
+        section8Sub3: "Безопасность инфраструктуры",
+        section8Text3: "Серверная инфраструктура соответствует лучшим практикам безопасности, включая регулярные обновления, защиту файрволом, обнаружение вторжений, журналирование доступа и шифрование резервных копий базы данных. Данные пользователей в состоянии покоя защищаются шифрованием на уровне базы данных и контролем доступа.",
+        contactText: "Обращайтесь по вопросам аккаунта, сервиса или разъяснениям Условий:",
+        backHome: "На главную"
+    },
+    uk: {
+        docTitle: "Умови користування - Shell App",
+        mainTitle: "Умови користування",
+        lastUpdated: "Дата оновлення: 6 грудня 2025",
+        section1Title: "1. Прийняття умов",
+        section1Text: "Доступ/користування Shell App = згода з Умовами багатопользовательського керування, ролей, сесій.",
+        section2Title: "2. Обов'язки та можливості",
+        section2Sub1: "Безпека та авторизація",
+        section2Item1: "Конфіденційність даних. Root - повний доступ.",
+        section2Item2: "Google OAuth/email відповідально.",
+        section2Item3: "Фото профілю за правилами.",
+        section2Sub2: "Персоналізація",
+        section2Item4: "4 мови, світла/темна, кольори.",
+        section2Item5: "Налаштування індивідуальні.",
+        section3Title: "3. Ролі доступу",
+        section3Text: "Root: все керування. Адмін/менеджер: обмежено. Гість: додатки.",
+        section4Title: "4. Сесії",
+        section4Text1: "Реальний час моніторинг. Користувачі керують своїми.",
+        section4Warning: "Root завершує будь-які. Блокування всюди.",
+        section4Text2: "Статистика для покращення.",
+        section5Title: "5. Додатки",
+        section5Text: "Індивідуальний доступ. Статистика без ідентифікації.",
+        section6Title: "6. Налаштування",
+        section6Text: "Root: домен, SMTP, OAuth. 'Як є'.",
+        section7Title: "7. Заборонено",
+        section7Text: "Обхід ролей, шкідливий контент, надмірне навантаження.",
+        section8Title: "8. Зобов'язання щодо безпеки та шифрування даних",
+        section8Text: "Shell App зобов'язується захищати дані користувачів шляхом впровадження надійних методів безпеки та шифрування:",
+        section8Sub1: "Шифрування даних при передачі",
+        section8Text1: "Усі комунікації між користувачами та платформою шифруються за допомогою протоколу TLS (Transport Layer Security). Облікові дані для входу, токени сесій, особиста інформація та всі конфіденційні дані захищені від перехоплення та атак типу «людина посередині» при передачі.",
+        section8Sub2: "Безпечне зберігання паролів",
+        section8Text2: "Паролі зберігаються з використанням стійких криптографічних алгоритмів хешування (bcrypt/Argon2) з унікальними солями. Паролі у відкритому вигляді ніколи не зберігаються, не логуються і не передаються у відновлюваному вигляді. Процедури скидання пароля використовують одноразові токени з обмеженням по часу.",
+        section8Sub3: "Безпека інфраструктури",
+        section8Text3: "Серверна інфраструктура відповідає найкращим практикам безпеки, включаючи регулярні оновлення, захист файрволом, виявлення вторгнень, журналізування доступу та шифрування резервних копій бази даних. Дані користувачів у стані спокою захищені шифруванням на рівні бази даних та контролем доступу.",
+        contactText: "Питання аккаунту/сервісу:",
+        backHome: "На головну"
+    },
+    be: {
+        docTitle: "Умовы выкарыстання - Shell App",
+        mainTitle: "Умовы выкарыстання",
+        lastUpdated: "Дата абнаўлення: 6 снежня 2025",
+        section1Title: "1. Прыняцце ўмоў",
+        section1Text: "Доступ/выкарыстанне = згозы з Умовамі ўправання, ролямі, сэсіямі.",
+        section2Title: "2. Абавязкі і магчымасці",
+        section2Sub1: "Бяспека і аўтарызацыя",
+        section2Item1: "Сакрэт уліковых дадзеных. Root - поўны доступ.",
+        section2Item2: "Google OAuth/email адказна.",
+        section2Item3: "Фота па правілах.",
+        section2Sub2: "Перасоналізацыя",
+        section2Item4: "4 моўы, тэмы, колеры.",
+        section2Item5: "Індывідуальныя налады.",
+        section3Title: "3. Ролі",
+        section3Text: "Root: усё. Адмін/менеджэр: абмежавана. Гашч: прыклады.",
+        section4Title: "4. Сэсіі",
+        section4Text1: "Рэальны час. Карыстальнікі - свае.",
+        section4Warning: "Root - любыя. Блакаванне скрозь.",
+        section4Text2: "Статыстыка паляпшэння.",
+        section5Title: "5. Прыклады",
+        section5Text: "Індывідуальны доступ. Статыстыка без ідэнтыфікацыі.",
+        section6Title: "6. Налады",
+        section6Text: "Root: дамен, SMTP, OAuth. 'Як ёсць'.",
+        section7Title: "7. Забаронена",
+        section7Text: "Абход роляў, шкодны кантэнт, перанагрузка.",
+        section8Title: "8. Абавязанні па бяспецы і шыфраванні даных",
+        section8Text: "Shell App бярэ на сябе абавязанні па абароне даных карыстальнікаў шляхам укаранення надзейных метадаў бяспекі і шыфравання:",
+        section8Sub1: "Шыфраванне даных пры перадачы",
+        section8Text1: "Усе камунікацыі паміж карыстальнікамі і платформай шыфруюцца з дапамогай пратаколу TLS (Transport Layer Security). Уліковыя дадзеныя для ўваходу, токены сэсій, асабістая інфармацыя і ўсе канфідэнцыйныя даныя абаронены ад перахопу і атак тыпу «чалавек пасяродзін» пры перадачы.",
+        section8Sub2: "Бяспечнае захаванне пароляў",
+        section8Text2: "Паролі захоўваюцца з выкарыстаннем ўстойлівых крыптаграфічных алгарытмаў хэшавання (bcrypt/Argon2) з унікальнымі салямі. Паролі ў адкрытым выглядзе ніколі не захоўваюцца, не лагуюцца і не перадаюцца ў аднаўляльным выглядзе. Працэдуры скіду пароля выкарыстоўваюць аднаразовыя токены з абмежаваннем па часе.",
+        section8Sub3: "Бяспека інфраструктуры",
+        section8Text3: "Серверная інфраструктура адпавядае лепшым практыкам бяспекі, уключаючы рэгулярныя абнаўленні, абарону файрволам, выяўленне ўварванняў, журналізацыю доступу і шыфраванне рэзервовых копій базы даных. Даныя карыстальнікаў у стане спакою абароненыя шыфраваннем на ўзроўні базы даных і кантролем доступу.",
+        contactText: "Пытанні па ўліку/сэрвісе:",
+        backHome: "На галоўную"
+    },
+    pl: {
+        docTitle: "Warunki korzystania - Shell App",
+        mainTitle: "Warunki korzystania",
+        lastUpdated: "Ostatnia aktualizacja: 6 grudnia 2025",
+        section1Title: "1. Akceptacja warunków",
+        section1Text: "Korzystając z Shell App, wyrażasz zgodę na niniejsze Warunki regulujące zarządzanie wieloma użytkownikami, dostęp oparty na rolach, kontrolę sesji i wszystkie funkcje platformy.",
+        section2Title: "2. Obowiązki użytkowników i funkcje platformy",
+        section2Sub1: "Bezpieczeństwo konta i uwierzytelnianie",
+        section2Item1: "Zachowaj poufność swoich danych logowania. Użytkownicy root mają nieograniczony dostęp administracyjny.",
+        section2Item2: "Odpowiedzialnie korzystaj z Google OAuth lub uwierzytelniania emailem/hasłem.",
+        section2Item3: "Przesyłaj wyłącznie odpowiednie zdjęcia profilowe zgodnie z wytycznymi platformy.",
+        section2Sub2: "Funkcje personalizacji",
+        section2Item4: "Dostosuj interfejs za pomocą 4 języków (angielski/rosyjski/ukraiński/białoruski), motywów jasnego/ciemnego i niestandardowych kolorów akcentowych.",
+        section2Item5: "Preferencje motywu, języka i koloru są zapisywane indywidualnie dla każdego konta.",
+        section3Title: "3. Kontrola dostępu oparta na rolach",
+        section3Text: "Root: pełny dostęp administracyjny do wszystkich użytkowników, sesji, ograniczeń aplikacji, konfiguracji usługi. Admin/Menedżer: ograniczone zarządzanie użytkownikami/aplikacjami. Gość: dostęp tylko do aplikacji z uwzględnieniem indywidualnych ograniczeń.",
+        section4Title: "4. Zarządzanie sesjami i aktywnością",
+        section4Text1: "Wszystkie sesje są śledzone z monitorowaniem aktywności w czasie rzeczywistym. Użytkownicy mogą przeglądać i kończyć własne sesje.",
+        section4Warning: "Użytkownicy root mogą zakończyć każdą sesję na platformie. Zablokowane aplikacje są wymuszane dla każdego użytkownika niezależnie od sesji.",
+        section4Text2: "Statystyki odwiedzin są zbierane dla wszystkich aplikacji w celu ulepszenia usługi i alokacji zasobów.",
+        section5Title: "5. Korzystanie z aplikacji",
+        section5Text: "Platforma hostuje wiele aplikacji z indywidualną kontrolą dostępu. Zablokowane aplikacje są respektowane w zależności od roli i konfiguracji użytkownika. Statystyki śledzą wzorce użycia bez identyfikacji osobistej.",
+        section6Title: "6. Konfiguracja usługi",
+        section6Text: "Użytkownicy root konfigurują ustawienia domenowe, serwery SMTP, dane uwierzytelniające Google OAuth. Usługa jest dostarczana \"taka jaka jest\" bez gwarancji dostępności.",
+        section7Title: "7. Zabronione działania",
+        section7Text: "Zabronione: próby omijania ograniczeń ról, udostępnianie danych logowania, przesyłanie złośliwych treści, nadmierne wykorzystywanie zasobów, zakłócanie sesji lub danych innych użytkowników.",
+        section8Title: "8. Bezpieczeństwo danych i szyfrowanie",
+        section8Text: "Shell App jest zaangażowany w ochronę danych użytkowników poprzez solidne praktyki bezpieczeństwa i szyfrowanie:",
+        section8Sub1: "Szyfrowanie przesyłanych danych",
+        section8Text1: "Cała komunikacja między użytkownikami a platformą jest szyfrowana za pomocą protokołu TLS (Transport Layer Security). Dane logowania, tokeny sesji, dane osobowe i wszystkie poufne informacje są chronione przed przechwyceniem i atakami typu man-in-the-middle podczas transmisji.",
+        section8Sub2: "Bezpieczne przechowywanie haseł",
+        section8Text2: "Hasła są przechowywane za pomocą silnych algorytmów kryptograficznych (bcrypt/Argon2) z unikalnymi solami. Hasła w postaci tekstowej nigdy nie są przechowywane, logowane ani przesyłane w formie odzyskiwalnej. Procedury resetowania haseł wykorzystują jednorazowe tokeny z ograniczeniem czasowym.",
+        section8Sub3: "Bezpieczeństwo infrastruktury",
+        section8Text3: "Infrastruktura serwerowa spełnia najlepsze praktyki bezpieczeństwa, w tym regularne aktualizacje, ochronę zaporem sieciową, wykrywanie włamań, logowanie dostępu i szyfrowanie kopii zapasowych bazy danych. Dane użytkowników w spoczynku są chronione szyfrowaniem na poziomie bazy danych i kontrolą dostępu.",
+        contactText: "Kontakt w sprawach konta, pytań o usługę lub wyjaśnień Warunków:",
+        backHome: "Strona główna"
+    },
+    cs: {
+        docTitle: "Podmínky používání - Shell App",
+        mainTitle: "Podmínky používání",
+        lastUpdated: "Poslední aktualizace: 6. prosince 2025",
+        section1Title: "1. Přijetí podmínek",
+        section1Text: "Používáním Shell App souhlasíte s těmito Podmínkami upravujícími správu více uživatelů, přístup na základě rolí, řízení relací a všechny funkce platformy.",
+        section2Title: "2. Povinnosti uživatelů a funkce platformy",
+        section2Sub1: "Zabezpečení účtu a ověřování",
+        section2Item1: "Uchovávejte důvěrnost svých přihlašovacích údajů. Uživatelé root mají neomezený administrativní přístup.",
+        section2Item2: "Odpovědně používejte Google OAuth nebo přihlašování e-mailem/heslem.",
+        section2Item3: "Nahrávejte pouze vhodné profilové fotografie v souladu s pokyny platformy.",
+        section2Sub2: "Funkce personalizace",
+        section2Item4: "Přizpůsobte si rozhraní pomocí 4 jazyků (angličtina/ruština/ukrajinština/běloruština), světlého/tmavého motivu a vlastních barev.",
+        section2Item5: "Předvolby motivu, jazyku a barev se ukládají individuálně pro každý účet.",
+        section3Title: "3. Řízení přístupu na základě rolí",
+        section3Text: "Root: plný administrativní přístup ke všem uživatelům, relacím, omezením aplikací a konfiguraci služby. Admin/Manažer: omezená správa uživatelů/aplikací. Host: přístup pouze k aplikacím s ohledem na individuální omezení.",
+        section4Title: "4. Řízení relací a aktivity",
+        section4Text1: "Všechny relace jsou sledovány s monitorováním aktivity v reálném čase. Uživatelé mohou zobrazovat a ukončovat vlastní relace.",
+        section4Warning: "Uživatelé root mohou ukončit jakoukoli relaci na platformě. Zablokované aplikace jsou vynuceny pro každého uživatele bez ohledu na relaci.",
+        section4Text2: "Statistiky návštěv jsou shromažďovány pro všechny aplikace za účelem zlepšení služby a alokace zdrojů.",
+        section5Title: "5. Používání aplikací",
+        section5Text: "Platforma hostuje více aplikací s individuální kontrolou přístupu. Zablokované aplikace jsou respektovány podle role a konfigurace uživatele. Statistiky sledují vzorce použití bez osobní identifikace.",
+        section6Title: "6. Konfigurace služby",
+        section6Text: "Uživatelé root konfigurují nastavení domény, servery SMTP, přihlašovací údaje Google OAuth. Služba je poskytována \"tak jak je\" bez záruky dostupnosti.",
+        section7Title: "7. Zakázané činnosti",
+        section7Text: "Zakázáno: pokusy o obejití omezení rolí, sdílení přihlašovacích údajů, nahrávání škodlivého obsahu, nadměrné využívání zdrojů, narušování relací nebo dat ostatních uživatelů.",
+        section8Title: "8. Zabezpečení dat a šifrování",
+        section8Text: "Shell App se zavazuje chránit data uživatelů prostřednictvím robustních bezpečnostních postupů a šifrování:",
+        section8Sub1: "Šifrování přenášených dat",
+        section8Text1: "Veškerá komunikace mezi uživateli a platformou je šifrována pomocí protokolu TLS (Transport Layer Security). Přihlašovací údaje, tokeny relací, osobní údaje a veškeré citlivé informace jsou chráněny před odposlechem a útoky typu man-in-the-middle při přenosu.",
+        section8Sub2: "Bezpečné ukládání hesel",
+        section8Text2: "Hesla jsou ukládána pomocí silných kryptografických algoritmů (bcrypt/Argon2) s unikátními soli. Hesla v plaintextu se nikdy neukládají, nepřihlašují ani nepřenášejí ve formě umožňující obnovení. Procesy resetování hesel používají jednorázové tokeny s časovým omezením.",
+        section8Sub3: "Zabezpečení infrastruktury",
+        section8Text3: "Serverová infrastruktura splňuje nejlepší bezpečnostní postupy včetně pravidelných aktualizací, ochrany firewallem, detekce invazí, přístupového logování a šifrování záloh databáze. Data uživatelů v klidu jsou chráněna šifrováním na úrovni databáze a řízením přístupu.",
+        contactText: "Kontakt ohledně účtů, dotazů na službu nebo vysvětlení Podmínek:",
+        backHome: "Domů"
+    }
+};
+const themeLabels = {en: {light: "Light", dark: "Dark"}, ru: {light: "Светлая", dark: "Тёмная"}, uk: {light: "Світла", dark: "Темна"}, be: {light: "Светлая", dark: "Цёмная"}, pl: {light: "Jasny", dark: "Ciemny"}, cs: {light: "Světlý", dark: "Tmavý"}};
+const languageSelect = document.getElementById("languageSelect"), themeToggle = document.getElementById("themeToggle"), backHomeBtn = document.getElementById("backHomeBtn");
+
+// Function to validate a color
+function isValidColor(color) {
+    if (!color) return false;
+    const hexPattern = /^#([A-Fa-f0-9]{3}){1,2}$/;
+    return hexPattern.test(color);
+}
+
+// Function to get parameters from the URL
+function getUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        lang: params.get('lang'),
+        theme: params.get('theme'),
+        color: params.get('color'),
+        hideBack: params.get('hideBack')
+    };
+}
+
+// Function to detect language
+function getInitialLanguage(urlLang) {
+    if (urlLang && ['en', 'ru', 'uk', 'be', 'pl', 'cs'].includes(urlLang)) {
+        localStorage.setItem("doc_lang", urlLang);
+        return urlLang;
+    }
+    return localStorage.getItem("doc_lang") || "en";
+}
+
+// Function to detect theme
+function getInitialTheme(urlTheme) {
+    if (urlTheme && ['light', 'dark'].includes(urlTheme)) {
+        localStorage.setItem("doc_theme", urlTheme);
+        return urlTheme;
+    }
+    return localStorage.getItem("doc_theme") || "light";
+}
+
+// Function to detect color
+function getInitialColor(urlColor) {
+    if (urlColor && isValidColor(urlColor)) {
+        localStorage.setItem("doc_color", urlColor);
+        return urlColor;
+    }
+    return localStorage.getItem("doc_color") || "#007bff";
+}
+
+// Function to apply the color
+function applyColor(color) {
+    document.documentElement.style.setProperty('--accent', color);
+    const rgb = hexToRgb(color);
+    if (rgb) {
+        document.documentElement.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+        const featureLists = document.querySelectorAll('.feature-list');
+        featureLists.forEach(el => {
+            el.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.05)`;
+        });
+    }
+}
+
+// HEX to RGB conversion function
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+}
+
+// Function to update the URL
+function updateUrlParams(lang, theme, color) {
+    const url = new URL(window.location);
+    url.searchParams.set('lang', lang);
+    url.searchParams.set('theme', theme);
+    if (color) {
+        url.searchParams.set('color', color);
+    }
+    window.history.replaceState({}, '', url);
+}
+
+// Load settings
+function loadSettings() {
+    const urlParams = getUrlParams();
+    const initialLang = getInitialLanguage(urlParams.lang);
+    const initialTheme = getInitialTheme(urlParams.theme);
+    const initialColor = getInitialColor(urlParams.color);
+    
+    document.documentElement.lang = initialLang;
+    document.documentElement.setAttribute("data-theme", initialTheme);
+    languageSelect.value = initialLang;
+    
+    applyTranslations(initialLang);
+    applyThemeLabel(initialLang, initialTheme);
+    applyColor(initialColor);
+    
+    if (urlParams.lang !== initialLang || urlParams.theme !== initialTheme || urlParams.color !== initialColor) {
+        updateUrlParams(initialLang, initialTheme, initialColor);
+    }
+}
+
+function applyTranslations(lang) {
+    const dict = translations[lang] || translations.en;
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (dict[key]) el.textContent = dict[key];
+    });
+}
+
+function applyThemeLabel(lang, theme) {
+    const labels = themeLabels[lang] || themeLabels.en;
+    themeToggle.querySelectorAll("button").forEach(btn => {
+        const t = btn.dataset.theme;
+        btn.classList.toggle("active", t === theme);
+        const label = btn.querySelector(".theme-label");
+        if (label && labels[t]) label.textContent = labels[t];
+    });
+}
+
+languageSelect.addEventListener("change", () => {
+    const lang = languageSelect.value;
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+    const currentColor = localStorage.getItem("doc_color") || "#007bff";
+    
+    localStorage.setItem("doc_lang", lang);
+    document.documentElement.lang = lang;
+    applyTranslations(lang);
+    applyThemeLabel(lang, currentTheme);
+    updateUrlParams(lang, currentTheme, currentColor);
+});
+
+themeToggle.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    const next = btn.dataset.theme;
+    if (next === (document.documentElement.getAttribute("data-theme") || "light")) return;
+    const currentLang = languageSelect.value;
+    const currentColor = localStorage.getItem("doc_color") || "#007bff";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("doc_theme", next);
+    applyThemeLabel(currentLang, next);
+    updateUrlParams(currentLang, next, currentColor);
+}));
+
+backHomeBtn.addEventListener("click", () => {
+    const urlParams = getUrlParams();
+    const lang = getInitialLanguage(urlParams.lang);
+    const theme = getInitialTheme(urlParams.theme);
+    const color = getInitialColor(urlParams.color);
+    window.location.href = '/';
+});
+
+loadSettings();
+if (getUrlParams().hideBack === '1') { backHomeBtn.style.display = 'none'; document.getElementById('languageSelect').style.display = 'none'; document.getElementById('themeToggle').style.display = 'none'; }
+</script>
+</body>
+</html>

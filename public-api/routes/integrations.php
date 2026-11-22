@@ -1,5 +1,5 @@
 <?php
-require_once APP_ROOT . '/project/oauth.php';
+require_once APP_ROOT . '/shell/oauth.php';
 
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $parts = public_api_parse_path();

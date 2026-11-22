@@ -325,14 +325,13 @@ $metricButtons = [
                                     'improved' => $translations['map_layer_improved'] ?? 'Improved (derived)',
                                     'stops' => $translations['map_layer_stops'] ?? 'Stops',
                                     'places' => $translations['map_layer_places'] ?? 'Places',
-                                    'visits' => $translations['map_layer_visits'] ?? 'Visits',
                                     'points' => $translations['map_layer_points'] ?? 'Points',
                                     'photos' => $translations['map_layer_photos'] ?? 'Photos',
                                     'speed' => $translations['map_layer_speed'] ?? 'Speed',
                                     'heatmap' => $translations['map_layer_heatmap'] ?? 'Heatmap',
                                     'explored' => $translations['map_layer_explored'] ?? 'Explored area',
                                 ];
-                                foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'visits', 'improved'], true); ?>
+                                foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'improved'], true); ?>
                                 <label class="map-switch">
                                     <input type="checkbox" data-layer="<?php echo htmlspecialchars($layerKey); ?>" <?php echo $checked ? 'checked' : ''; ?>>
                                     <span class="map-switch-track" aria-hidden="true"><span class="map-switch-thumb"></span></span>
@@ -432,7 +431,7 @@ $metricButtons = [
                         empty: <?php echo json_encode($translations['map_empty'] ?? 'No location data in this range.'); ?>,
                         unavailable: <?php echo json_encode($translations['map_unavailable'] ?? 'Map tiles are unavailable; showing counts only.'); ?>,
                         error: <?php echo json_encode($translations['map_error'] ?? 'Could not load map data.'); ?>,
-                        summary: <?php echo json_encode($translations['map_summary'] ?? 'Trips: {trips} · Stops: {stops} · Places: {places} · Visits: {visits} · Points: {points}'); ?>
+                        summary: <?php echo json_encode($translations['map_summary'] ?? 'Trips: {trips} · Stops: {stops} · Places: {places} · Points: {points}'); ?>
                     };
                     const iso = (d) => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
                     const todayIso = () => iso(new Date());
@@ -505,7 +504,12 @@ $metricButtons = [
                         if(renderTimer) return;
                         renderTimer=setTimeout(()=>{ renderTimer=null; render(lastFeatures); },80);
                     }
-                    const selectedLayers = () => Array.from(section.querySelectorAll('input[data-layer]:checked')).map(i=>i.getAttribute('data-layer'));
+                    // Places subsumes Visits: one toggle loads both map layers.
+                    const selectedLayers = () => {
+                        const layers=Array.from(section.querySelectorAll('input[data-layer]:checked')).map(i=>i.getAttribute('data-layer')).filter(Boolean);
+                        if(layers.includes('places') && !layers.includes('visits')) layers.push('visits');
+                        return layers;
+                    };
                     const showError = (m) => { errorEl.textContent = m || ''; errorEl.style.display = m ? '' : 'none'; };
                     function ensureLeaflet(){
                         if (window.L) return Promise.resolve(window.L);
@@ -568,6 +572,25 @@ $metricButtons = [
                         livePane.style.zIndex='455';
                         layerGroup=L.layerGroup().addTo(map);
                         L.control.zoom({position:'bottomright'}).addTo(map);
+                        // Locate control sits above Leaflet's zoom +/- stack.
+                        const LocateControl=L.Control.extend({
+                            options:{position:'bottomright'},
+                            onAdd:function(){
+                                const wrap=L.DomUtil.create('div','leaflet-bar map-locate-control');
+                                const btn=L.DomUtil.create('a','map-locate-btn',wrap);
+                                btn.href='#';
+                                btn.title=tr('map_goto_live','Go to my location');
+                                btn.setAttribute('aria-label',tr('map_goto_live','Go to my location'));
+                                btn.innerHTML='<i class="fas fa-location-crosshairs" aria-hidden="true"></i>';
+                                L.DomEvent.disableClickPropagation(wrap);
+                                L.DomEvent.on(btn,'click',function(ev){
+                                    L.DomEvent.preventDefault(ev);
+                                    goToLiveLocation();
+                                });
+                                return wrap;
+                            }
+                        });
+                        new LocateControl().addTo(map);
                         L.control.scale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);
                         try{ L.control.attribution({position:'bottomleft',prefix:false}).addTo(map); }catch(e){}
                         selectProvider(provider);
@@ -577,6 +600,11 @@ $metricButtons = [
                             cancelPrefetch();
                             const c=map.getCenter();
                             lastMove={lat:c.lat,lon:c.lng,t:performance.now()};
+                        });
+                        map.on('zoomend',()=>{
+                            // Re-cluster photos from the last payload immediately so icons
+                            // split/merge in place without waiting for the viewport fetch.
+                            if(lastFeatures&&lastFeatures.length) render(lastFeatures);
                         });
                         map.on('moveend',()=>{
                             if(!map) return;
@@ -608,6 +636,128 @@ $metricButtons = [
                         (lines||[]).forEach(line=>{ const p=document.createElement('div'); p.textContent=line; p.style.fontSize='11px'; p.style.opacity='.82'; div.appendChild(p); });
                         return div;
                     }
+                    const photoThumbQueue=[];
+                    let photoThumbActive=0;
+                    const PHOTO_THUMB_MAX=8;
+                    const photoThumbReady=new Map();
+                    const photoThumbInflight=new Map();
+                    function enqueuePhotoThumb(loader){
+                        return new Promise((resolve,reject)=>{
+                            photoThumbQueue.push({loader,resolve,reject});
+                            pumpPhotoThumbs();
+                        });
+                    }
+                    function pumpPhotoThumbs(){
+                        while(photoThumbActive<PHOTO_THUMB_MAX && photoThumbQueue.length){
+                            const job=photoThumbQueue.shift();
+                            photoThumbActive++;
+                            Promise.resolve().then(job.loader).then(job.resolve,job.reject).finally(()=>{ photoThumbActive--; pumpPhotoThumbs(); });
+                        }
+                    }
+                    function loadPhotoThumb(url){
+                        const key=String(url||'');
+                        if(!key) return Promise.reject(new Error('thumb_missing'));
+                        if(photoThumbReady.has(key)) return Promise.resolve({src:photoThumbReady.get(key)});
+                        if(photoThumbInflight.has(key)) return photoThumbInflight.get(key);
+                        // fetch+blob survives marker rebuilds better than Image()+IntersectionObserver:
+                        // map poll/clearLayers used to drop in-flight <img> loads mid-flight.
+                        const pending=enqueuePhotoThumb(()=>fetch(key,{credentials:'same-origin',cache:'force-cache'})
+                            .then(res=>{
+                                if(!res.ok) throw new Error('thumb_http_'+res.status);
+                                const ctype=String(res.headers.get('content-type')||'');
+                                if(ctype && !ctype.startsWith('image/')) throw new Error('thumb_not_image');
+                                return res.blob();
+                            })
+                            .then(blob=>{
+                                if(!blob||!String(blob.type||'').startsWith('image/')) throw new Error('thumb_bad_blob');
+                                const src=URL.createObjectURL(blob);
+                                photoThumbReady.set(key,src);
+                                return {src};
+                            })
+                        ).finally(()=>{ photoThumbInflight.delete(key); });
+                        photoThumbInflight.set(key,pending);
+                        return pending;
+                    }
+                    function openImmichFromSteps(immichAssetId){
+                        const id=String(immichAssetId||'').trim();
+                        if(!id) return;
+                        try{
+                            if(window.top && window.top.ShellAppNav && typeof window.top.ShellAppNav.open==='function'){
+                                window.top.ShellAppNav.open('immich', true, {asset:id});
+                                return;
+                            }
+                        }catch(_){}
+                        const url='/apps/immich/index.php?asset='+encodeURIComponent(id);
+                        try{ if(window.top && window.top!==window){ window.top.location.href='/main?app=immich&asset='+encodeURIComponent(id); return; } }catch(_){}
+                        window.location.href=url;
+                    }
+                    function ensurePhotoLightbox(){
+                        let box=document.getElementById('photo-md3-lightbox');
+                        if(box) return box;
+                        box=document.createElement('div');
+                        box.id='photo-md3-lightbox';
+                        box.className='photo-md3-lightbox';
+                        box.hidden=true;
+                        box.innerHTML='<div class="photo-md3-lightbox-card"><div class="photo-md3-lightbox-top"><button type="button" class="photo-md3-btn" data-photo-lb-info>Info</button><button type="button" class="photo-md3-btn primary" data-photo-lb-immich>Immich</button><button type="button" class="photo-md3-btn" data-photo-lb-close aria-label="Close">✕</button></div><div class="photo-md3-lightbox-media"><img alt=""></div><div class="photo-md3-lightbox-meta" hidden></div></div>';
+                        document.body.appendChild(box);
+                        box.addEventListener('click',ev=>{ if(ev.target===box) box.hidden=true; });
+                        box.querySelector('[data-photo-lb-close]').addEventListener('click',()=>{ box.hidden=true; });
+                        return box;
+                    }
+                    function openPhotoLightbox(p){
+                        const box=ensurePhotoLightbox();
+                        const img=box.querySelector('.photo-md3-lightbox-media img');
+                        const meta=box.querySelector('.photo-md3-lightbox-meta');
+                        const immichBtn=box.querySelector('[data-photo-lb-immich]');
+                        const infoBtn=box.querySelector('[data-photo-lb-info]');
+                        img.removeAttribute('src');
+                        meta.hidden=true;
+                        meta.textContent='';
+                        const lines=[];
+                        if(p.original_filename) lines.push(p.original_filename);
+                        if(p.captured_at) lines.push(String(p.captured_at).slice(0,19).replace('T',' '));
+                        if(p.count>1) lines.push(String(p.count)+' photos here');
+                        if(p.immich_asset_id) lines.push(p.immich_asset_id);
+                        meta.innerHTML=lines.map(l=>'<div>'+String(l).replace(/[<>&]/g,s=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[s]))+'</div>').join('');
+                        infoBtn.onclick=()=>{ meta.hidden=!meta.hidden; };
+                        immichBtn.onclick=()=>openImmichFromSteps(p.immich_asset_id);
+                        box.hidden=false;
+                        loadPhotoThumb(p.preview||p.thumbnail).then(loaded=>{ img.src=loaded.src; }).catch(()=>{ if(p.thumbnail) img.src=p.thumbnail; });
+                    }
+                    function photoPopupCard(p){
+                        const root=document.createElement('div');
+                        root.className='photo-md3-pop';
+                        const media=document.createElement('div'); media.className='photo-md3-media';
+                        const sk=document.createElement('div'); sk.className='photo-md3-skeleton'; media.appendChild(sk);
+                        const img=document.createElement('img'); img.alt=''; img.decoding='async'; media.appendChild(img);
+                        root.appendChild(media);
+                        const actions=document.createElement('div'); actions.className='photo-md3-actions';
+                        const expand=document.createElement('button'); expand.type='button'; expand.className='photo-md3-btn'; expand.innerHTML='<i class="fas fa-expand"></i>'; expand.title='Expand';
+                        const info=document.createElement('button'); info.type='button'; info.className='photo-md3-btn'; info.innerHTML='<i class="fas fa-circle-info"></i>'; info.title='Info';
+                        const open=document.createElement('button'); open.type='button'; open.className='photo-md3-btn primary'; open.textContent='Immich';
+                        actions.appendChild(expand); actions.appendChild(info); actions.appendChild(open);
+                        root.appendChild(actions);
+                        const infoBox=document.createElement('div'); infoBox.className='photo-md3-info';
+                        const bits=[];
+                        if(p.original_filename) bits.push('<div>'+String(p.original_filename).replace(/[<>&]/g,s=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[s]))+'</div>');
+                        if(p.captured_at) bits.push('<div>'+String(p.captured_at).slice(0,19).replace('T',' ')+'</div>');
+                        if(p.count>1) bits.push('<div>'+String(p.count)+' photos</div>');
+                        infoBox.innerHTML=bits.join('')||'<div>—</div>';
+                        root.appendChild(infoBox);
+                        expand.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); openPhotoLightbox(p); });
+                        info.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); infoBox.classList.toggle('is-open'); });
+                        open.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); openImmichFromSteps(p.immich_asset_id); });
+                        root._photoLoad=()=>{
+                            if(root._photoLoaded || !p.thumbnail) return;
+                            root._photoLoaded=true;
+                            loadPhotoThumb(p.thumbnail).then(loaded=>{
+                                img.src=loaded.src;
+                                img.classList.add('is-ready');
+                                sk.remove();
+                            }).catch(()=>{ sk.remove(); });
+                        };
+                        return root;
+                    }
                     function addPoint(feature, style, title, lines){
                         const L=window.L;
                         const [lon,lat]=feature.geometry.coordinates;
@@ -626,6 +776,80 @@ $metricButtons = [
                         marker.bindPopup(popupHtml(String(count), []));
                         return marker;
                     }
+                    // Pixel-distance clustering keeps each photo at its GPS point; groups
+                    // only form when icons would overlap on screen, so zoom no longer
+                    // jumps markers via server-side SnapToGrid centroids.
+                    function clusterPhotoFeatures(photoFeatures){
+                        if(!map||!window.L||!photoFeatures.length) return [];
+                        const L=window.L;
+                        const zoom=map.getZoom();
+                        const pxRadius=zoom>=17?22:zoom>=15?28:zoom>=13?34:40;
+                        const items=photoFeatures.map(f=>{
+                            const [lon,lat]=f.geometry.coordinates;
+                            const ll=L.latLng(lat,lon);
+                            const pt=map.latLngToLayerPoint(ll);
+                            return {f, ll, pt, id:String((f.properties&&f.properties.asset_id)||'')};
+                        }).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
+                        const used=new Set();
+                        const out=[];
+                        for(let i=0;i<items.length;i++){
+                            if(used.has(i)) continue;
+                            const group=[items[i]];
+                            used.add(i);
+                            for(let j=i+1;j<items.length;j++){
+                                if(used.has(j)) continue;
+                                const dx=items[i].pt.x-items[j].pt.x, dy=items[i].pt.y-items[j].pt.y;
+                                if((dx*dx+dy*dy)<=pxRadius*pxRadius){ group.push(items[j]); used.add(j); }
+                            }
+                            // Anchor stays on the lexicographically first asset so the
+                            // visible marker does not drift when membership changes.
+                            group.sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
+                            const head=group[0];
+                            const props=Object.assign({}, head.f.properties||{}, {count:group.length});
+                            out.push({
+                                type:'Feature',
+                                geometry:{type:'Point', coordinates:[head.ll.lng, head.ll.lat]},
+                                properties:props
+                            });
+                        }
+                        return out;
+                    }
+                    function addPhotoMarker(feature, baseRadius){
+                        const L=window.L;
+                        const p=feature.properties||{};
+                        const [plon,plat]=feature.geometry.coordinates;
+                        const count=Math.max(1, parseInt(p.count,10)||1);
+                        const size=Math.max(32, baseRadius*4+14);
+                        const countHtml=count>1?'<em class="map-photo-count">'+count+'</em>':'';
+                        const photoCard=photoPopupCard(p);
+                        const cachedThumb=p.thumbnail?photoThumbReady.get(String(p.thumbnail)):null;
+                        const ringClass=cachedThumb?'map-photo-marker-ring is-ready':'map-photo-marker-ring is-loading';
+                        const ringStyle='width:'+size+'px;height:'+size+'px';
+                        const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="'+ringClass+'" style="'+ringStyle+'"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span><img alt="" decoding="async">'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
+                        photoMarker.bindPopup(photoCard,{maxWidth:280,className:'photo-md3-leaflet',closeButton:false,autoPanPadding:[24,24]});
+                        photoMarker.on('popupopen',()=>{ if(typeof photoCard._photoLoad==='function') photoCard._photoLoad(); });
+                        const ring=photoMarker.getElement()&&photoMarker.getElement().querySelector('.map-photo-marker-ring');
+                        const ringImg=ring&&ring.querySelector('img');
+                        if(ring && ringImg && p.thumbnail){
+                            const applyThumb=(src)=>{
+                                if(!src||!ringImg.isConnected) return;
+                                ringImg.src=src;
+                                ringImg.classList.add('is-ready');
+                                ring.classList.add('is-ready');
+                                ring.classList.remove('is-loading');
+                            };
+                            if(cachedThumb){
+                                applyThumb(cachedThumb);
+                            } else {
+                                // Always start immediately — IO missed Leaflet marker
+                                // panes and left amber camera placeholders forever.
+                                loadPhotoThumb(p.thumbnail).then(loaded=>{
+                                    applyThumb(loaded.src);
+                                }).catch(()=>{ if(ring.isConnected) ring.classList.remove('is-loading'); });
+                            }
+                        }
+                        return photoMarker;
+                    }
                     function render(features){
                         if(!map||!window.L) return;
                         lastFeatures=Array.isArray(features)?features:[];
@@ -637,9 +861,11 @@ $metricButtons = [
                         layerGroup.clearLayers();
                         const speedOn=lastFeatures.some(f=>f.properties&&f.properties.layer==='speed');
                         const visitCenters=lastFeatures.filter(f=>f.properties&&f.properties.layer==='visit'&&f.geometry).map(f=>L.latLng(f.geometry.coordinates[1],f.geometry.coordinates[0]));
+                        const photoFeatures=[];
                         lastFeatures.forEach(feature=>{
                             const p=feature.properties||{};
                             if(!feature.geometry||!feature.geometry.coordinates) return;
+                            if(p.layer==='photo_cluster'){ photoFeatures.push(feature); return; }
                             if(p.layer==='trip'){
                                 const isFocus=!!p.id&&focusTripId===p.id, isSel=!!p.id&&selTrips.has(p.id);
                                 if(speedOn&&!isFocus&&!isSel) return;
@@ -669,12 +895,6 @@ $metricButtons = [
                                 addPoint(feature,{radius:baseRadius-1,color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:pointOpacity},p.name||'Stop',[p.started_at||'']);
                             } else if(p.layer==='point_cluster'){
                                 addCluster(feature, p.count||1);
-                            } else if(p.layer==='photo_cluster'){
-                                const [plon,plat]=feature.geometry.coordinates;
-                                const photoPopup=popupHtml((p.count||1)+' photo(s)',[]);
-                                if(p.thumbnail){ const img=document.createElement('img'); img.src=p.thumbnail; img.alt=''; img.loading='lazy'; img.style.cssText='max-width:180px;max-height:140px;border-radius:8px;margin-top:6px;display:block'; photoPopup.appendChild(img); }
-                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span><i class="fas fa-camera"></i></span>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layerGroup);
-                                photoMarker.bindPopup(photoPopup);
                             } else if(p.layer==='visit'){
                                 const vc=VISIT_COLORS[p.detection_status]||VISIT_COLORS.unidentified;
                                 const [vlon,vlat]=feature.geometry.coordinates;
@@ -682,9 +902,10 @@ $metricButtons = [
                                 if(p.photo_url){
                                     const size=Math.max(28, baseRadius*4+16);
                                     const photoSrc=String(p.photo_url).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-                                    vm=L.marker([vlat,vlon],{keyboard:false,icon:L.divIcon({className:'map-place-photo',html:'<span class="map-place-photo-ring" style="border-color:'+vc+'"><img src="'+photoSrc+'" alt="" loading="lazy" decoding="async"></span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
+                                    // Visit rings stay sky-blue; Immich photo rings stay amber (#f59e0b).
+                                    vm=L.marker([vlat,vlon],{keyboard:false,icon:L.divIcon({className:'map-place-photo',html:'<span class="map-place-photo-ring" style="border-color:#0ea5e9"><img src="'+photoSrc+'" alt="" loading="lazy" decoding="async"></span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
                                 } else {
-                                    vm=addPoint(feature,{radius:baseRadius+(p.detection_status==='confirmed'||p.detection_status==='manual'?2.5:1.5),color:'#ffffff',fillColor:vc,fillOpacity:Math.max(pointOpacity,0.85),dashArray:p.detection_status==='provisional'?'3 2':null},'',[]);
+                                    vm=addPoint(feature,{radius:baseRadius+(p.detection_status==='confirmed'||p.detection_status==='manual'?2.5:1.5),color:'#0ea5e9',fillColor:vc,fillOpacity:Math.max(pointOpacity,0.85),dashArray:p.detection_status==='provisional'?'3 2':null},'',[]);
                                 }
                                 vm.unbindPopup(); vm.bindPopup(()=>visitPopup(p),{maxWidth:420,className:'visit-md3-leaflet',closeButton:false});
                                 vm.on('contextmenu',ev=>{ window.L.DomEvent.stop(ev); openMapMenu(ev.latlng,ev.originalEvent,p); });
@@ -705,6 +926,7 @@ $metricButtons = [
                                 addPoint(feature,{pane:'mapBackdrop',radius:Math.max(6,baseRadius*1.8),stroke:false,fillColor:'#10b981',fillOpacity:Math.min(0.6,0.12+0.35*heatStrength)},String(p.visits||0),[]);
                             }
                         });
+                        clusterPhotoFeatures(photoFeatures).forEach(f=>addPhotoMarker(f, baseRadius));
                     }
                     function bboxQuery(){
                         if(!map) return '';
@@ -1097,6 +1319,7 @@ $metricButtons = [
                         };
                         const serverStops=Number(server.stops)||0, serverClusters=Number(server.point_clusters)||0;
                         const stops=(serverStops+serverClusters)>0?serverStops+serverClusters:derived.stops;
+                        const placesCount=(count('places')||0)+(count('visits')||0);
                         summary.textContent=t.summary.replace('{trips}',count('trips')).replace('{stops}',stops).replace('{places}',count('places')).replace('{visits}',count('visits')).replace('{points}',count('points'));
                         if(!data.geojson.features.length) summary.textContent=t.empty;
                     }
@@ -1277,6 +1500,7 @@ $metricButtons = [
                             }
                             await fetchViewport({dir:null});
                             loadTrips();
+                            pollLive();
                         })();
                         return mapBootPromise;
                     }
@@ -1310,10 +1534,6 @@ $metricButtons = [
                     // the newest measurement, refreshed independently of the day
                     // range so the user can see where they are right now.
                     let liveLayer=null, liveMarker=null, liveSeq=0;
-                    function liveRangeActive(){
-                        const today=todayIso();
-                        return (!fromInput.value||fromInput.value<=today)&&(!toInput.value||toInput.value>=today);
-                    }
                     function clearLiveMarker(){
                         if(liveLayer) liveLayer.clearLayers();
                         liveMarker=null;
@@ -1333,13 +1553,14 @@ $metricButtons = [
                         const acc=Number(point.accuracy_m);
                         if(acc>0) L.circle([lat,lon],{pane:'mapBackdrop',radius:Math.min(1500,acc),color:'#38bdf8',weight:1,opacity:0.55,fillColor:'#38bdf8',fillOpacity:0.12,interactive:false}).addTo(liveLayer);
                         const bearing=Number(point.bearing_degrees);
+                        // FA location-arrow points NE (~45°); offset so 0° = north.
                         const arrow=isFinite(bearing)
-                            ?'<i class="fas fa-location-arrow" style="transform:rotate('+bearing+'deg)"></i>'
+                            ?'<i class="fas fa-location-arrow map-live-heading" style="transform:rotate('+(bearing-45)+'deg)"></i>'
                             :'<span class="map-live-core"></span>';
                         liveMarker=L.marker([lat,lon],{keyboard:false,pane:'live',zIndexOffset:1000,icon:L.divIcon({
-                            className:'map-live-marker'+(fresh?' is-live':''),
+                            className:'map-live-marker'+(fresh?' is-live':'')+(isFinite(bearing)?' has-heading':''),
                             html:'<span class="map-live-ring"></span><span class="map-live-dot">'+arrow+'</span>',
-                            iconSize:[30,30],iconAnchor:[15,15]
+                            iconSize:[36,36],iconAnchor:[18,18]
                         })}).addTo(liveLayer);
                         liveMarker.bindPopup(popupHtml(
                             fresh?tr('map_live_now','Live location'):tr('map_live_last','Last known location'),
@@ -1352,10 +1573,66 @@ $metricButtons = [
                             text.textContent=(fresh?tr('map_live_now','Live location'):tr('map_live_last','Last known location'))+' · '+at.toLocaleTimeString(dateLocale(),{hour:'2-digit',minute:'2-digit'});
                         }
                     }
+                    function goToLiveLocation(){
+                        if(!map) return;
+                        if(liveMarker){
+                            const ll=liveMarker.getLatLng();
+                            map.flyTo(ll, Math.max(map.getZoom(), 16), {duration:0.55});
+                            try{ liveMarker.openPopup(); }catch(_){}
+                            return;
+                        }
+                        pollLive().then(()=>{
+                            if(liveMarker){
+                                const ll=liveMarker.getLatLng();
+                                map.flyTo(ll, Math.max(map.getZoom(), 16), {duration:0.55});
+                            }
+                        });
+                    }
+                    let liveWs=null, liveWsTimer=null;
+                    function liveWsUrl(ticket){
+                        const proto=location.protocol==='https:'?'wss:':'ws:';
+                        return proto+'//'+location.host+'/steps-live-ws?ticket='+encodeURIComponent(ticket);
+                    }
+                    async function ensureLiveWs(){
+                        if(liveWs&&(liveWs.readyState===WebSocket.OPEN||liveWs.readyState===WebSocket.CONNECTING)) return;
+                        try{
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_live',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ticket',role:'viewer'})});
+                            const data=await res.json();
+                            if(!res.ok||!data.ok||!data.ticket) return;
+                            const ws=new WebSocket(liveWsUrl(data.ticket));
+                            liveWs=ws;
+                            ws.onmessage=(ev)=>{
+                                try{
+                                    const msg=JSON.parse(ev.data||'{}');
+                                    if(msg.type==='presence'&&Number.isFinite(msg.latitude)&&Number.isFinite(msg.longitude)){
+                                        renderLiveMarker({
+                                            latitude:msg.latitude,
+                                            longitude:msg.longitude,
+                                            accuracy_m:msg.accuracy_m,
+                                            bearing_degrees:msg.bearing_degrees,
+                                            source_at:msg.source_at||new Date().toISOString()
+                                        });
+                                    }
+                                }catch(_){}
+                            };
+                            ws.onclose=()=>{ if(liveWs===ws) liveWs=null; };
+                        }catch(_){}
+                    }
                     async function pollLive(){
+                        // Live marker is independent of the selected day range: the
+                        // phone can be sharing position while the map shows history.
                         if(!mapStarted||!map||!mapHost||mapHost.hidden||document.hidden) return;
-                        if(!liveRangeActive()){ clearLiveMarker(); return; }
+                        ensureLiveWs();
                         const seq=++liveSeq;
+                        try{
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_live',{credentials:'same-origin',cache:'no-store'});
+                            const data=await res.json();
+                            if(seq!==liveSeq) return;
+                            if(res.ok&&data.ok&&data.presence){
+                                renderLiveMarker(data.presence);
+                                return;
+                            }
+                        }catch(_){}
                         const params=new URLSearchParams({
                             limit:'1',
                             from:new Date(Date.now()-20*60000).toISOString(),
@@ -2279,7 +2556,7 @@ $metricButtons = [
                     setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); pollLive(); },30000);
                     // The live marker is cheap (one row) and updates every 10 s, so a
                     // moving phone visibly walks across the map.
-                    setInterval(()=>{ pollLive(); },10000);
+                    setInterval(()=>{ pollLive(); },2500);
                     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) pollLive(); });
                     window.addEventListener('steps-map-shown',()=>{ startMapWorkspace(); });
                     document.addEventListener('visibilitychange',()=>{ if(document.hidden) cancelPrefetch(); });
@@ -3147,6 +3424,22 @@ $metricButtons = [
                                     <p class="location-hint"><?php echo htmlspecialchars($translations['location_places_detect_hint'] ?? 'Visits are saved to the database immediately. The background worker looks them up in OpenStreetMap and writes the name back.'); ?></p>
                                     <p id="location-places-detect-status" class="location-hint"></p>
                                     <button type="button" id="location-places-detect" class="excel-btn"><i class="fas fa-map-location-dot"></i> <?php echo htmlspecialchars($translations['location_places_detect_run'] ?? 'Detect places now'); ?></button>
+                                    <button type="button" id="location-places-manager-open" class="excel-btn"><i class="fas fa-map"></i> <?php echo htmlspecialchars($translations['location_places_manager_open'] ?? 'Places map & recalculate'); ?></button>
+                                </div>
+                                <div id="location-places-manager" class="places-manager-modal" hidden>
+                                    <div class="places-manager-card">
+                                        <div class="places-manager-top">
+                                            <h3><?php echo htmlspecialchars($translations['location_places_manager_title'] ?? 'Places'); ?></h3>
+                                            <button type="button" id="location-places-manager-close" class="excel-btn" aria-label="Close">✕</button>
+                                        </div>
+                                        <div id="location-places-manager-map" class="places-manager-map"></div>
+                                        <div class="places-manager-bottom">
+                                            <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_places_recalc_from'] ?? 'From'); ?></span><input type="date" id="location-places-recalc-from"></label>
+                                            <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_places_recalc_to'] ?? 'To'); ?></span><input type="date" id="location-places-recalc-to"></label>
+                                            <button type="button" id="location-places-recalc-run" class="excel-btn"><i class="fas fa-rotate"></i> <?php echo htmlspecialchars($translations['location_places_recalc_run'] ?? 'Recalculate visits'); ?></button>
+                                            <p id="location-places-recalc-status" class="location-hint"></p>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="location-tool-card">
                                     <h4><?php echo htmlspecialchars($translations['location_places_title'] ?? 'Places'); ?></h4>

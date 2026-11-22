@@ -16,9 +16,9 @@ function botBackupDecryptPayload(string $json): ?string {
     return $pt === false ? null : $pt;
 }
 function botResticStatus(): array {
-    require_once dirname(__DIR__) . '/project/backup/i18n.php';
+    require_once dirname(__DIR__) . '/shell/backup/i18n.php';
     backup_boot_i18n('en');
-    require_once dirname(__DIR__) . '/project/backup/api.php';
+    require_once dirname(__DIR__) . '/shell/backup/api.php';
     $cfg = resticLoadConfig();
     $profiles = [];
     foreach ((array)($cfg['backups'] ?? []) as $profile) {

@@ -357,19 +357,38 @@ final class StepsGeolocationMap
             $meta['counts']['stops'] = count($rows);
         }
 
+        // Places and visits are one user-facing concept: enabling either loads both.
+        // Catalog places only appear when there is a visit inside the selected
+        // date range — otherwise a saved lyceum would show every day.
         if (in_array('places', $layers, true) || in_array('visits', $layers, true)) {
-            if (in_array('places', $layers, true)) {
+            $wantPlaces = true;
+            $wantVisits = true;
+            if ($wantPlaces) {
                 $stmt = $pdo->prepare(
-                    "SELECT id, name, tag, color, radius_m,
-                            round(ST_Y(position)::numeric, $precision) AS lat,
-                            round(ST_X(position)::numeric, $precision) AS lon
-                       FROM geo_places
-                      WHERE user_email = :owner AND is_active AND deleted_at IS NULL
-                        AND position && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)"
-                    . ($place !== '' ? ' AND id = :place' : '')
-                    . ' ORDER BY name ASC LIMIT 200'
+                    "SELECT p.id, p.name, p.tag, p.color, p.radius_m,
+                            round(ST_Y(p.position)::numeric, $precision) AS lat,
+                            round(ST_X(p.position)::numeric, $precision) AS lon
+                       FROM geo_places p
+                       WHERE p.user_email = :owner AND p.is_active AND p.deleted_at IS NULL
+                        AND p.position && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
+                        AND EXISTS (
+                              SELECT 1 FROM geo_visits v
+                               WHERE v.user_email = :owner2 AND v.place_id = p.id
+                                 AND v.arrived_at BETWEEN :from AND :to
+                        )"
+                    . ($place !== '' ? ' AND p.id = :place' : '')
+                    . ' ORDER BY p.name ASC LIMIT 200'
                 );
-                $placeParams = [':owner' => $owner, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat']];
+                $placeParams = [
+                    ':owner' => $owner,
+                    ':owner2' => $owner,
+                    ':minLon' => $bbox['minLon'],
+                    ':minLat' => $bbox['minLat'],
+                    ':maxLon' => $bbox['maxLon'],
+                    ':maxLat' => $bbox['maxLat'],
+                    ':from' => $from,
+                    ':to' => $to,
+                ];
                 if ($place !== '') $placeParams[':place'] = $place;
                 $stmt->execute($placeParams);
                 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -390,7 +409,7 @@ final class StepsGeolocationMap
                 $meta['counts']['places'] = count($rows);
             }
 
-            if (in_array('visits', $layers, true)) {
+            if ($wantVisits) {
                 require_once __DIR__ . '/geolocation_place_photos.php';
                 $stmt = $pdo->prepare(
                     "SELECT v.id, v.arrived_at, v.departed_at, v.confidence, v.place_id, v.osm_type, v.osm_id, v.display_name, v.category, v.address, v.detection_status,
@@ -424,7 +443,8 @@ final class StepsGeolocationMap
                 foreach ($groups as $key => $row) {
                     $name = (string)($row['display_name'] !== '' ? $row['display_name'] : ($row['place_name'] ?? ''));
                     $photoUrl = null;
-                    if (($row['photo_status'] ?? '') === 'ready' && $row['osm_id'] !== null && $row['osm_type']) {
+                    if (($row['photo_status'] ?? '') === 'ready' && $row['osm_id'] !== null && $row['osm_type']
+                        && StepsGeolocationPlacePhotos::isReadyOnDisk((string)$row['osm_type'], (int)$row['osm_id'])) {
                         $photoUrl = StepsGeolocationPlacePhotos::publicUrl((string)$row['osm_type'], (int)$row['osm_id']);
                     }
                     $features[] = [

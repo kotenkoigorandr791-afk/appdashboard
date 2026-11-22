@@ -181,7 +181,7 @@ class MainActivity : AppCompatActivity() {
         var historyRequest by remember { mutableStateOf(0) }
         val setupPrefs = remember { getSharedPreferences("nexsteps_setup", MODE_PRIVATE) }
         var pendingHealthPermissions by remember { mutableStateOf<Set<String>>(emptySet()) }
-        val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             notificationDone = true
         }
         val healthPermissionLauncher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
@@ -191,13 +191,23 @@ class MainActivity : AppCompatActivity() {
         LaunchedEffect(Unit) {
             if (!notificationDone && !notificationRequestStarted) {
                 notificationRequestStarted = true
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                // Every runtime permission the app can ever need is requested together
+                // up front, so no feature silently breaks later for lack of consent.
+                val runtimePermissions = buildList {
+                    add(Manifest.permission.POST_NOTIFICATIONS)
+                    add(Manifest.permission.ACTIVITY_RECOGNITION)
+                    add(Manifest.permission.ACCESS_FINE_LOCATION)
+                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                    }
+                }
+                notificationPermissionLauncher.launch(runtimePermissions.toTypedArray())
             }
         }
         LaunchedEffect(notificationDone) {
             if (!notificationDone || healthRequestStarted || setupPrefs.getBoolean("health_intro_shown", false)) return@LaunchedEffect
-            val enabledTypes = preferencesManager.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }
-            val requiredPermissions = HealthConnectManager.getPermissionsForTypes(enabledTypes)
+            val requiredPermissions = HealthConnectManager.getPermissionsForTypes(HealthDataType.values().toSet())
             val grantedPermissions = HealthConnectManager(this@MainActivity).getGrantedPermissions()
             val missingPermissions = requiredPermissions - grantedPermissions
             if (missingPermissions.isNotEmpty()) {

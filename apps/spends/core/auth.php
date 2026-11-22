@@ -169,7 +169,7 @@ function spends_chmod_if_needed(string $dir): void {
 }
 function logError($message) { error_log("[ExpenseApp] $message"); }
 function spends_storage_helper_path(): string {
-    return dirname(__DIR__, 3) . '/storage_helper.php';
+    return dirname(__DIR__, 3) . '/shell/storage_helper.php';
 }
 function spends_appdata_subdir(string $name): ?string {
     $helper = spends_storage_helper_path();

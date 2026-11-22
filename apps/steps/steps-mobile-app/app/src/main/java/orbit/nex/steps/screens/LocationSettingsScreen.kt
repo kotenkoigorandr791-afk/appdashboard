@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,7 +35,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -103,6 +106,15 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
     var accuracy by remember { mutableStateOf(prefs.getLocationAccuracy()) }
     var currentPower by remember { mutableStateOf(LocationAccuracy.fromStorage(prefs.getLocationPowerMode())) }
     var actionMessage by remember { mutableStateOf<String?>(null) }
+    var liveShare by remember { mutableStateOf(prefs.isLiveLocationShareEnabled()) }
+    var showWifiDialog by remember { mutableStateOf(false) }
+
+    fun enableLiveShare() {
+        prefs.setLiveLocationShareEnabled(true)
+        liveShare = true
+        manager.syncLiveTunnel()
+        showNotice()
+    }
 
     fun refresh() {
         manager.reconcile()
@@ -318,6 +330,37 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    HorizontalDivider()
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(stringResource(R.string.live_location_title), style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                stringResource(R.string.live_location_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = liveShare,
+                            onCheckedChange = { checked ->
+                                if (!checked) {
+                                    prefs.setLiveLocationShareEnabled(false)
+                                    liveShare = false
+                                    manager.syncLiveTunnel()
+                                    showNotice()
+                                    return@Switch
+                                }
+                                if (prefs.isWifiOnly()) {
+                                    showWifiDialog = true
+                                } else {
+                                    enableLiveShare()
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -512,6 +555,25 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
         item { Spacer(Modifier.size(12.dp)) }
             }
         }
+    }
+    if (showWifiDialog) {
+        AlertDialog(
+            onDismissRequest = { showWifiDialog = false },
+            title = { Text(stringResource(R.string.live_location_wifi_title)) },
+            text = { Text(stringResource(R.string.live_location_wifi_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    prefs.setWifiOnly(false)
+                    showWifiDialog = false
+                    enableLiveShare()
+                }) { Text(stringResource(R.string.live_location_wifi_disable)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWifiDialog = false }) {
+                    Text(stringResource(R.string.live_location_wifi_cancel))
+                }
+            },
+        )
     }
 }
 

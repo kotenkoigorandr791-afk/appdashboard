@@ -186,17 +186,34 @@ server {
     location ~ ^/performance/(cpu|mem|memswap|diskio|network|uptime)/?$ {
         include fastcgi.conf;
         fastcgi_pass unix:/run/php/php-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $document_root/project/performance/server_monitor.php;
+        fastcgi_param SCRIPT_FILENAME $document_root/shell/performance/server_monitor.php;
         fastcgi_param QUERY_STRING endpoint=$1&$query_string;
         fastcgi_hide_header X-Powered-By;
     }
 
+    location = /default_avatar.png {
+        alias /var/www/AppDashboard/shell/default_avatar.png;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+    }
+    location = /terms.html {
+        alias /var/www/AppDashboard/shell/terms.html;
+        default_type text/html;
+    }
+    location = /privacy.html {
+        alias /var/www/AppDashboard/shell/privacy.html;
+        default_type text/html;
+    }
     location = /terms {
-        rewrite ^ /terms.html last;
+        rewrite ^ /shell/terms.html last;
     }
     location = /privacy {
-        rewrite ^ /privacy.html last;
+        rewrite ^ /shell/privacy.html last;
     }
+    location = /doc_viewer.php { rewrite ^ /index.php last; }
+    location = /db_admin.php { rewrite ^ /index.php last; }
+    location = /backup_dashboard.php { rewrite ^ /index.php last; }
+    location = /file_viewer.php { rewrite ^ /index.php last; }
     location = /main {
         limit_req zone=appdashboard_admin burst=40 nodelay;
         rewrite ^ /index.php last;
@@ -354,7 +371,7 @@ server {
     }
 
     location ^~ /home/ {
-        alias /var/www/AppDashboard/project/home/;
+        alias /var/www/AppDashboard/shell/home/;
         try_files $uri =404;
         expires 7d;
         add_header Cache-Control "public, max-age=604800";
@@ -513,7 +530,7 @@ server {
         try_files $uri =404;
     }
 
-    location ^~ /project/performance/chache/ {
+    location ^~ /shell/performance/chache/ {
         set $deny_protected 1;
         if ($arg_sharedFile != "") { set $deny_protected 0; }
         if ($arg_download != "") { set $deny_protected 0; }
@@ -522,7 +539,7 @@ server {
         try_files $uri =404;
     }
 
-    location ~ ^/project/performance/(style\.css|icon\.(png|svg))$ {
+    location ~ ^/shell/performance/(style\.css|icon\.(png|svg))$ {
         try_files $uri =404;
         access_log off;
         expires 1h;
@@ -554,13 +571,13 @@ server {
         try_files $uri =404;
     }
 
-    location ^~ /project/assets/ {
+    location ^~ /shell/assets/ {
         try_files $uri =404;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
     }
 
-    location ^~ /project/onboarding/ {
+    location ^~ /shell/onboarding/ {
         try_files $uri =404;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";

@@ -46,7 +46,7 @@ final class StepsGeolocationExports
     {
         static $cached = null;
         if ($cached !== null) return $cached;
-        $helper = dirname(__DIR__, 3) . '/storage_helper.php';
+        $helper = dirname(__DIR__, 3) . '/shell/storage_helper.php';
         if (is_file($helper)) require_once $helper;
         if (function_exists('appdata_app_base_dir')) {
             try { $cached = rtrim(appdata_app_base_dir('steps'), '/') . '/geo_exports'; return $cached; } catch (Throwable $e) {}

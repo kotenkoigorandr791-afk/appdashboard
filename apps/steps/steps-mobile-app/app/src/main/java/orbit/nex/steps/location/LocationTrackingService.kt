@@ -351,6 +351,14 @@ class LocationTrackingService : Service() {
     private fun persist(location: Location, origin: String = "fused"): LocationEvent? {
         if (!location.hasAccuracy() && location.latitude == 0.0 && location.longitude == 0.0) return null
         if (location.latitude !in -90.0..90.0 || location.longitude !in -180.0..180.0) return null
+        // Drop spoofed / impossible teleports while recording (e.g. Kyiv→USA in minutes).
+        if (location.hasSpeed() && location.speed > MAX_SPEED_MPS) return null
+        if (!lastPersistedLat.isNaN() && lastPersistedAtMs > 0L) {
+            val results = FloatArray(1)
+            Location.distanceBetween(lastPersistedLat, lastPersistedLon, location.latitude, location.longitude, results)
+            val dtSec = (location.time - lastPersistedAtMs).coerceAtLeast(1L) / 1000.0
+            if (results[0] / dtSec > MAX_SPEED_MPS) return null
+        }
         val event = LocationEvent(
             clientEventId = UUID.randomUUID().toString(),
             latitude = location.latitude,
@@ -375,7 +383,7 @@ class LocationTrackingService : Service() {
         lastFixElapsedMs = SystemClock.elapsedRealtime()
         lastPersistedLat = event.latitude
         lastPersistedLon = event.longitude
-        lastPersistedAtMs = event.recordedAtMs
+        lastPersistedAtMs = location.time
         prefs.setLocationLastFixAt(event.recordedAtMs)
         prefs.setLocationServiceHeartbeat(event.recordedAtMs)
         return event
@@ -687,6 +695,8 @@ class LocationTrackingService : Service() {
         private const val UPLOAD_THROTTLE_MS = 5_000L
         private const val MIN_MOVE_M = 10f
         private const val STATIONARY_REPEAT_MS = 5L * 60 * 1000
+        /** 300 km/h — above this is treated as GPS spoof / teleport. */
+        private const val MAX_SPEED_MPS = 300f / 3.6f
         const val CHANNEL_ID = "location_tracking"
         const val ACTION_START = "orbit.nex.steps.location.START"
         const val ACTION_STOP = "orbit.nex.steps.location.STOP"

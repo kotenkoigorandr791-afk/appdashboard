@@ -1,5 +1,5 @@
 /vendor/
-/project/assets/monaco-0.45.0/
+/shell/assets/monaco-0.45.0/
 /.playwright-mcp/
 /.playwright-cli/
 /webssh/vendor/
@@ -168,8 +168,8 @@ core
 !apps/spends/core/** !apps/smart_home/core/
  !apps/smart_home/core/**
 
-!project/performance/core/
-!project/performance/core/**
+!shell/performance/core/
+!shell/performance/core/**
 *.core
 npm-debug.log*
 yarn-error.log*

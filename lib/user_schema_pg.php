@@ -35,7 +35,8 @@ function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
             app_once_mark($readyKey, __FILE__);
         }
         $lit = "'" . AppDatabase::escapeString($uid) . "'";
-        return AppDatabase::connectUserSchema(APP_SPENDS_SHARED_SCHEMA, ["SELECT set_config('spends.user_id', $lit, false)", 'SET ROLE ' . APP_SPENDS_ROLE]);
+        // is_local=true + SET LOCAL ROLE: safe with pgbouncer transaction pooling.
+        return AppDatabase::connectUserSchema(APP_SPENDS_SHARED_SCHEMA, ["SELECT set_config('spends.user_id', $lit, true)", 'SET LOCAL ROLE ' . APP_SPENDS_ROLE]);
     }
     throw new InvalidArgumentException('unsupported app schema');
 }

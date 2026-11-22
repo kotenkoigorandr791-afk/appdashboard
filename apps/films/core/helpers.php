@@ -3,7 +3,7 @@ function films_t(string $key): string {
     static $t = null;
     if ($t === null) {
         if (!function_exists('ap_load_i18n_from_dir')) {
-            require_once dirname(__DIR__, 3) . '/project/i18n_helpers.php';
+            require_once dirname(__DIR__, 3) . '/shell/i18n_helpers.php';
         }
         $lang = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
         $t = ap_load_i18n_from_dir(dirname(__DIR__), $lang);

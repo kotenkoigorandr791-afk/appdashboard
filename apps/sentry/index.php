@@ -6,7 +6,7 @@ app_sentry_bootstrap('sentry-app');
 require_once APP_ROOT . '/lib/app_session.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
-require_once APP_ROOT . '/project/oauth.php';
+require_once APP_ROOT . '/shell/oauth.php';
 $theme = in_array((string)($_GET['theme'] ?? ''), ['light', 'dark'], true) ? (string)$_GET['theme'] : '';
 if (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession()) {
     if (app_is_embedded_request()) {

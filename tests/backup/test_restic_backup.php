@@ -26,9 +26,9 @@ putenv('RESTIC_HOST_ROOT=' . $tmp . '/hostroot');
 putenv('RESTIC_BINARY=' . trim((string)shell_exec('command -v restic')));
 
 if (!defined('APP_ROOT')) define('APP_ROOT', $root);
-require_once $root . '/project/backup/i18n.php';
+require_once $root . '/shell/backup/i18n.php';
 backup_boot_i18n('en');
-require_once $root . '/project/backup/api.php';
+require_once $root . '/shell/backup/api.php';
 
 $failures = 0;
 $checks = 0;

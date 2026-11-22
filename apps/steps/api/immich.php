@@ -15,6 +15,12 @@ $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
 try {
     if ($method === 'GET') {
+        if (!function_exists('oauth_sync_immich_steps') && is_file(APP_ROOT . '/shell/oauth.php')) {
+            require_once APP_ROOT . '/shell/oauth.php';
+        }
+        if (function_exists('oauth_sync_immich_steps')) {
+            try { oauth_sync_immich_steps($owner); } catch (Throwable $ignored) {}
+        }
         $connection = StepsGeolocationImmich::connection($pdo, $owner);
         $gallery = StepsGeolocationImmich::galleries($pdo, $owner, (int)($_GET['limit'] ?? 60));
         public_api_json([

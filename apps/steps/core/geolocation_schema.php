@@ -162,6 +162,18 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v24_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '024']);
         }
+        // 025: unified Places surface — visits are place events, one catalog view.
+        $applied->execute([':version' => '025']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v25_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '025']);
+        }
+        // 026: live presence for websocket location tunnel.
+        $applied->execute([':version' => '026']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v26_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '026']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -425,6 +437,64 @@ function steps_geolocation_schema_v19_sql(): array
     ];
 }
 
+function steps_geolocation_schema_v25_sql(): array
+{
+    return [
+        // Single catalog for map/library: saved places + visit-derived locations.
+        "CREATE OR REPLACE VIEW geo_unified_places AS
+         SELECT p.user_email,
+                p.id::text AS place_key,
+                'saved'::text AS kind,
+                p.id AS place_id,
+                NULL::uuid AS visit_id,
+                p.name,
+                p.tag,
+                p.color,
+                p.radius_m,
+                p.position,
+                p.is_active,
+                p.updated_at AS sort_at
+           FROM geo_places p
+          WHERE p.deleted_at IS NULL
+         UNION ALL
+         SELECT v.user_email,
+                CASE
+                  WHEN v.place_id IS NOT NULL THEN 'p:' || v.place_id::text
+                  WHEN v.osm_id IS NOT NULL THEN 'o:' || COALESCE(v.osm_type, '') || ':' || v.osm_id::text
+                  ELSE 'v:' || v.id::text
+                END AS place_key,
+                'visit'::text AS kind,
+                v.place_id,
+                v.id AS visit_id,
+                COALESCE(NULLIF(v.display_name, ''), pl.name, '') AS name,
+                COALESCE(pl.tag, v.category, '') AS tag,
+                COALESCE(pl.color, '') AS color,
+                COALESCE(pl.radius_m, 40) AS radius_m,
+                COALESCE(op.position, s.position, pl.position) AS position,
+                true AS is_active,
+                v.arrived_at AS sort_at
+           FROM geo_visits v
+           LEFT JOIN geo_places pl ON pl.id = v.place_id
+           LEFT JOIN geo_stops s ON s.id = v.stop_id
+           LEFT JOIN geo_osm_places op ON op.osm_type = v.osm_type AND op.osm_id = v.osm_id
+          WHERE COALESCE(op.position, s.position, pl.position) IS NOT NULL",
+        // Prefer the unified Places layer in stored map preferences.
+        "UPDATE geo_map_preferences
+            SET layers_json = (
+              SELECT COALESCE(jsonb_agg(DISTINCT value), '[]'::jsonb)
+                FROM jsonb_array_elements_text(
+                  CASE
+                    WHEN layers_json @> '\"visits\"'::jsonb AND NOT (layers_json @> '\"places\"'::jsonb)
+                      THEN (layers_json - 'visits') || '\"places\"'::jsonb
+                    ELSE layers_json - 'visits'
+                  END
+                ) AS value
+            ),
+            updated_at = now()
+          WHERE layers_json @> '\"visits\"'::jsonb",
+    ];
+}
+
 function steps_geolocation_schema_v24_sql(): array
 {
     return [
@@ -564,5 +634,22 @@ function steps_geolocation_schema_sql(): array
         "CREATE INDEX geo_geofences_geometry_idx ON geo_geofences USING GIST(geometry) WHERE is_active",
         "CREATE INDEX geo_immich_assets_position_idx ON geo_immich_assets USING GIST(position)",
         "CREATE INDEX geo_location_grants_owner_viewer_idx ON geo_location_grants(owner_email, viewer_email) WHERE revoked_at IS NULL",
+    ];
+}
+
+function steps_geolocation_schema_v26_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_live_presence (
+            user_email TEXT PRIMARY KEY,
+            device_id UUID,
+            position geometry(Point,4326) NOT NULL,
+            accuracy_m DOUBLE PRECISION,
+            bearing_degrees DOUBLE PRECISION,
+            source_at TIMESTAMPTZ NOT NULL,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT geo_live_presence_position_valid CHECK (ST_SRID(position) = 4326 AND ST_IsValid(position))
+        )",
+        "CREATE INDEX IF NOT EXISTS geo_live_presence_updated_idx ON geo_live_presence(updated_at DESC)",
     ];
 }

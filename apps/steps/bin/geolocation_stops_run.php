@@ -41,10 +41,16 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             $closePending->execute([':owner' => $owner, ':details' => json_encode(['processed' => 0, 'skipped' => 'no_new_points'], JSON_UNESCAPED_SLASHES)]);
         };
         if ($latestPoint === null) { $closeNoop(); continue; }
-        $wmPre = $pdo->prepare("SELECT details_json->>'input_to' FROM geo_processor_runs WHERE user_email = :owner AND kind = 'stops' AND state = 'ready' ORDER BY created_at DESC LIMIT 1");
+        // Prefer MAX(input_to): skipped "ready" rows (no_new_points) have a newer
+        // created_at but a null watermark and would otherwise rewind the cursor to
+        // epoch, deleting/recreating the same early stops forever.
+        $wmPre = $pdo->prepare("SELECT MAX(input_to) FROM geo_processor_runs WHERE user_email = :owner AND kind = 'stops' AND state = 'ready' AND input_to IS NOT NULL");
         $wmPre->execute([':owner' => $owner]);
         $watermarkPre = $wmPre->fetchColumn() ?: null;
-        if ($watermarkPre !== null && strtotime((string)$latestPoint) <= strtotime((string)$watermarkPre)) { $closeNoop(); continue; }
+        $force = $pdo->prepare("SELECT id, details_json FROM geo_processor_runs WHERE user_email = :owner AND kind = 'stops' AND state = 'pending' AND details_json->'force_from' IS NOT NULL ORDER BY created_at ASC LIMIT 1");
+        $force->execute([':owner' => $owner]);
+        $forceJob = $force->fetch(PDO::FETCH_ASSOC) ?: null;
+        if ($forceJob === null && $watermarkPre !== null && strtotime((string)$latestPoint) <= strtotime((string)$watermarkPre)) { $closeNoop(); continue; }
 
         $runId = StepsGeolocationStops::uuid();
         try {
@@ -52,21 +58,44 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             $run = $pdo->prepare("INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version, lease_until, heartbeat_at, worker_id, attempts, started_at) VALUES(:id, :owner, 'stops', 'processing', :version, now() + interval '1 hour', now(), 'legacy-worker', 1, now())");
             $run->execute([':id' => $runId, ':owner' => $owner, ':version' => $version]);
 
-            $wm = $pdo->prepare("SELECT details_json->>'input_to' AS watermark FROM geo_processor_runs WHERE user_email = :owner AND kind = 'stops' AND state = 'ready' ORDER BY created_at DESC LIMIT 1");
-            $wm->execute([':owner' => $owner]);
-            $watermark = $wm->fetchColumn() ?: null;
             $overlap = (int)($thresholds['max_gap_s'] + $thresholds['merge_gap_s']);
-            $from = $watermark !== null ? gmdate('c', strtotime($watermark) - $overlap) : gmdate('c', 0);
+            $forceTo = null;
+            if ($forceJob !== null) {
+                $forceDetails = json_decode((string)($forceJob['details_json'] ?? '{}'), true) ?: [];
+                $forceFrom = strtotime((string)($forceDetails['force_from'] ?? '')) ?: false;
+                $forceToTs = strtotime((string)($forceDetails['force_to'] ?? '')) ?: false;
+                $from = $forceFrom !== false ? gmdate('c', $forceFrom) : gmdate('c', 0);
+                $forceTo = $forceToTs !== false ? gmdate('c', $forceToTs) : null;
+                $pdo->prepare("UPDATE geo_processor_runs SET state = 'processing', details_json = COALESCE(details_json, '{}'::jsonb) || CAST(:d AS jsonb), updated_at = now() WHERE id = :id AND state = 'pending'")
+                    ->execute([':id' => $forceJob['id'], ':d' => json_encode(['claimed_by' => $runId], JSON_UNESCAPED_SLASHES)]);
+            } else {
+                $wm = $pdo->prepare("SELECT MAX(input_to) AS watermark FROM geo_processor_runs WHERE user_email = :owner AND kind = 'stops' AND state = 'ready' AND input_to IS NOT NULL");
+                $wm->execute([':owner' => $owner]);
+                $watermark = $wm->fetchColumn() ?: null;
+                $from = $watermark !== null ? gmdate('c', strtotime($watermark) - $overlap) : gmdate('c', 0);
+            }
 
-            $points = $pdo->prepare(
-                "SELECT id, device_id, source_at, accuracy_m, quality_state,
-                        ST_Y(position) AS latitude, ST_X(position) AS longitude
-                   FROM geo_location_points
-                  WHERE user_email = :owner AND quality_state = 'accepted' AND source_at >= :from
-               ORDER BY source_at ASC
-                  LIMIT $limit"
-            );
-            $points->execute([':owner' => $owner, ':from' => $from]);
+            if ($forceTo !== null) {
+                $points = $pdo->prepare(
+                    "SELECT id, device_id, source_at, accuracy_m, quality_state,
+                            ST_Y(position) AS latitude, ST_X(position) AS longitude
+                       FROM geo_location_points
+                      WHERE user_email = :owner AND quality_state = 'accepted' AND source_at >= :from AND source_at <= :to
+                   ORDER BY source_at ASC
+                      LIMIT $limit"
+                );
+                $points->execute([':owner' => $owner, ':from' => $from, ':to' => $forceTo]);
+            } else {
+                $points = $pdo->prepare(
+                    "SELECT id, device_id, source_at, accuracy_m, quality_state,
+                            ST_Y(position) AS latitude, ST_X(position) AS longitude
+                       FROM geo_location_points
+                      WHERE user_email = :owner AND quality_state = 'accepted' AND source_at >= :from
+                   ORDER BY source_at ASC
+                      LIMIT $limit"
+                );
+                $points->execute([':owner' => $owner, ':from' => $from]);
+            }
             $rows = $points->fetchAll(PDO::FETCH_ASSOC);
             if ($rows === []) {
                 $finish = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', details_json = :details, updated_at = now() WHERE id = :id");
@@ -104,7 +133,7 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             );
             $insertVisit = $pdo->prepare(
                 "INSERT INTO geo_visits(id, user_email, place_id, stop_id, arrived_at, departed_at, confidence, state, override_json, display_name, category, detection_status, detection_method, retry_after)
-                 VALUES(:id, :owner, :place, :stop, :arrived, :departed, :confidence, 'ready', :override, :display, :category, :dstatus, :dmethod, CASE WHEN :retry IS NULL THEN NULL ELSE to_timestamp(CAST(:retry2 AS bigint)) END)"
+                 VALUES(:id, :owner, :place, :stop, :arrived, :departed, :confidence, 'ready', :override, :display, :category, :dstatus, :dmethod, :retry_at)"
             );
 
             foreach ($result['stops'] as $stop) {
@@ -145,16 +174,35 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
                     ':category' => $place['tag'] ?? '',
                     ':dstatus' => $place ? 'confirmed' : ($open ? 'provisional' : 'pending'),
                     ':dmethod' => $place ? 'personal' : ($open ? 'stop_open' : ''),
-                    ':retry' => $place ? null : $retryAt,
-                    ':retry2' => $place ? null : $retryAt,
+                    ':retry_at' => ($place || $retryAt === null) ? null : gmdate('c', $retryAt),
                 ]);
                 $visitsMade++;
             }
 
             $details = ['processed' => count($rows), 'stops' => count($result['stops']), 'visits' => $visitsMade, 'input_from' => $inputFrom, 'input_to' => $inputTo, 'thresholds' => $thresholds];
+            if ($forceTo !== null) $details['force_to'] = $forceTo;
             $closeNoop();
             $finish = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', input_from = :from, input_to = :to, details_json = :details, updated_at = now() WHERE id = :id");
             $finish->execute([':from' => $inputFrom, ':to' => $inputTo, ':details' => json_encode($details, JSON_UNESCAPED_SLASHES), ':id' => $runId]);
+            if ($forceJob !== null) {
+                $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', updated_at = now() WHERE id = :id")
+                    ->execute([':id' => $forceJob['id']]);
+                // Continue the forced window in chunks when the LIMIT truncated it.
+                if ($forceTo !== null && count($rows) >= $limit) {
+                    $nextFrom = gmdate('c', strtotime($inputTo) + 1);
+                    if (strtotime($nextFrom) <= strtotime($forceTo)) {
+                        $pdo->prepare(
+                            "INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version, details_json)
+                             VALUES(:id, :owner, 'stops', 'pending', :version, CAST(:details AS jsonb))"
+                        )->execute([
+                            ':id' => StepsGeolocationStops::uuid(),
+                            ':owner' => $owner,
+                            ':version' => $version,
+                            ':details' => json_encode(['force_from' => $nextFrom, 'force_to' => $forceTo, 'source' => 'recalculate_continue'], JSON_UNESCAPED_SLASHES),
+                        ]);
+                    }
+                }
+            }
             $pdo->commit();
             $processed += count($rows);
             StepsGeolocationStatistics::invalidate($pdo, $owner, $inputFrom, $inputTo);
@@ -168,6 +216,10 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             error_log('geolocation stops run failed: ' . $e->getMessage());
             try {
                 $pdo->prepare("UPDATE geo_processor_runs SET state = 'failed', updated_at = now() WHERE id = :id")->execute([':id' => $runId]);
+                if (!empty($forceJob['id'])) {
+                    $pdo->prepare("UPDATE geo_processor_runs SET state = 'pending', updated_at = now() WHERE id = :id AND state = 'processing'")
+                        ->execute([':id' => $forceJob['id']]);
+                }
             } catch (Throwable $ignored) {
             }
         }

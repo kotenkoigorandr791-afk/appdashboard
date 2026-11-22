@@ -64,6 +64,10 @@ data class GeoPointFeature(
     val osmType: String? = null,
     val osmId: Long? = null,
     val photoAttribution: String? = null,
+    val assetId: String? = null,
+    val immichAssetId: String? = null,
+    val immichOpenUrl: String? = null,
+    val capturedAt: String? = null,
 )
 
 /** Data extent of the response, used to frame the map after loading a day. */
@@ -160,7 +164,7 @@ class GeoMapRepository(
             append("/geolocation_map?from=").append(from)
             append("&to=").append(to)
             append("&zoom=").append(MAP_ZOOM)
-            append("&layers=trips,improved,stops,places,visits,points,heatmap,speed")
+            append("&layers=trips,improved,stops,places,visits,points,photos,heatmap,speed")
         }
         val request = Request.Builder()
             .url(url)
@@ -181,14 +185,16 @@ class GeoMapRepository(
                     }
                     return@use GeoMapData(error = "HTTP ${response.code}")
                 }
-                val parsed = parse(JSONObject(body))
+                val parsed = parse(JSONObject(body)).withoutSpoofOutliers()
                 if (parsed.error == null && generation == GeoMapChanges.revision.value) runCatching { cacheFile(config, day)?.writeText(body) }
-                mergeVisitWindow(config, day, parsed)
+                parsed
             }
         }.getOrElse { error ->
             GeoMapData(error = error.message ?: "network")
         }.let { result ->
-            if (result.error != null) cached(config, day)?.copy(error = result.error) ?: result else result
+            if (result.error != null) cached(config, day)?.copy(error = result.error)?.withoutSpoofOutliers()
+                ?: result
+            else result
         }
     }
 
@@ -245,7 +251,8 @@ class GeoMapRepository(
                     if (!isCoordinate(lat, lon)) continue
                     val osmType = properties.optString("osm_type").ifBlank { null }
                     val osmId = properties.optLong("osm_id").takeIf { properties.has("osm_id") && !properties.isNull("osm_id") && it > 0L }
-                    val photoUrl = properties.optString("photo_url").ifBlank { null }
+                    val photoUrl = properties.optString("photo_url").ifBlank { properties.optString("thumbnail").ifBlank { null } }
+                    val assetId = properties.optString("asset_id").ifBlank { null }
                     points += GeoPointFeature(
                         layer = layer,
                         lat = lat,
@@ -253,6 +260,9 @@ class GeoMapRepository(
                         label = when (layer) {
                             "place" -> properties.optString("name").ifBlank { null }
                             "visit" -> properties.optString("place_name").ifBlank { properties.optString("category") }.ifBlank { properties.optString("detection_status") }.ifBlank { null }
+                            "photo_cluster" -> properties.optString("original_filename").ifBlank {
+                                if (properties.optInt("count", 1) > 1) properties.optInt("count", 1).toString() else null
+                            }
                             else -> null
                         },
                         count = properties.optInt("count", 1),
@@ -261,44 +271,15 @@ class GeoMapRepository(
                         osmType = osmType,
                         osmId = osmId,
                         photoAttribution = properties.optString("photo_attribution").ifBlank { null },
+                        assetId = assetId,
+                        immichAssetId = properties.optString("immich_asset_id").ifBlank { null },
+                        immichOpenUrl = properties.optString("immich_open_url").ifBlank { null },
+                        capturedAt = properties.optString("captured_at").ifBlank { null },
                     )
                 }
             }
         }
-        val bbox = root.optJSONObject("bbox")?.let { box ->
-            val south = box.optDouble("minLat", Double.NaN)
-            val north = box.optDouble("maxLat", Double.NaN)
-            val west = box.optDouble("minLon", Double.NaN)
-            val east = box.optDouble("maxLon", Double.NaN)
-            if (south.isNaN() || north.isNaN() || west.isNaN() || east.isNaN()) null
-            else GeoBoundingBox(north = north, south = south, east = east, west = west)
-        } ?: boundingBoxOf(points.asSequence().map { it.lat to it.lon } +
-            trips.asSequence().flatMap { trip -> trip.path.asSequence().map { it.lat to it.lon } } +
-            heat.asSequence().flatMap { line -> line.path.asSequence().map { it.lat to it.lon } } +
-            speed.asSequence().flatMap { segment -> segment.path.asSequence().map { it.lat to it.lon } })
-        return GeoMapData(trips = trips, points = points, heat = heat, speed = speed, bbox = bbox)
-    }
-
-
-    private fun mergeVisitWindow(config: WebhookConfig, day: LocalDate, base: GeoMapData): GeoMapData {
-        if (base.error != null) return base
-        return runCatching {
-            val zone = java.time.ZoneId.systemDefault()
-            val from = day.minusDays(29).atStartOfDay(zone).toInstant().toString()
-            val to = day.plusDays(1).atStartOfDay(zone).toInstant().minusMillis(1).toString()
-            val url = apiBase(config) + "/geolocation_map?from=$from&to=$to&zoom=$MAP_ZOOM&layers=visits"
-            val request = Request.Builder().url(url)
-                .apply { config.headers.forEach { (k, v) -> addHeader(k, v) }; addHeader("X-Device-Id", prefs.getDeviceId()); addHeader("Accept", "application/json") }
-                .build()
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@use base
-                val extra = parse(JSONObject(response.body?.string().orEmpty()))
-                if (extra.error != null) return@use base
-                val existing = base.points.filter { it.layer == "visit" }.map { "${it.lat}:${it.lon}:${it.label}" }.toSet()
-                val mergedVisits = extra.points.filter { it.layer == "visit" && "${it.lat}:${it.lon}:${it.label}" !in existing }
-                base.copy(points = base.points + mergedVisits, bbox = base.bbox ?: extra.bbox)
-            }
-        }.getOrDefault(base)
+        return GeoMapData(trips = trips, points = points, heat = heat, speed = speed).withoutSpoofOutliers()
     }
 
     private fun readLine(coordinates: JSONArray?): List<GeoLatLon> {
@@ -337,6 +318,9 @@ class GeoMapRepository(
     companion object {
         /** Server aggregation is off from this zoom up, so a day is always raw. */
         const val MAP_ZOOM = 15
+        /** Drop minority teleport clusters (<20%) so the map frames the real day. */
+        private const val SPOOF_MINORITY_MAX = 0.20
+        private const val CLUSTER_CELL_DEG = 2.0
 
         /** Pairing URLs already include `/api/steps`; only scheme and host are reused. */
         fun apiBase(config: WebhookConfig): String {
@@ -347,6 +331,83 @@ class GeoMapRepository(
                 config.url.trimEnd('/')
             }
             return "$base/api/steps"
+        }
+
+        fun GeoMapData.withoutSpoofOutliers(): GeoMapData {
+            if (error != null) return this
+            val samples = collectSamples()
+            val keep = dominantClusterMask(samples)
+            if (keep == null) {
+                return copy(bbox = boundingBoxOfSamples(samples) ?: bbox)
+            }
+            fun kept(lat: Double, lon: Double) = keep(cellKey(lat, lon))
+            val nextPoints = points.filter { kept(it.lat, it.lon) }
+            val nextTrips = trips.mapNotNull { trip ->
+                val path = trip.path.filter { kept(it.lat, it.lon) }
+                if (path.size < 2) null else trip.copy(path = path)
+            }
+            val nextHeat = heat.mapNotNull { line ->
+                val path = line.path.filter { kept(it.lat, it.lon) }
+                if (path.size < 2) null else line.copy(path = path)
+            }
+            val nextSpeed = speed.mapNotNull { seg ->
+                val path = seg.path.filter { kept(it.lat, it.lon) }
+                if (path.size < 2) null else seg.copy(path = path)
+            }
+            val filtered = copy(trips = nextTrips, points = nextPoints, heat = nextHeat, speed = nextSpeed)
+            return filtered.copy(bbox = boundingBoxOfSamples(filtered.collectSamples()) ?: filtered.bbox)
+        }
+
+        private fun GeoMapData.collectSamples(): List<Pair<Double, Double>> {
+            val samples = ArrayList<Pair<Double, Double>>(points.size + 64)
+            points.forEach { samples += it.lat to it.lon }
+            trips.forEach { trip -> trip.path.forEach { samples += it.lat to it.lon } }
+            heat.forEach { line -> line.path.forEach { samples += it.lat to it.lon } }
+            speed.forEach { seg -> seg.path.forEach { samples += it.lat to it.lon } }
+            return samples
+        }
+
+        private fun cellKey(lat: Double, lon: Double): Long {
+            val y = kotlin.math.floor(lat / CLUSTER_CELL_DEG).toLong()
+            val x = kotlin.math.floor(lon / CLUSTER_CELL_DEG).toLong()
+            return (y shl 32) xor (x and 0xffffffffL)
+        }
+
+        private fun dominantClusterMask(samples: List<Pair<Double, Double>>): ((Long) -> Boolean)? {
+            if (samples.size < 5) return null
+            val counts = LinkedHashMap<Long, Int>()
+            samples.forEach { (lat, lon) ->
+                val key = cellKey(lat, lon)
+                counts[key] = (counts[key] ?: 0) + 1
+            }
+            if (counts.size < 2) return null
+            val total = samples.size.toDouble()
+            val dominant = counts.maxByOrNull { it.value } ?: return null
+            if (dominant.value / total < (1.0 - SPOOF_MINORITY_MAX)) return null
+            val dy = dominant.key shr 32
+            val dx = dominant.key and 0xffffffffL
+            val allowed = HashSet<Long>(9)
+            for (oy in -1L..1L) for (ox in -1L..1L) {
+                allowed += ((dy + oy) shl 32) xor ((dx + ox) and 0xffffffffL)
+            }
+            return { key -> key in allowed }
+        }
+
+        private fun boundingBoxOfSamples(samples: List<Pair<Double, Double>>): GeoBoundingBox? {
+            var north = Double.NEGATIVE_INFINITY
+            var south = Double.POSITIVE_INFINITY
+            var east = Double.NEGATIVE_INFINITY
+            var west = Double.POSITIVE_INFINITY
+            var any = false
+            samples.forEach { (lat, lon) ->
+                if (lat !in -90.0..90.0 || lon !in -180.0..180.0 || lat.isNaN() || lon.isNaN()) return@forEach
+                any = true
+                if (lat > north) north = lat
+                if (lat < south) south = lat
+                if (lon > east) east = lon
+                if (lon < west) west = lon
+            }
+            return if (!any) null else GeoBoundingBox(north = north, south = south, east = east, west = west)
         }
     }
 }

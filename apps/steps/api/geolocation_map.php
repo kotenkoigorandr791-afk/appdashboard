@@ -150,12 +150,42 @@ if ($scope !== null && (float)$scope['precision_m'] > 0) {
 // Immich references are owner-only. Family viewers never receive photo URLs.
 $photos = [];
 if (in_array('photos', $layers, true) && $target === $viewer) {
-    $photos = StepsGeolocationImmich::mapClusters($pdo, $target, $bbox, $fromIso, $toIso, (int)($_GET['zoom'] ?? 12), 100);
+    if (!function_exists('oauth_sync_immich_steps') && is_file(APP_ROOT . '/shell/oauth.php')) {
+        require_once APP_ROOT . '/shell/oauth.php';
+    }
+    if (function_exists('oauth_sync_immich_steps')) {
+        try { oauth_sync_immich_steps($target); } catch (Throwable $ignored) {}
+    }
+    $zoom = (int)($_GET['zoom'] ?? 12);
+    $photos = StepsGeolocationImmich::mapClusters($pdo, $target, $bbox, $fromIso, $toIso, $zoom, 200);
+    $immichOpenBase = '';
+    $conn = StepsGeolocationImmich::connection($pdo, $target);
+    if (is_array($conn) && !empty($conn['server_url_ciphertext'])) {
+        try {
+            $immichOpenBase = rtrim((string)steps_geo_decrypt((string)$conn['server_url_ciphertext'], $target, 'server_url'), '/');
+        } catch (Throwable $ignored) {
+            $immichOpenBase = '';
+        }
+    }
     foreach ($photos as $photo) {
+        $assetId = (string)$photo['asset_id'];
+        $immichAssetId = (string)($photo['immich_asset_id'] ?? '');
         $result['features'][] = [
             'type' => 'Feature',
             'geometry' => ['type' => 'Point', 'coordinates' => [(float)$photo['lon'], (float)$photo['lat']]],
-            'properties' => ['layer' => 'photo_cluster', 'count' => (int)$photo['total'], 'asset_id' => (string)$photo['asset_id'], 'thumbnail' => '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' . urlencode((string)$photo['asset_id'])],
+            'properties' => [
+                'layer' => 'photo_cluster',
+                'count' => (int)$photo['total'],
+                'asset_id' => $assetId,
+                'immich_asset_id' => $immichAssetId,
+                'immich_open_url' => ($immichOpenBase !== '' && $immichAssetId !== '')
+                    ? ($immichOpenBase . '/photos/' . rawurlencode($immichAssetId))
+                    : '',
+                'original_filename' => (string)($photo['original_filename'] ?? ''),
+                'captured_at' => isset($photo['captured_at']) ? (string)$photo['captured_at'] : null,
+                'thumbnail' => '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' . rawurlencode($assetId),
+                'preview' => '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' . rawurlencode($assetId) . '&size=preview',
+            ],
         ];
     }
 }

@@ -133,7 +133,7 @@ function cloud_path_db()
 function cloud_path_ensure_storage_helper(): void
 {
     if (function_exists('appdata_user_root_dir')) return;
-    $helper = dirname(__DIR__, 3) . '/storage_helper.php';
+    $helper = dirname(__DIR__, 3) . '/shell/storage_helper.php';
     if (is_file($helper)) require_once $helper;
 }
 function cloud_path_session_email(): ?string

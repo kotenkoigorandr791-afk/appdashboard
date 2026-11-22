@@ -6,7 +6,7 @@ app_sentry_bootstrap('gitea');
 require_once APP_ROOT . '/lib/app_session.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
-require_once APP_ROOT . '/project/oauth.php';
+require_once APP_ROOT . '/shell/oauth.php';
 $themeParam = (string)($_GET['theme'] ?? '');
 $cookieTheme = (string)($_COOKIE['browser_theme'] ?? '');
 $theme = in_array($themeParam, ['light', 'dark', 'auto'], true) ? $themeParam : (in_array($cookieTheme, ['light', 'dark'], true) ? $cookieTheme : 'light');

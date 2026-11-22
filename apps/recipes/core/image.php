@@ -183,7 +183,7 @@ function recipes_data_base(): string {
     if (defined('RECIPES_DATA_BASE') && trim((string)RECIPES_DATA_BASE) !== '') {
         return $base = rtrim((string)RECIPES_DATA_BASE, '/');
     }
-    $helper = dirname(__DIR__, 3) . '/storage_helper.php';
+    $helper = dirname(__DIR__, 3) . '/shell/storage_helper.php';
     if (is_file($helper)) {
         require_once $helper;
         try {

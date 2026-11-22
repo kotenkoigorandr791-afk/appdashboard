@@ -36,7 +36,8 @@ final class StepsGeolocationQuality
         return [
             'max_accuracy_m' => $env('GEO_QUALITY_MAX_ACCURACY_M', 150.0, 5.0, 5000.0),
             'max_segment_accuracy_m' => $env('GEO_QUALITY_MAX_SEGMENT_ACCURACY_M', 60.0, 5.0, 500.0),
-            'max_speed_mps' => $env('GEO_QUALITY_MAX_SPEED_MPS', 450.0, 10.0, 2000.0),
+            // 300 km/h ≈ 83.3 m/s — above that is treated as spoof / teleport.
+            'max_speed_mps' => $env('GEO_QUALITY_MAX_SPEED_MPS', 83.333, 10.0, 2000.0),
             'max_jump_m' => $env('GEO_QUALITY_MAX_JUMP_M', 5000.0, 100.0, 100000.0),
             'jump_window_s' => $env('GEO_QUALITY_JUMP_WINDOW_S', 60.0, 1.0, 3600.0),
             'max_future_s' => $env('GEO_QUALITY_MAX_FUTURE_S', 300.0, 0.0, 86400.0),
@@ -146,7 +147,15 @@ final class StepsGeolocationQuality
 
         $score = round(max(0.05, min(1.0, $score)), 3);
         if ($flags === []) return self::decision(self::STATE_ACCEPTED, 'ok', [], $score, $score >= 0.85 ? 'ok' : 'info');
-        $severity = ($score < 0.45 || in_array('jump', $flags, true) || in_array('impossible_speed', $flags, true)) ? 'critical' : 'warning';
+        // Teleports / spoofed GPS (impossible ground speed) must not feed stops,
+        // visits or the map. Keep the sample for audit as rejected.
+        if (in_array('impossible_speed', $flags, true)) {
+            return self::decision(self::STATE_REJECTED, 'impossible_speed', $flags, max(0.05, $score), 'critical');
+        }
+        if (in_array('jump', $flags, true) && $score < 0.5) {
+            return self::decision(self::STATE_REJECTED, 'jump', $flags, max(0.05, $score), 'critical');
+        }
+        $severity = ($score < 0.45 || in_array('jump', $flags, true)) ? 'critical' : 'warning';
         return self::decision(self::STATE_FLAGGED, $flags[0], $flags, $score, $severity);
     }
 

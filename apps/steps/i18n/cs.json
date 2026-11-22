@@ -961,5 +961,6 @@
   "stats_no_confirmed_place": "Žádné potvrzené místo",
   "stats_confirm_places_hint": "Potvrďte místa na mapě",
   "distance": "Vzdálenost",
-  "today": "Dnes"
+  "today": "Dnes",
+  "map_goto_live": "Přejít na mou polohu"
 }

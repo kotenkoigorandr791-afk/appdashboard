@@ -26,7 +26,7 @@ putenv('STORAGE_DISKS_ROOT=' . $tmp . '/disks');
 putenv('STORAGE_SKIP_FINDMNT=1');
 putenv('FILE_INDEX_ENABLED=1');
 if (!defined('APP_ROOT')) define('APP_ROOT', $root);
-require_once $root . '/storage_helper.php';
+require_once $root . '/shell/storage_helper.php';
 require_once $root . '/lib/Storage/bootstrap.php';
 require_once $root . '/lib/Storage/AppFiles.php';
 require_once $root . '/apps/recipes/core/file_index.php';

@@ -156,7 +156,7 @@ final class StorageManager
     /** @return array{ok:bool,error:string} */
     public static function spawnWorker(string $migrationId, array $extraArgs = []): array
     {
-        $worker = dirname(__DIR__, 2) . '/project/storage/worker.php';
+        $worker = dirname(__DIR__, 2) . '/shell/storage/worker.php';
         if (!is_file($worker)) return ['ok' => false, 'error' => 'worker_missing'];
         $php = defined('PHP_BINARY') && PHP_BINARY !== '' ? PHP_BINARY : 'php';
         $argv = [$php, $worker, '--migration=' . $migrationId];

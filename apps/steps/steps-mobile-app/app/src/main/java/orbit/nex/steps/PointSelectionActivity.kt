@@ -44,7 +44,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import orbit.nex.steps.components.AppTooltipIconButton
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -241,16 +243,25 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
         }
     }
 
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text(stringResource(R.string.points_select_title)) },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_cd))
-                }
-            },
-        )
-    }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.points_select_title)) },
+                navigationIcon = {
+                    AppTooltipIconButton(
+                        onClick = onBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.settings_back_cd),
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 AndroidView(
@@ -328,29 +339,41 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                             Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(20.dp))
                             Text(stringResource(R.string.points_delete_forever), modifier = Modifier.padding(start = Spacing.sm), maxLines = 1)
                         }
-                        IconButton(enabled = selection != null && selection?.rotated == false && !loading && config != null, onClick = {
-                            val active = config ?: return@IconButton
-                            val box = selection ?: return@IconButton
-                            scope.launch {
-                                loading = true
-                                repository.smooth(active, box.query, day?.atStartOfDay(zone)?.toInstant()?.toString(), day?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.toString())
-                                    .onSuccess { orbit.nex.steps.location.GeoMapChanges.invalidate(context); notice = context.getString(R.string.points_smooth_done); refreshSelection() }
-                                    .onFailure { error = it.message }
-                                loading = false
-                            }
-                        }) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_smooth)) }
-                        IconButton(enabled = !loading && config != null, onClick = {
-                            val active = config ?: return@IconButton
-                            scope.launch {
-                                loading = true
-                                repository.runMatching(active).onSuccess { notice = context.getString(R.string.matching_queued) }.onFailure { error = it.message }
-                                loading = false
-                            }
-                        }) { Icon(Icons.Filled.AltRoute, contentDescription = stringResource(R.string.points_match)) }
+                        AppTooltipIconButton(
+                            enabled = selection != null && selection?.rotated == false && !loading && config != null,
+                            onClick = {
+                                val active = config ?: return@AppTooltipIconButton
+                                val box = selection ?: return@AppTooltipIconButton
+                                scope.launch {
+                                    loading = true
+                                    repository.smooth(active, box.query, day?.atStartOfDay(zone)?.toInstant()?.toString(), day?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.toString())
+                                        .onSuccess { orbit.nex.steps.location.GeoMapChanges.invalidate(context); notice = context.getString(R.string.points_smooth_done); refreshSelection() }
+                                        .onFailure { error = it.message }
+                                    loading = false
+                                }
+                            },
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = stringResource(R.string.points_smooth),
+                        )
+                        AppTooltipIconButton(
+                            enabled = !loading && config != null,
+                            onClick = {
+                                val active = config ?: return@AppTooltipIconButton
+                                scope.launch {
+                                    loading = true
+                                    repository.runMatching(active).onSuccess { notice = context.getString(R.string.matching_queued) }.onFailure { error = it.message }
+                                    loading = false
+                                }
+                            },
+                            imageVector = Icons.Filled.AltRoute,
+                            contentDescription = stringResource(R.string.points_match),
+                        )
                         if (selection != null) {
-                            IconButton(onClick = { selection = null; count = 0; refreshSelection() }) {
-                                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close))
-                            }
+                            AppTooltipIconButton(
+                                onClick = { selection = null; count = 0; refreshSelection() },
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.action_close),
+                            )
                         }
                     }
                     (error ?: if (config == null) stringResource(R.string.points_no_connection) else null)?.let {

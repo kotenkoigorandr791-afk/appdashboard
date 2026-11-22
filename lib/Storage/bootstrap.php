@@ -29,7 +29,9 @@ function storage_env(string $name, string $default = ''): string {
 }
 
 function storage_root(): string {
-    return rtrim(storage_env('STORAGE_ROOT', '/storage'), '/') ?: '/storage';
+    $root = function_exists('storage_resolved_env') ? (storage_resolved_env('STORAGE_ROOT') ?? '') : '';
+    if ($root === '') $root = storage_env('STORAGE_ROOT', '');
+    return rtrim($root !== '' ? $root : '/storage', '/') ?: '/storage';
 }
 
 function storage_disks_root(): string {
@@ -67,13 +69,48 @@ function storage_state_dir(): string {
         storage_ensure_dir($explicit);
         return rtrim($explicit, '/');
     }
-    $data = storage_env('APPDATA_DATA_DIR', '');
+    $data = function_exists('storage_resolved_env') ? (storage_resolved_env('APPDATA_DATA_DIR') ?? '') : '';
+    if ($data === '') $data = storage_env('APPDATA_DATA_DIR', '');
     if ($data === '') {
-        $data = defined('APP_ROOT') ? APP_ROOT . '/data' : dirname(__DIR__, 2) . '/data';
+        storage_fail('APPDATA_DATA_DIR is not set and STORAGE_STATE_DIR was not given; refusing to use a repo-relative fallback.');
     }
     $dir = rtrim($data, '/') . '/storage';
     storage_ensure_dir($dir);
     return $dir;
+}
+
+/** Fail fast with a clear message instead of falling back to a repo/tmp path. */
+function storage_fail(string $message): never {
+    if (PHP_SAPI === 'cli') {
+        fwrite(STDERR, '[storage] ' . $message . PHP_EOL);
+        exit(1);
+    }
+    throw new RuntimeException('[storage] ' . $message);
+}
+
+/**
+ * Validate that every storage root is set, exists, is writable, and that
+ * /storage (when required) is actually the mergerfs pool mount. Call this
+ * once from each web/CLI entrypoint before any storage write.
+ */
+function storage_assert_ready(bool $requirePool = true): void {
+    $appdataBase = function_exists('appdata_base_dir') ? appdata_base_dir() : storage_env('APPDATA_BASE_DIR', '');
+    if ($appdataBase === '') storage_fail('APPDATA_BASE_DIR is not set.');
+    $appdataData = function_exists('appdata_data_dir') ? appdata_data_dir() : storage_env('APPDATA_DATA_DIR', '');
+    if ($appdataData === '') storage_fail('APPDATA_DATA_DIR is not set.');
+    foreach ([$appdataBase, $appdataData] as $dir) {
+        if (!is_dir($dir) || !is_writable($dir)) {
+            storage_fail("Required storage directory is missing or not writable: $dir");
+        }
+    }
+    if ($requirePool) {
+        $root = storage_root();
+        if (!is_dir($root)) storage_fail("STORAGE_ROOT ($root) does not exist.");
+        if (!storage_pool_available()) {
+            storage_fail("STORAGE_ROOT ($root) is not a mounted mergerfs pool. Refusing to write bulk data elsewhere.");
+        }
+        if (!is_writable($root)) storage_fail("STORAGE_ROOT ($root) is not writable.");
+    }
 }
 
 function storage_ensure_dir(string $dir, int $mode = 0775): void {

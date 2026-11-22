@@ -1,6 +1,6 @@
 <?php
 // ─── Language & theme ──────────────────────────────────────────────────────────
-require_once dirname(__DIR__, 3) . '/project/i18n_helpers.php';
+require_once dirname(__DIR__, 3) . '/shell/i18n_helpers.php';
 $language     = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
 $theme        = $_GET['theme'] ?? 'light';
 $primaryColor = $_GET['color'] ?? '#007bff';

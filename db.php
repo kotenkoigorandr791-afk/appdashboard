@@ -498,7 +498,7 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_stats_date ON visit_stats(stat_date)");
 
     // ── Storage usage cache (per app, per user) ────────────────────────────────
-    // Filled by project/bin/storage_usage_collector.php (background loop).
+    // Filled by shell/bin/storage_usage_collector.php (background loop).
     // The admin panel only reads this table — never scans the filesystem.
     $db->exec("CREATE TABLE IF NOT EXISTS storage_usage_cache (
         app_key     TEXT NOT NULL,
@@ -1326,7 +1326,7 @@ function upsertUser(string $email, array $fields): void {
     oauthConsumePendingLink($email);
     if (!empty($merged['verified']) || $email === 'root@root') {
         if (!function_exists('oauth_provision_user_services')) {
-            $oauthFile = (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__)) . '/project/oauth.php';
+            $oauthFile = (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__)) . '/shell/oauth.php';
             if (is_readable($oauthFile)) require_once $oauthFile;
         }
         if (function_exists('oauth_provision_user_services')) {
@@ -2028,7 +2028,7 @@ function getTotalVisitsPerApp(): array {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STORAGE USAGE  — cache written by project/bin/storage_usage_collector.php
+// STORAGE USAGE  — cache written by shell/bin/storage_usage_collector.php
 // ─────────────────────────────────────────────────────────────────────────────
 const STORAGE_USAGE_STATUS_KEY    = 'storage_usage_sources';
 const STORAGE_USAGE_REFRESH_KEY   = 'storage_usage_refresh_requested';

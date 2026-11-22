@@ -11,8 +11,7 @@ function app_path($relativePath = '') {
     if ($baseDir === false) $baseDir = __DIR__;
     if ($relativePath === '') return $baseDir;
     $rel = str_replace('\\', '/', (string)$relativePath);
-    $appdata = getenv('APPDATA_BASE_DIR');
-    if (!is_string($appdata) || trim($appdata) === '') $appdata = '/opt/ApplicationData';
+    $appdata = function_exists('appdata_base_dir') ? appdata_base_dir() : (getenv('APPDATA_BASE_DIR') ?: '/opt/ApplicationData');
     $runtime = [
         'temp' => 'cloud_runtime/temp',
         'temp_convert' => 'cloud_runtime/temp_convert',
@@ -94,8 +93,8 @@ function resolve_user_file_path($user, $relativePath, $root = 'main') {
     return null;
 }
 
-$__ttsAppData = getenv('APPDATA_BASE_DIR');
-if (!is_string($__ttsAppData) || trim($__ttsAppData) === '') $__ttsAppData = '/opt/ApplicationData';
+require_once dirname(__DIR__, 2) . '/shell/storage_helper.php';
+$__ttsAppData = appdata_base_dir();
 define('TTS_OUTPUT_DIR', rtrim($__ttsAppData, '/') . '/cloud_runtime/tts_output');
 @mkdir(TTS_OUTPUT_DIR, 0777, true);
 @mkdir(TTS_OUTPUT_DIR . '/.cache', 0777, true);
@@ -103,7 +102,7 @@ define('TTS_OUTPUT_DIR', rtrim($__ttsAppData, '/') . '/cloud_runtime/tts_output'
 @chmod(TTS_OUTPUT_DIR . '/.cache', 0777);
 
 require_once __DIR__ . '/../../lib/app_db.php';
-require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once dirname(__DIR__, 2) . '/shell/storage_helper.php';
 require_once dirname(__DIR__, 2) . '/lib/py_sidecar.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 

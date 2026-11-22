@@ -34,10 +34,10 @@ class SharepointController extends BaseController
         }
 
         $root = dirname(__DIR__, 5);
-        if (!is_file($root . '/project/sharepoint/bootstrap.php')) {
+        if (!is_file($root . '/shell/sharepoint/bootstrap.php')) {
             $root = dirname(__DIR__, 6);
         }
-        $bootstrap = $root . '/project/sharepoint/bootstrap.php';
+        $bootstrap = $root . '/shell/sharepoint/bootstrap.php';
         if (!is_file($bootstrap)) {
             $this->flash->failure(t('SharePoint is not available.'));
             $this->response->redirect($this->helper->url->to('ProjectViewController', 'show', array('project_id' => $projectId)));

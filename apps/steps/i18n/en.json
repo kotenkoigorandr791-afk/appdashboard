@@ -961,5 +961,6 @@
   "stats_no_confirmed_place": "No confirmed place",
   "stats_confirm_places_hint": "Confirm places on map",
   "distance": "Distance",
-  "today": "Today"
+  "today": "Today",
+  "map_goto_live": "Go to my location"
 }

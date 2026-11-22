@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require_once dirname(__DIR__) . '/storage_helper.php';
+require_once dirname(__DIR__) . '/shell/storage_helper.php';
 if (!defined('APP_DB_CONFIG_LOADED')) {
     define('APP_DB_CONFIG_LOADED', true);
 }
@@ -113,24 +113,32 @@ function app_pdo_open(array $c, string $persistTag = ''): PDO {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => true,
     ];
-    if ($persistTag !== '' && getenv('APP_DB_PERSISTENT') !== '0') {
+    // Persistent PDO multiplies backends across FPM workers; keep it opt-in.
+    // AppDashboard is expected to go through pgbouncer with pool_size=1.
+    if ($persistTag !== '' && getenv('APP_DB_PERSISTENT') === '1') {
         $dsn .= ';application_name=appdash_' . preg_replace('/[^a-z0-9_]/', '', $persistTag);
         $opts[PDO::ATTR_PERSISTENT] = true;
+    } elseif ($persistTag !== '') {
+        $dsn .= ';application_name=appdash_' . preg_replace('/[^a-z0-9_]/', '', $persistTag);
     }
     $pdo = new PDO($dsn, $c['user'], $c['password'], $opts);
-    if (!app_db_skip_session_init()) {
-        $pdo->exec("SET client_encoding TO 'UTF8'");
-        $pdo->exec("SET timezone TO 'UTC'");
-        $pdo->exec('SET search_path TO public');
-    }
+    app_pdo_reset_session($pdo);
     foreach ((array)($GLOBALS['app_db_extra_session_sql'] ?? []) as $q) $pdo->exec((string)$q);
     return $pdo;
+}
+function app_pdo_reset_session(PDO $pdo): void {
+    // Drop leaked SET ROLE from prior pgbouncer clients (transaction pool).
+    $pdo->exec('RESET ROLE');
+    if (app_db_skip_session_init()) return;
+    $pdo->exec("SET client_encoding TO 'UTF8'");
+    $pdo->exec("SET timezone TO 'UTC'");
+    $pdo->exec('SET search_path TO public');
 }
 function app_pdo_connect(bool $fresh = false, string $persistTag = ''): PDO {
     static $pdo = null;
     if (!$fresh && $pdo instanceof PDO) {
         try {
-            if (!app_db_skip_session_init()) $pdo->exec('SET search_path TO public');
+            app_pdo_reset_session($pdo);
             return $pdo;
         } catch (PDOException $e) {
             if (!app_db_is_transient_connection_error($e)) throw $e;

@@ -254,12 +254,29 @@ server {
         rewrite ^ /apps/map/index.php last;
     }
 
+    location = /default_avatar.png {
+        alias /var/www/AppDashboard/shell/default_avatar.png;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+    }
+    location = /terms.html {
+        alias /var/www/AppDashboard/shell/terms.html;
+        default_type text/html;
+    }
+    location = /privacy.html {
+        alias /var/www/AppDashboard/shell/privacy.html;
+        default_type text/html;
+    }
     location = /terms {
-        rewrite ^ /terms.html last;
+        rewrite ^ /shell/terms.html last;
     }
     location = /privacy {
-        rewrite ^ /privacy.html last;
+        rewrite ^ /shell/privacy.html last;
     }
+    location = /doc_viewer.php { rewrite ^ /index.php last; }
+    location = /db_admin.php { rewrite ^ /index.php last; }
+    location = /backup_dashboard.php { rewrite ^ /index.php last; }
+    location = /file_viewer.php { rewrite ^ /index.php last; }
     location = /main {
         if ($request_uri ~* "^/main(#.*)$") {
             set $original_uri $1;
@@ -533,7 +550,7 @@ server {
     }
 
     location = /admin-omniroute/embed-sw.js {
-        alias /var/www/AppDashboard/project/omniroute-embed-sw.js;
+        alias /var/www/AppDashboard/shell/omniroute-embed-sw.js;
         default_type application/javascript;
         add_header Cache-Control "no-store";
         add_header Service-Worker-Allowed "/admin-omniroute/";
@@ -574,6 +591,18 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $sh_client_ip;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+    }
+
+    location /steps-live-ws {
+        proxy_pass http://127.0.0.1:8768;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Upgrade $http_upgrade;
@@ -682,13 +711,13 @@ server {
 
     location ^~ /home/ {
         modsecurity off;
-        alias /var/www/AppDashboard/project/home/;
+        alias /var/www/AppDashboard/shell/home/;
         try_files $uri =404;
         expires 7d;
         add_header Cache-Control "public, max-age=604800";
     }
 
-    location ^~ /project/assets/ {
+    location ^~ /shell/assets/ {
         modsecurity off;
         try_files $uri =404;
         error_page 500 503 = @project_static_fallback;
@@ -696,7 +725,7 @@ server {
         add_header Cache-Control "public, max-age=86400";
     }
 
-    location ^~ /project/onboarding/ {
+    location ^~ /shell/onboarding/ {
         modsecurity off;
         try_files $uri =404;
         error_page 500 503 = @project_static_fallback;
@@ -717,10 +746,10 @@ server {
         access_log off;
     }
 
-    # Internal PHP includes under /project/ must never be requested directly:
+    # Internal PHP includes under /shell/ must never be requested directly:
     # they rely on the bootstrap chain and would leak paths via fatal errors.
-    # Legitimate public API endpoints under /project/ are allow-listed.
-    location ~ ^/project/(?!weather_settings\.php$)(?!sharepoint/share_i18n\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$)(?!docker/index\.php$)(?!backup/index\.php$)(?!storage/index\.php$).*\.php$ {
+    # Legitimate public API endpoints under /shell/ are allow-listed.
+    location ~ ^/shell/(?!weather_settings\.php$)(?!sharepoint/share_i18n\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$)(?!docker/index\.php$)(?!backup/index\.php$)(?!storage/index\.php$).*\.php$ {
         return 404;
     }
 
@@ -739,7 +768,7 @@ server {
         access_log off;
     }
 
-    location ~* ^/(?:apps/[^/]+/|project/)?(?:assets|static|dist|js|css)/.*\.(?:js|mjs|css|map|json|wasm)$ {
+    location ~* ^/(?:apps/[^/]+/|shell/)?(?:assets|static|dist|js|css)/.*\.(?:js|mjs|css|map|json|wasm)$ {
         modsecurity off;
         try_files $uri =404;
         expires 10m;

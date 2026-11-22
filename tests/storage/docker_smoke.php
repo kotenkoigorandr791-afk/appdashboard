@@ -19,7 +19,7 @@ putenv('APPDATA_DATA_DIR=/data');
 putenv('STORAGE_STATE_DIR=/data/storage');
 putenv('STORAGE_SKIP_FINDMNT=0');
 if (!defined('APP_ROOT')) define('APP_ROOT', $root);
-require_once $root . '/storage_helper.php';
+require_once $root . '/shell/storage_helper.php';
 require_once $root . '/lib/Storage/bootstrap.php';
 
 $failures = 0;
