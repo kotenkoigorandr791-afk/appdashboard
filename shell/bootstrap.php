@@ -275,6 +275,19 @@ if (!function_exists('apSecStoreSupportChatMedia')) {
         return ['path' => 'uploads/support_chat/' . $newFileName, 'type' => $kind];
     }
 }
+if (!function_exists('apSecSupportChatMediaAbsolutePath')) {
+    /**
+     * $mediaPath (e.g. "uploads/support_chat/xxx.webp") is the public URL path
+     * served by nginx's `/uploads/` alias to appdata_uploads_base_dir(), not a
+     * path relative to APP_ROOT. Resolve it back to the real file on disk.
+     */
+    function apSecSupportChatMediaAbsolutePath(string $mediaPath): ?string {
+        $mediaPath = ltrim(str_replace('\\', '/', trim($mediaPath)), '/');
+        if ($mediaPath === '' || !str_starts_with($mediaPath, 'uploads/')) return null;
+        if (str_contains($mediaPath, '..')) return null;
+        return rtrim(appdata_uploads_base_dir(), '/') . '/' . substr($mediaPath, strlen('uploads/'));
+    }
+}
 
 if ($__APP_DEBUG) {
     $__monitorRequestStart = $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true);

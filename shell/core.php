@@ -1340,8 +1340,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         if (!empty($_FILES['media']) && $_FILES['media']['error'] === UPLOAD_ERR_OK) {
             $stored = apSecStoreSupportChatMedia($_FILES['media']);
             if (isset($stored['error'])) json_out(['ok' => false, 'error' => $stored['error']], 400);
-            if ($mediaPath && file_exists(APP_ROOT . '/' . $mediaPath)) {
-                @unlink(APP_ROOT . '/' . $mediaPath);
+            if ($mediaPath) {
+                $oldMediaAbs = apSecSupportChatMediaAbsolutePath((string)$mediaPath);
+                if ($oldMediaAbs !== null && is_file($oldMediaAbs)) {
+                    @unlink($oldMediaAbs);
+                }
             }
             $mediaPath = $stored['path'];
             $mediaType = $stored['type'];
