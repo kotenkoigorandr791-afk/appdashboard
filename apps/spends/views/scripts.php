@@ -2,7 +2,7 @@
 <script src="/shell/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
 <?php if (empty($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(24)); ?>
 <script>window.SHAREPOINT_CSRF=<?= json_encode($_SESSION['sharepoint_csrf']) ?>;</script>
-<script src="/shell/sharepoint/assets/js/share-modal.js?v=13"></script>
+<script src="/shell/sharepoint/assets/js/share-modal.js?v=15"></script>
 <script>
 <?php $jsonFlags = JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE; ?>
 const translations = <?= json_encode($translations, $jsonFlags) ?: '{}' ?>;
@@ -1848,8 +1848,13 @@ function xrSparkline(cur,color){
 function xrRenderRows(){
     const wrap=document.getElementById('xr-rows');
     if(!wrap)return;
-    wrap.innerHTML='';
     const dates=xrHistory&&xrHistory.dates?xrHistory.dates:[];
+    const anyData=xrHistory&&xrHistory.history&&XR_CURRENCIES.some(c=>c!==xrBase&&xrHistory.history[c]&&Object.values(xrHistory.history[c]).some(v=>v!==null));
+    if(!anyData){
+        xrRenderEmpty();
+        return;
+    }
+    wrap.innerHTML='';
     XR_CURRENCIES.filter(c=>c!==xrBase).forEach((cur,idx)=>{
         const series=xrHistory&&xrHistory.history&&xrHistory.history[cur]?xrHistory.history[cur]:null;
         const vals=series?Object.values(series).filter(v=>v!==null):[];
@@ -1870,28 +1875,42 @@ function xrRenderRows(){
     });
 }
 
+function xrRenderEmpty(){
+    const wrap=document.getElementById('xr-rows');
+    if(!wrap)return;
+    wrap.innerHTML='<div class="xr-empty"><span>'+t('rates_unavailable','Exchange rates are unavailable right now.')+'</span>'+
+        '<button type="button" onclick="loadExchangeRates(true)">'+t('retry','Retry')+'</button></div>';
+}
+
 function xrRenderTabs(){
     document.querySelectorAll('#xr-base-tabs .xr-base-tab').forEach(b=>{
         b.classList.toggle('active',b.dataset.base===xrBase);
     });
 }
 
-function loadExchangeRates() {
+function xrFetchJson(url, timeoutMs=12000){
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),timeoutMs);
+    return fetch(url,{signal:ctrl.signal}).finally(()=>clearTimeout(timer));
+}
+function loadExchangeRates(retry) {
     const loader=document.getElementById('rates-loading');
-    const cached=xrHistoryCache[xrBase];
+    const cached=retry?null:xrHistoryCache[xrBase];
+    if(retry)delete xrHistoryCache[xrBase];
     if(loader)loader.style.display=cached?'none':'block';
     if(cached){ xrHistory=cached; xrRenderRows(); }
+    const bust=retry?'&nocache=1':'';
     // current snapshot (for other app features) + 14-day history for sparklines
-    fetch(`?get_exchange_rates=1&base=${xrBase}`)
+    xrFetchJson(`?get_exchange_rates=1&base=${xrBase}${bust}`)
         .then(r=>r.json())
         .then(data=>{
-            if(data.status==='success'){
+            if(data.status==='success'&&data.rates){
                 currentRates=data.rates;
                 window.currentRates=data.rates;
             }
         })
         .catch(()=>{});
-    fetch(`?get_exchange_history=1&base=${xrBase}&days=14`)
+    xrFetchJson(`?get_exchange_history=1&base=${xrBase}&days=14${bust}`)
         .then(r=>r.json())
         .then(data=>{
             if(loader)loader.style.display='none';
@@ -1902,12 +1921,17 @@ function loadExchangeRates() {
                 const up=document.getElementById('xr-updated');
                 if(up)up.textContent=new Date().toLocaleTimeString();
             } else if(!cached) {
+                xrRenderEmpty();
                 showNotification(t('failed_load_exchange_rates','Failed to load exchange rates'),'error');
             }
         })
         .catch(e=>{
             if(loader)loader.style.display='none';
-            if(!cached)showNotification(`${t('network_error','Network error')}: ${e}`,'error');
+            // Keep whatever is already rendered instead of an endless spinner.
+            if(!cached){
+                if(!document.querySelector('#xr-rows .xr-row'))xrRenderEmpty();
+                showNotification(`${t('network_error','Network error')}: ${e&&e.name==='AbortError'?'timeout':e}`,'error');
+            }
         });
 }
 
@@ -3359,7 +3383,7 @@ function showShareModal(){
     if(window.openShareModal){
         window.openShareModal('spends','app','expense_chart',{
             title: (translations.share_chart || document.title || 'Expenses'),
-            defaultPermissions: ['view','interact'],
+            defaultPermissions: [],
             requirePassword: true,
             apiUrl: '/apps/spends/api/share.php'
         });
@@ -3412,7 +3436,7 @@ function shareChartToCloud(){
     if(window.openShareModal){
         window.openShareModal('spends','app','expense_chart',{
             title: (translations.share_chart || document.title || 'Expenses'),
-            defaultPermissions: ['view','interact'],
+            defaultPermissions: [],
             requirePassword: true,
             apiUrl: '/apps/spends/api/share.php'
         });
@@ -4016,6 +4040,47 @@ function onAnalyticsStoreChange() {
     renderAnalyticsSelection();
 }
 
+// Long option lists are paged in chunks of 10 so a picker with hundreds of
+// stores stays light: only the current page's <option> nodes are in the DOM.
+function applyChunkedSelect(select, pageSize) {
+    if (!select) return;
+    pageSize = pageSize || 10;
+    const all = Array.from(select.options).map(option => ({ value: option.value, label: option.textContent }));
+    const previousNav = select.parentElement && select.parentElement.querySelector(':scope > .select-pager');
+    if (previousNav) previousNav.remove();
+    select.__chunkAll = all;
+    if (all.length <= pageSize) return;
+    const nav = document.createElement('div');
+    nav.className = 'select-pager';
+    nav.innerHTML = '<button type="button" data-chunk="prev" aria-label="Previous page">‹</button><span data-chunk-label></span><button type="button" data-chunk="next" aria-label="Next page">›</button>';
+    select.parentNode.insertBefore(nav, select.nextSibling);
+    const label = nav.querySelector('[data-chunk-label]');
+    const prev = nav.querySelector('[data-chunk="prev"]');
+    const next = nav.querySelector('[data-chunk="next"]');
+    const render = page => {
+        const pages = Math.max(1, Math.ceil(all.length / pageSize));
+        page = Math.max(0, Math.min(pages - 1, page));
+        select.__chunkPage = page;
+        const current = select.value;
+        select.replaceChildren();
+        all.slice(page * pageSize, page * pageSize + pageSize).forEach(item => {
+            const node = document.createElement('option');
+            node.value = item.value;
+            node.textContent = item.label;
+            select.appendChild(node);
+        });
+        if (all.some(item => item.value === current)) select.value = current;
+        label.textContent = (page + 1) + ' / ' + pages;
+        prev.disabled = page === 0;
+        next.disabled = page >= pages - 1;
+        if (window.syncCustomSelects) syncCustomSelects();
+    };
+    prev.addEventListener('click', () => render((select.__chunkPage || 0) - 1));
+    next.addEventListener('click', () => render((select.__chunkPage || 0) + 1));
+    const selectedIndex = all.findIndex(item => item.value === select.value);
+    render(selectedIndex > -1 ? Math.floor(selectedIndex / pageSize) : 0);
+}
+
 function loadOCRAnalytics() {
     const select = document.getElementById('ocr-analytics-store');
     fetch(`?get_ocr_stats=1&store=__all__&year=${encodeURIComponent(analyticsYear)}`)
@@ -4034,6 +4099,7 @@ function loadOCRAnalytics() {
                     select.appendChild(node);
                 });
                 select.value = (d.stores || []).includes(store) ? store : '__all__';
+                applyChunkedSelect(select, 10);
             }
             buildOCRAnalyticsChart(d, select ? select.value : store);
         })

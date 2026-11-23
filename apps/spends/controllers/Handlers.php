@@ -156,20 +156,38 @@ if (isset($_GET['get_exchange_rates'])) {
     $parsed = parse_url($url);
     $host = $parsed['host'] ?? '';
     if (!in_array($host, $allowedRateHosts, true)) exit(json_encode(['status' => 'error', 'message' => 'invalid_base']));
-    $cached = spendsCacheGet('rates:' . $base);
+    $cached = empty($_GET['nocache']) ? spendsCacheGet('rates:' . $base) : null;
     if ($cached !== null) exit($cached);
     try {
         $rates = spendsRatesFetch($base);
+        if (empty($rates)) {
+            // Bank APIs can be slow or rate-limited. Keep serving the last good
+            // snapshot so the rates window never hangs on a spinner.
+            $stale = spendsCacheGet('rates:' . $base . ':stale');
+            if ($stale !== null) {
+                header('Content-Type: application/json; charset=utf-8');
+                exit($stale);
+            }
+        }
         $payload = json_encode([
             'status' => 'success',
             'base' => $base,
             'rates' => $rates,
             'timestamp' => time()
         ]);
-        if (!empty($rates)) spendsCacheSet('rates:' . $base, $payload, 3600);
+        if (!empty($rates)) {
+            spendsCacheSet('rates:' . $base, $payload, 21600);
+            spendsCacheSet('rates:' . $base . ':stale', $payload, 604800);
+        }
         exit($payload);
     } catch (Exception $e) {
         error_log('spends: ' . $e->getMessage());
+        $stale = spendsCacheGet('rates:' . $base . ':stale');
+        if ($stale !== null) {
+            header('Content-Type: application/json; charset=utf-8');
+            exit($stale);
+        }
+        header('Content-Type: application/json; charset=utf-8');
         exit(json_encode(['status' => 'error', 'message' => 'server_error']));
     }
 }
@@ -187,7 +205,7 @@ if (isset($_GET['get_exchange_history'])) {
     $base = strtoupper(trim($_GET['base'] ?? 'EUR'));
     if (!preg_match('/^[A-Z]{3}$/', $base)) exit(json_encode(['status' => 'error', 'message' => 'invalid_base']));
     $histKey = 'history:' . md5($base . '|' . $days . '|' . implode(',', $currencies) . '|' . date('Y-m-d'));
-    $cachedHistory = spendsCacheGet($histKey);
+    $cachedHistory = empty($_GET['nocache']) ? spendsCacheGet($histKey) : null;
     if ($cachedHistory !== null) {
         header('Content-Type: application/json; charset=utf-8');
         exit($cachedHistory);
@@ -202,23 +220,106 @@ if (isset($_GET['get_exchange_history'])) {
     $source = [];
     $quoteBaseOf = ['NBU' => 'UAH', 'NBP' => 'PLN', 'NBRB' => 'BYN'];
 
-    $http = function (string $url): ?array {
+    // Historical pulls hit each bank once per day/currency. Cache every bank
+    // response in Redis so a reload (or another currency tab) never repeats them.
+    // $known also remembers failures so one dead host is not retried per URL.
+    $known = [];
+    $http = function (string $url) use (&$known): ?array {
+        if (array_key_exists($url, $known)) return $known[$url];
+        $cacheKey = 'rates:http:' . md5($url);
+        $cachedRaw = spendsCacheGet($cacheKey);
+        if ($cachedRaw !== null) {
+            $decoded = json_decode($cachedRaw, true);
+            if (is_array($decoded)) { $known[$url] = $decoded; return $decoded; }
+        }
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 8,
-            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 6,
+            CURLOPT_CONNECTTIMEOUT => 4,
         ]);
         $raw = curl_exec($ch);
-        if (!$raw) return null;
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if (!$raw || $code < 200 || $code >= 300) { $known[$url] = null; return null; }
         $data = json_decode($raw, true);
-        return is_array($data) ? $data : null;
+        if (is_array($data)) spendsCacheSet($cacheKey, json_encode($data), 43200);
+        $known[$url] = is_array($data) ? $data : null;
+        return $known[$url];
     };
 
-    // NBU (Ukraine): daily rates, quoted in UAH (e.g. 1 EUR = 51.36 UAH)
+    // NBU only exposes rates one day at a time, so the 14 daily calls run in
+    // parallel — sequential requests used to keep the rates window spinning.
+    $httpMulti = function (array $urls) use (&$known): array {
+        $out = [];
+        $pending = [];
+        $mh = curl_multi_init();
+        foreach ($urls as $url) {
+            if (array_key_exists($url, $known)) {
+                if ($known[$url] !== null) $out[$url] = $known[$url];
+                continue;
+            }
+            $cacheKey = 'rates:http:' . md5($url);
+            $cachedRaw = spendsCacheGet($cacheKey);
+            if ($cachedRaw !== null) {
+                $decoded = json_decode($cachedRaw, true);
+                if (is_array($decoded)) { $known[$url] = $decoded; $out[$url] = $decoded; continue; }
+            }
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 6,
+                CURLOPT_CONNECTTIMEOUT => 4,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $pending[$url] = $ch;
+        }
+        if ($pending) {
+            do {
+                $status = curl_multi_exec($mh, $running);
+                if ($running) curl_multi_select($mh, 1.0);
+            } while ($running && $status === CURLM_OK);
+            foreach ($pending as $url => $ch) {
+                $raw = curl_multi_getcontent($ch);
+                $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_multi_remove_handle($mh, $ch);
+                curl_close($ch);
+                if (!$raw || $code < 200 || $code >= 300) { $known[$url] = null; continue; }
+                $data = json_decode($raw, true);
+                if (is_array($data)) {
+                    $known[$url] = $data;
+                    $out[$url] = $data;
+                    spendsCacheSet('rates:http:' . md5($url), json_encode($data), 43200);
+                } else {
+                    $known[$url] = null;
+                }
+            }
+        }
+        curl_multi_close($mh);
+        return $out;
+    };
+
+    // Warm every external call in one parallel batch (NBU days, NBP table,
+    // NBRB dynamics and scale) so a dead bank costs one timeout, not fifteen.
+    $warmUrls = [];
     foreach ($dates as $d) {
-        $ymd = str_replace('-', '', $d);
-        $data = $http("https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date={$ymd}&json");
+        $warmUrls[] = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=" . str_replace('-', '', $d) . "&json";
+    }
+    $warmUrls[] = "https://api.nbp.pl/api/exchangerates/tables/A/last/{$days}/?format=json";
+    foreach (['USD' => 431, 'EUR' => 451, 'UAH' => 449, 'PLN' => 452] as $warmId) {
+        $warmUrls[] = "https://api.nbrb.by/exrates/rates/dynamics/{$warmId}?startDate={$dates[0]}&endDate=" . $dates[count($dates) - 1];
+        $warmUrls[] = "https://api.nbrb.by/exrates/rates/{$warmId}?ondate=" . $dates[count($dates) - 1] . "&periodicity=0";
+    }
+    $httpMulti($warmUrls);
+
+    // NBU (Ukraine): daily rates, quoted in UAH (e.g. 1 EUR = 51.36 UAH)
+    $nbuUrls = [];
+    foreach ($dates as $d) {
+        $nbuUrls[$d] = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date=" . str_replace('-', '', $d) . "&json";
+    }
+    $nbuData = $httpMulti(array_values($nbuUrls));
+    foreach ($nbuUrls as $d => $nbuUrl) {
+        $data = $nbuData[$nbuUrl] ?? null;
         if (!is_array($data)) continue;
         foreach ($data as $r) {
             $cc = strtoupper($r['cc'] ?? '');

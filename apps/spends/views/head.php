@@ -1533,7 +1533,41 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
             font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:var(--text-color);
         }
         .shortcuts-note { margin:10px 0 0; font-size:11px; color:var(--muted-text); }
+        /* ── Shell integration + mobile window layout ──────────────────── */
+        /* The dashboard shell draws its menu button over the iframe, so the
+           app toolbar must reserve that corner instead of sliding under it. */
+        html.in-shell .app-expenses .header { padding-left: 64px; }
+        @media (max-width: 768px) {
+            html.in-shell .app-expenses .header { padding-left: 60px; padding-right: 6px; gap: 6px; }
+            html.in-shell .app-expenses .header h2 { font-size: 15px; margin-right: auto; }
+            .modal { padding: 8px !important; align-items: flex-end !important; }
+            /* Card-style sheets instead of the old edge-to-edge full screen. */
+            body .modal .modal-content { width: calc(100% - 8px) !important; max-width: calc(100% - 8px) !important; height: auto !important; max-height: calc(100dvh - 16px) !important; border-radius: 16px !important; margin: auto !important; padding: 60px 14px 16px !important; }
+            body .modal .modal-content::before { border-radius: 16px 16px 0 0 !important; }
+            body .modal#ocr-analytics-modal .modal-content { height: auto !important; max-height: calc(100dvh - 16px) !important; border-radius: 16px !important; padding: 60px 12px 14px !important; }
+            body .modal#exchange-rates-modal .modal-content { padding: 60px 12px 14px !important; }
+            #exchange-rates-modal h3 .xr-pill { display: none !important; }
+            .sp-share-overlay { padding: 8px; }
+            .sp-share-modal { width: 100% !important; max-height: calc(100dvh - 16px) !important; border-radius: 16px !important; }
+            .sp-share__foot { padding: 12px 14px 16px; }
+            .header-buttons { justify-content: flex-end; }
+        }
+        /* One corner-radius family across the rates, statistics and share windows. */
+        body .modal .modal-content { border-radius: 16px !important; }
+        body .modal .modal-content::before { border-radius: 16px 16px 0 0 !important; }
+        .xr-row, .xr-change, .xr-flag, .analytics-card, .chart-container, .financial-summary-bar { border-radius: 12px; }
+        .xr-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 12px; text-align: center; color: var(--muted-text); font-size: 14px; }
+        .xr-empty button { padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--group-block-bg); color: var(--text-color); cursor: pointer; }
+        .sp-share-modal { border-radius: 16px !important; }
+        .sp-share__input, .sp-share__select, .sp-share__link-box, .sp-share__error, .sp-share__btn { border-radius: 12px !important; }
+        .sp-share__chip { border-radius: 999px !important; }
+        .sp-share__chip input, .sp-share__segment input { display: none !important; }
+        /* Long pickers (>10 options) are paged: only the visible page is rendered. */
+        .select-pager { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; color: var(--muted-text); }
+        .select-pager button { padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--group-block-bg); color: var(--text-color); cursor: pointer; }
+        .select-pager button:disabled { opacity: .4; cursor: default; }
 </style>
+    <script>if (window.self !== window.top) { document.documentElement.classList.add('in-shell'); }</script>
     <link rel="stylesheet" href="views/form-controls.css?v=<?= (int)@filemtime(__DIR__ . '/form-controls.css') ?>">
     <script>
     function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}

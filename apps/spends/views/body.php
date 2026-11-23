@@ -936,3 +936,16 @@
         <div id="backup-preview" style="overflow:auto;max-height:calc(80vh - 100px);background:var(--bg-color);padding:10px;border-radius:5px;"></div>
     </div>
 </div>
+
+<style>
+/* Mobile windows: keep this last in the cascade so app-level modal rules lose. */
+@media (max-width: 768px) {
+  body .modal { padding: 8px !important; }
+  body .modal .modal-content { width: calc(100% - 8px) !important; max-width: calc(100% - 8px) !important; height: auto !important; max-height: calc(100dvh - 16px) !important; border-radius: 16px !important; margin: auto !important; padding: 60px 12px 14px !important; }
+  body .modal .modal-content::before { border-radius: 16px 16px 0 0 !important; }
+  body .modal#ocr-analytics-modal .modal-content { height: auto !important; max-height: calc(100dvh - 16px) !important; border-radius: 16px !important; padding: 60px 12px 14px !important; }
+  body .modal#exchange-rates-modal .modal-content { padding: 60px 12px 14px !important; }
+  .analytics-table { font-size: 11px; }
+  .analytics-table th, .analytics-table td { padding-left: 5px; padding-right: 5px; }
+}
+</style>

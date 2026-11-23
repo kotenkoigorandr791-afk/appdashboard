@@ -101,20 +101,26 @@
   }
 
   function defaultPermissions(appId, resourceType) {
-    if (resourceType !== 'app') return ['view', 'download'];
-    if (appId === 'films') return ['view'];
-    if (appId === 'smart_home') return ['view', 'edit'];
-    return ['view', 'interact'];
+    if (appId === 'spends') return [];
+    if (resourceType !== 'app') return ['download'];
+    if (appId === 'films') return [];
+    if (appId === 'smart_home') return ['edit'];
+    return ['interact'];
   }
 
   // "edit" is reserved for Smart Home scene control. Everywhere else a
   // recipient must never be able to modify the owner's data (financial
   // records, recipes, step logs, …), so the chip is not offered at all.
+  // "view" is always granted implicitly (a share link is useless without it),
+  // so it is not offered as a separate chip.
   function permissionList(appId, resourceType) {
-    if (resourceType !== 'app') return ['view', 'download', 'share'];
-    if (appId === 'films') return ['view', 'share'];
-    if (appId === 'smart_home') return ['view', 'edit', 'share'];
-    return ['view', 'interact', 'share'];
+    // Spends shares a read-only chart: there is nothing to interact with or
+    // re-share, so the permissions block is not shown at all.
+    if (appId === 'spends') return [];
+    if (resourceType !== 'app') return ['download', 'share'];
+    if (appId === 'films') return ['share'];
+    if (appId === 'smart_home') return ['edit', 'share'];
+    return ['interact', 'share'];
   }
 
   // Financial data links must always expire: the "never" option is only
@@ -204,12 +210,16 @@
     paramsHtml(share) {
       const expiresDate = parseDate(share.expires_at);
       const items = [
-        t('expires') + ': ' + (expiresDate ? expiresDate.toLocaleString() : t('noExpiry')),
-        (share.permissions || []).map((p) => t(p)).join(' · '),
-        t('views') + ': ' + (share.max_views > 0 ? share.max_views : t('unlimited')),
-        t('access') + ': ' + t(share.access_mode),
-        t('dataMode') + ': ' + t(share.data_mode)
+        t('expires') + ': ' + (expiresDate ? expiresDate.toLocaleString() : t('noExpiry'))
       ];
+      // Spends shares a read-only chart, so permissions, views and data mode
+      // are irrelevant there and would only clutter the summary.
+      if (this.appId !== 'spends') {
+        items.push((share.permissions || []).map((p) => t(p)).join(' · '));
+        items.push(t('views') + ': ' + (share.max_views > 0 ? share.max_views : t('unlimited')));
+        items.push(t('dataMode') + ': ' + t(share.data_mode));
+      }
+      items.push(t('access') + ': ' + t(share.access_mode));
       if (share.password_protected) items.push(t('passwordSet'));
       return items.map((item) => '<span>' + esc(item) + '</span>').join('');
     }
@@ -295,7 +305,8 @@
       const meta = this.meta();
       const ex = this.existing;
       const defaults = (ex && ex.permissions) || this.options.defaultPermissions || defaultPermissions(this.appId, this.resourceType);
-      const permissions = permissionList(this.appId, this.resourceType).map((permission) => {
+      const permissionOptions = permissionList(this.appId, this.resourceType);
+      const permissions = permissionOptions.map((permission) => {
         const selected = defaults.indexOf(permission) !== -1;
         return '<label class="sp-share__chip' + (selected ? ' is-selected' : '') + '">' +
           '<input type="checkbox" name="permissions" value="' + permission + '"' + (selected ? ' checked' : '') + '>' +
@@ -303,13 +314,8 @@
           '</label>';
       }).join('');
       const restricted = !!ex && ex.access_mode === 'restricted';
-      const dataMode = this.resourceType === 'app' && !ex
-        ? '<section class="sp-share__section"><span class="sp-share__label">' + esc(t('dataMode')) + '</span>' +
-          '<div class="sp-share__segmented">' +
-            '<label class="sp-share__segment is-selected"><input type="radio" name="data_mode" value="live" checked>' + esc(t('live')) + '</label>' +
-            '<label class="sp-share__segment"><input type="radio" name="data_mode" value="snapshot">' + esc(t('snapshot')) + '</label>' +
-          '</div></section>'
-        : '';
+      // Data mode is no longer a choice: app shares always reflect live data.
+      const dataMode = '';
       return '<div class="sp-share-modal sp-share--' + esc(this.appId) + '" role="dialog" aria-modal="true" aria-labelledby="sp-share-title">' +
         '<header class="sp-share__head">' +
           '<span class="sp-share__badge" aria-hidden="true">' + icon(meta.icon) + '</span>' +
@@ -326,11 +332,11 @@
               '<label class="sp-share__label" for="sp-share-title-input">' + esc(t('title')) + '</label>' +
               '<input class="sp-share__input" id="sp-share-title-input" name="title" type="text" autofocus value="' + esc((ex && ex.title) || this.options.title || '') + '" placeholder="' + esc(meta.name) + '">' +
             '</section>' +
-            '<section class="sp-share__section">' +
+            (permissionOptions.length ? '<section class="sp-share__section">' +
               '<span class="sp-share__label">' + esc(t('permissions')) + '</span>' +
               '<div class="sp-share__chips" data-permissions>' + permissions + '</div>' +
               '<p class="sp-share__hint">' + esc(this.note()) + '</p>' +
-            '</section>' +
+            '</section>' : '') +
             '<section class="sp-share__section">' +
               '<span class="sp-share__label">' + esc(t('access')) + '</span>' +
               '<div class="sp-share__segmented">' +
@@ -343,19 +349,12 @@
               '<textarea class="sp-share__input" id="sp-share-emails" name="allowed_emails" rows="2" placeholder="user@example.com, other@example.com">' + esc(((ex && ex.allowed_emails) || []).join(', ')) + '</textarea>' +
               '<p class="sp-share__hint">' + esc(t('restrictedHint')) + '</p>' +
             '</section>' +
-            '<div class="sp-share__row">' +
-              '<section class="sp-share__section">' +
-                '<label class="sp-share__label" for="sp-share-expiry">' + esc(t('expiry')) + '</label>' +
-                '<select class="sp-share__select" id="sp-share-expiry" name="expires_option">' +
-                  this.expiryOptions() +
-                '</select>' +
-              '</section>' +
-              '<section class="sp-share__section">' +
-                '<label class="sp-share__label" for="sp-share-views">' + esc(t('maxViews')) + '</label>' +
-                '<input class="sp-share__input" id="sp-share-views" name="max_views" type="number" min="0" step="1" value="' + (ex ? parseInt(ex.max_views, 10) || 0 : 0) + '" inputmode="numeric">' +
-                '<p class="sp-share__hint">' + esc(t('unlimited')) + '</p>' +
-              '</section>' +
-            '</div>' +
+            '<section class="sp-share__section">' +
+              '<label class="sp-share__label" for="sp-share-expiry">' + esc(t('expiry')) + '</label>' +
+              '<select class="sp-share__select" id="sp-share-expiry" name="expires_option">' +
+                this.expiryOptions() +
+              '</select>' +
+            '</section>' +
             '<section class="sp-share__section">' +
               '<label class="sp-share__label" for="sp-share-password">' + esc(t('password')) + ' <span style="font-weight:500;text-transform:none;letter-spacing:0">(' + esc(t(ex && ex.password_protected ? 'keepCurrent' : (this.options.requirePassword ? 'required' : 'optional'))) + ')</span></label>' +
               this.passwordField('sp-share-password', 'password', ex && ex.password_protected ? '' : (this.options.requirePassword ? ' required' : '')) +
@@ -416,11 +415,11 @@
         description: this.options.description || '',
         access_mode: formData.get('access_mode') || 'public',
         allowed_emails: String(formData.get('allowed_emails') || ''),
-        permissions: permissions.length ? permissions : ['view'],
+        permissions: permissions.length ? permissions : [],
         expires_option: formData.get('expires_option') || '1m',
         password: String(formData.get('password') || ''),
-        max_views: Math.max(0, parseInt(formData.get('max_views') || '0', 10) || 0),
-        data_mode: formData.get('data_mode') || 'live'
+        max_views: 0,
+        data_mode: 'live'
       };
     }
 
@@ -433,10 +432,10 @@
         title: String(data.get('title') || '').trim(),
         access_mode: data.get('access_mode') || 'public',
         allowed_emails: String(data.get('allowed_emails') || ''),
-        permissions: permissions.length ? permissions : ['view'],
+        permissions: permissions.length ? permissions : [],
         expires_option: data.get('expires_option') || '1m',
         password: String(data.get('password') || ''),
-        max_views: Math.max(0, parseInt(data.get('max_views') || '0', 10) || 0)
+        max_views: 0
       };
     }
 
