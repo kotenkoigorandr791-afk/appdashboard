@@ -42,6 +42,80 @@ if (isset($_GET['get_settings']) || isset($_POST['get_settings'])) {
         'store_categories' => $userSettings['store_categories'] ?? spendsStoreCategories(),
     ]));
 }
+if (isset($_GET['get_activity_page'])) {
+    if (!spendsRateLimit('activity_page:' . $currentUser, 90, 60)) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        exit(json_encode(['status' => 'error', 'message' => 'rate_limited']));
+    }
+    $perPage = max(5, min(50, (int)($_GET['per_page'] ?? 20)));
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $search = trim((string)($_GET['search'] ?? ''));
+    $source = strtolower(trim((string)($_GET['source'] ?? 'all')));
+    if (!in_array($source, ['all', 'manual', 'notification'], true)) {
+        $source = 'all';
+    }
+    $where = ['e.amount > 0.0001'];
+    $params = [];
+    if ($source === 'manual') {
+        $where[] = "LOWER(COALESCE(e.entry_source, 'manual')) IN ('manual', 'subscription')";
+    } elseif ($source === 'notification') {
+        $where[] = "LOWER(COALESCE(e.entry_source, 'manual')) NOT IN ('manual', 'subscription')";
+    }
+    if ($search !== '') {
+        $where[] = '(e.store LIKE :s OR e.date LIKE :s2 OR CAST(e.amount AS TEXT) LIKE :s3 OR LOWER(COALESCE(s.category, \'other\')) LIKE :s4)';
+        $like = '%' . $search . '%';
+        $params[':s'] = $like;
+        $params[':s2'] = $like;
+        $params[':s3'] = $like;
+        $params[':s4'] = '%' . mb_strtolower($search, 'UTF-8') . '%';
+    }
+    $whereSql = implode(' AND ', $where);
+    $fromSql = 'expenses e LEFT JOIN stores s ON s.name = e.store';
+    try {
+        $cntSt = $udb->prepare("SELECT COUNT(*) FROM $fromSql WHERE $whereSql");
+        foreach ($params as $k => $v) {
+            $cntSt->bindValue($k, $v);
+        }
+        $total = (int)$cntSt->execute()->fetchColumn();
+        $totalPages = max(1, (int)ceil($total / max(1, $perPage)));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+        $offset = ($page - 1) * $perPage;
+        $listSt = $udb->prepare("SELECT e.date, e.store, ROUND(e.amount::numeric, 2) AS amount, COALESCE(e.entry_source, 'manual') AS entry_source
+            FROM $fromSql WHERE $whereSql ORDER BY e.date DESC, e.store ASC LIMIT :lim OFFSET :off");
+        foreach ($params as $k => $v) {
+            $listSt->bindValue($k, $v);
+        }
+        $listSt->bindValue(':lim', $perPage, PDO::PARAM_INT);
+        $listSt->bindValue(':off', $offset, PDO::PARAM_INT);
+        $listRes = $listSt->execute();
+        $items = [];
+        while (($row = $listRes->fetch(PDO::FETCH_ASSOC)) !== null) {
+            $items[] = [
+                'date' => (string)$row['date'],
+                'store' => (string)$row['store'],
+                'amount' => (float)$row['amount'],
+                'entry_source' => strtolower((string)$row['entry_source']),
+            ];
+        }
+        header('Content-Type: application/json; charset=utf-8');
+        exit(json_encode([
+            'status' => 'success',
+            'items' => $items,
+            'total' => $total,
+            'page' => $page,
+            'perPage' => $perPage,
+            'totalPages' => $totalPages,
+        ]));
+    } catch (Throwable $e) {
+        error_log('spends get_activity_page: ' . $e->getMessage());
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        exit(json_encode(['status' => 'error', 'message' => 'server_error']));
+    }
+}
 if (isset($_GET['get_expense_meta'])) {
     $date = trim($_GET['date'] ?? '');
     $store = trim($_GET['store'] ?? '');
@@ -62,6 +136,38 @@ if (isset($_GET['get_expense_meta'])) {
         'edited_via'=>(string)($row['edited_via'] ?? ''),
     ]]));
 }
+if (isset($_GET['list_stores_page'])) {
+    if (!spendsRateLimit('list_stores:' . $currentUser, 120, 60)) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        exit(json_encode(['status' => 'error', 'message' => 'rate_limited']));
+    }
+    $per = min(50, max(1, (int)($_GET['per_page'] ?? 10)));
+    $findName = trim((string)($_GET['find_name'] ?? ''));
+    if ($findName !== '') {
+        $stmt = $udb->prepare('SELECT COUNT(*) FROM stores WHERE LOWER(name) < LOWER(:n)');
+        $stmt->bindValue(':n', $findName, PDO::PARAM_STR);
+        $stmt->execute();
+        $before = (int)$stmt->fetchColumn();
+        header('Content-Type: application/json; charset=utf-8');
+        exit(json_encode(['status' => 'success', 'page' => (int)floor($before / $per), 'per_page' => $per]));
+    }
+    $page = max(0, (int)($_GET['page'] ?? 0));
+    $offset = $page * $per;
+    $total = (int)$udb->query('SELECT COUNT(*) FROM stores')->fetchColumn();
+    $stmt = $udb->prepare('SELECT id, name FROM stores ORDER BY name ASC LIMIT :lim OFFSET :off');
+    $stmt->bindValue(':lim', $per, PDO::PARAM_INT);
+    $stmt->bindValue(':off', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $items = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $name = trim((string)($row['name'] ?? ''));
+        if ($name === '') continue;
+        $items[] = ['id' => (string)($row['id'] ?? ''), 'name' => $name];
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    exit(json_encode(['status' => 'success', 'page' => $page, 'per_page' => $per, 'total' => $total, 'items' => $items]));
+}
 if (isset($_GET['get_ocr_stats'])) {
     if (!spendsRateLimit('ocr_stats:' . $currentUser, 60, 60)) {
         http_response_code(429);
@@ -72,9 +178,7 @@ if (isset($_GET['get_ocr_stats'])) {
     $year = (int)($_GET['year'] ?? 0);
     $yearStart = $year > 0 ? sprintf('%04d-01-01', $year) : null;
     $yearEnd = $year > 0 ? sprintf('%04d-12-31', $year) : null;
-    $stores = [];
-    $sr = $udb->query("SELECT name FROM stores ORDER BY name ASC");
-    while ($row = $sr->fetch(PDO::FETCH_ASSOC)) if (!empty($row['name'])) $stores[] = $row['name'];
+    $storesTotal = (int)$udb->query('SELECT COUNT(*) FROM stores')->fetchColumn();
     $daily = [];
     $monthly = [];
     $storeSummary = [];
@@ -130,7 +234,7 @@ if (isset($_GET['get_ocr_stats'])) {
         $catRow['active_day_avg'] = $catRow['active_days'] > 0 ? round($catRow['total'] / $catRow['active_days'], 2) : 0;
     }
     unset($catRow);
-    exit(json_encode(['status'=>'success','stores'=>$stores,'daily'=>$daily,'monthly'=>$monthly,'store_summary'=>$storeSummary,'category_summary'=>array_values($categorySummary),'categories'=>spendsStoreCategories()]));
+    exit(json_encode(['status'=>'success','stores_total'=>$storesTotal,'daily'=>$daily,'monthly'=>$monthly,'store_summary'=>$storeSummary,'category_summary'=>array_values($categorySummary),'categories'=>spendsStoreCategories()]));
 }
 if (isset($_GET['get_available_years'])) {
     $years = [];

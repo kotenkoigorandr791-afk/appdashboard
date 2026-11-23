@@ -1,7 +1,13 @@
 <?php
 // ─── Language & theme ──────────────────────────────────────────────────────────
 require_once dirname(__DIR__, 3) . '/shell/i18n_helpers.php';
-$language     = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
+$language     = ap_normalize_i18n_lang(
+    $_GET['lang']
+    ?? ($_SESSION['user']['language'] ?? null)
+    ?? ($_COOKIE['sk_language'] ?? null)
+    ?? ($_SESSION['lang'] ?? null)
+    ?? 'en'
+);
 $theme        = $_GET['theme'] ?? 'light';
 $primaryColor = $_GET['color'] ?? '#007bff';
 $translations = ap_load_i18n_from_dir(__DIR__ . '/..', $language);

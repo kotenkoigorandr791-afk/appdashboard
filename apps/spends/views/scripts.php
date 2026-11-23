@@ -1,14 +1,32 @@
-<script src="/shell/sharepoint/assets/js/qr-code.js?v=5"></script>
-<script src="/shell/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
+<script src="/shell/sharepoint/assets/js/qr-code.js?v=6"></script>
+<?php require_once dirname(__DIR__, 3) . '/shell/sharepoint/i18n_loader.php'; ?>
+<script>window.SHAREPOINT_SHARE_I18N=<?= json_encode(sharepoint_load_share_i18n($language), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <?php if (empty($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(24)); ?>
 <script>window.SHAREPOINT_CSRF=<?= json_encode($_SESSION['sharepoint_csrf']) ?>;</script>
-<script src="/shell/sharepoint/assets/js/share-modal.js?v=15"></script>
+<script src="/shell/sharepoint/assets/js/share-modal.js?v=20"></script>
 <script>
 <?php $jsonFlags = JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE; ?>
 const translations = <?= json_encode($translations, $jsonFlags) ?: '{}' ?>;
 const currentLang = <?= json_encode($language, $jsonFlags) ?: '"en"' ?>;
 const ocrI18n={en:{waiting:'Waiting for OCR start...',done:'OCR completed',recognized:'recognized',unresolved:'unresolved',warning:'Warning',autoAdded:'Auto-added to database',manualAdded:'Added after manual mapping',dbAdded:'OCR data added to database',jobCreated:'Job created',baseCurrency:'Accounting currency',statusError:'Status error',ocrError:'OCR error',startError:'Start error'},ru:{waiting:'Ожидание запуска OCR...',done:'OCR завершен',recognized:'распознано',unresolved:'нераспознано',warning:'Предупреждение',autoAdded:'Автоматически добавлено в базу',manualAdded:'Добавлено после ручного сопоставления',dbAdded:'OCR данные добавлены в базу',jobCreated:'Задача создана',baseCurrency:'Валюта учета',statusError:'Ошибка статуса',ocrError:'Ошибка OCR',startError:'Ошибка запуска'},uk:{waiting:'Очікування запуску OCR...',done:'OCR завершено',recognized:'розпізнано',unresolved:'нерозпізнано',warning:'Попередження',autoAdded:'Автоматично додано в базу',manualAdded:'Додано після ручного зіставлення',dbAdded:'OCR дані додано в базу',jobCreated:'Задачу створено',baseCurrency:'Валюта обліку',statusError:'Помилка статусу',ocrError:'Помилка OCR',startError:'Помилка запуску'}};
 const ocrT=ocrI18n[currentLang]||ocrI18n.en;
+const SP_ICON_DEFS={
+    close:['#94a3b8','<path d="M6 6l12 12"/><path d="m18 6-12 12"/>'],
+    bell:['#f59e0b','<path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"/><path d="M9.5 17.5a2.5 2.5 0 0 0 5 0"/>'],
+    pencil:['#2563eb','<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'],
+    check:['#10b981','<path d="m5 12 4.5 4.5L19 7"/>'],
+    error:['#ef4444','<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>'],
+    'chevron-right':['#64748b','<path d="m9 6 6 6-6 6"/>'],
+    'chevron-left':['#64748b','<path d="m15 18-6-6 6-6"/>'],
+    'trend-up':['#10b981','<path d="m3 17 6-6 4 4 7-9"/><path d="M14 6h7v7"/>'],
+    'trend-down':['#ef4444','<path d="m3 7 6 6 4-4 7 9"/><path d="M14 18h7v-7"/>']
+};
+function spIcon(name,size){
+    size=size||16;
+    const d=SP_ICON_DEFS[name]||SP_ICON_DEFS.close;
+  return `<span class="sp-ic sp-ic--${name}" aria-hidden="true"><svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="${d[0]}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d[1]}</svg></span>`;
+}
+function activitySourceIcon(source,size){return spIcon(source==='notification'?'bell':'pencil',size||15);}
 let expensesData = <?= json_encode($allStoresExpenses ?? [], $jsonFlags) ?: '{}' ?>;
 let incomesData  = <?= json_encode($allIncomes ?? [], $jsonFlags) ?: '{}' ?>;
 let allDates     = <?= json_encode($allDates ?? [], $jsonFlags) ?: '[]' ?>;
@@ -44,19 +62,103 @@ const monthNames  = <?= json_encode(($monthNames[$language] ?? $monthNames['en']
 const t=(key,fallback='')=>translations[key]||fallback;
 const categoryLabel=key=>t('store_category_'+key,key);
 function money(v){return `${(Number(v)||0).toFixed(2)} ${userSettings.currency||''}`.trim();}
+function financialMonthPrefix(offsetMonths=0){
+    const d=new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth()+offsetMonths);
+    const m=String(d.getMonth()+1).padStart(2,'0');
+    return `${d.getFullYear()}-${m}`;
+}
+function sumExpensesMonth(prefix){
+    return Object.keys(expensesData||{}).filter(date=>String(date).startsWith(prefix)).reduce((s,date)=>{
+        const row=expensesData[date]||{};
+        return s+Object.values(row).reduce((a,v)=>a+(Number(v)||0),0);
+    },0);
+}
+function sumIncomeMonth(prefix){
+    return Object.keys(incomesData||{}).filter(date=>String(date).startsWith(prefix)).reduce((s,date)=>s+(Number(incomesData[date])||0),0);
+}
+function formatExpenseMomPct(current,previous){
+    if(current<=0&&previous<=0)return null;
+    if(previous<=0)return 100;
+    return ((current-previous)/previous)*100;
+}
 function updateFinancialSummary(){
-    const income=Object.values(incomesData||{}).reduce((s,v)=>s+(Number(v)||0),0);
-    const expenses=Object.values(expensesData||{}).reduce((s,row)=>s+Object.values(row||{}).reduce((a,v)=>a+(Number(v)||0),0),0);
+    const cur=financialMonthPrefix(0);
+    const prev=financialMonthPrefix(-1);
+    const income=sumIncomeMonth(cur);
+    const expenses=sumExpensesMonth(cur);
     const values={income,expenses,balance:income-expenses};
     const map={income:'financial-income',expenses:'financial-expenses',balance:'financial-balance'};
     Object.keys(map).forEach(k=>{const el=document.getElementById(map[k]);if(el)el.textContent=money(values[k]);});
+    const mom=formatExpenseMomPct(expenses,sumExpensesMonth(prev));
+    const momEl=document.getElementById('financial-expenses-mom');
+    if(momEl){
+        if(mom==null){momEl.hidden=true;momEl.textContent='';momEl.className='financial-mom';}
+        else{
+            const pct=Math.round(mom);
+            const sign=pct>0?'+':'';
+            momEl.hidden=false;
+            momEl.textContent=`${sign}${pct}%`;
+            momEl.title=t('vs_previous_month','vs last month');
+            momEl.className='financial-mom '+(pct>0?'financial-mom--up':pct<0?'financial-mom--down':'financial-mom--flat');
+        }
+    }
+    const monthSuffix=(name)=>{const n=monthNames&&monthNames[new Date().getMonth()];return n?`${name} · ${n}`:name;};
+    const incomeLbl=document.getElementById('financial-income-label');
+    const expLbl=document.getElementById('financial-expenses-label');
+    const balLbl=document.getElementById('financial-balance-label');
+    if(incomeLbl)incomeLbl.textContent=monthSuffix(t('financial_income_month',t('total_income','Income')));
+    if(expLbl)expLbl.textContent=monthSuffix(t('financial_expenses_month',t('total_expenses','Expenses')));
+    if(balLbl)balLbl.textContent=monthSuffix(t('financial_capital_month',t('capital_balance','Capital')));
 }
 
 // ══ Modal helpers ═══════════════════════════════════════════════════════════
+const MODAL_Z_BASE = 10000;
+const MODAL_Z_STEP = 10;
+const MODAL_Z_PINNED = {
+    'tag-picker-modal': 11001,
+    'confirm-delete-modal': 11002,
+    'input-prompt-modal': 11002,
+    'confirm-restore-backup-modal': 11003,
+    'crop-modal': 30000
+};
+let modalOpenOrder = [];
 function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}
-function setupModalChrome(){document.querySelectorAll('.modal-content:not(.tx-sheet):not(.history-sheet)').forEach(content=>{if(content.querySelector(':scope > .modal-topbar'))return;const close=content.querySelector(':scope > .modal-close'),title=Array.from(content.children).find(el=>/H[23]/.test(el.tagName)),topbar=document.createElement('div'),label=title||document.createElement('div'),body=document.createElement('div');topbar.className='modal-topbar';label.classList.add('modal-topbar-title');body.className='modal-body';topbar.appendChild(label);if(close)topbar.appendChild(close);Array.from(content.childNodes).forEach(node=>{if(node!==topbar&&node!==close&&node!==label)body.appendChild(node);});content.appendChild(topbar);content.appendChild(body);});}
-function showModal(id) { setupModalChrome(); document.getElementById(id).style.display='flex'; syncModalBodyState(); }
-function closeModal(id) { document.getElementById(id).style.display='none'; syncModalBodyState(); }
+function setupModalChrome(){document.querySelectorAll('.modal-content:not(.tx-sheet):not(.history-sheet):not(.modal-content--stats)').forEach(content=>{if(content.querySelector(':scope > .modal-topbar'))return;const close=content.querySelector(':scope > .modal-close'),title=Array.from(content.children).find(el=>/H[23]/.test(el.tagName)),existingBody=content.querySelector(':scope > .modal-body'),topbar=document.createElement('div');topbar.className='modal-topbar';if(title){title.classList.add('modal-topbar-title');topbar.appendChild(title);}else{const label=document.createElement('div');label.className='modal-topbar-title';topbar.appendChild(label);}if(close)topbar.appendChild(close);if(existingBody){content.insertBefore(topbar,existingBody);return;}const body=document.createElement('div');body.className='modal-body';Array.from(content.childNodes).forEach(node=>{if(node!==topbar&&node!==close&&node!==title)body.appendChild(node);});content.appendChild(topbar);content.appendChild(body);});}
+function modalZIndex(id){
+    if (MODAL_Z_PINNED[id] != null) return MODAL_Z_PINNED[id];
+    const idx = modalOpenOrder.indexOf(id);
+    if (idx < 0) return MODAL_Z_BASE;
+    return MODAL_Z_BASE + (idx + 1) * MODAL_Z_STEP;
+}
+function applyModalStackZIndex(){
+    document.querySelectorAll('.modal').forEach(el => {
+        if (!el.id || el.style.display !== 'flex') {
+            if (el.id && !modalOpenOrder.includes(el.id)) el.style.zIndex = '';
+            return;
+        }
+        el.style.zIndex = String(modalZIndex(el.id));
+    });
+}
+function showModal(id) {
+    setupModalChrome();
+    const el = document.getElementById(id);
+    if (!el) return;
+    modalOpenOrder = modalOpenOrder.filter(x => x !== id);
+    modalOpenOrder.push(id);
+    el.style.display = 'flex';
+    applyModalStackZIndex();
+    syncModalBodyState();
+    if (window.syncCustomSelects) syncCustomSelects();
+}
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+    modalOpenOrder = modalOpenOrder.filter(x => x !== id);
+    applyModalStackZIndex();
+    syncModalBodyState();
+}
 function confirmWithModal(message,action,confirmLabel=t('delete','Delete')){
     pendingConfirmAction=action;
     document.getElementById('confirm-delete-title').textContent=t('confirm_action_title','Confirm action');
@@ -90,8 +192,228 @@ function resolveInputPrompt(value){
 // The concept renders dropdowns as a button plus a menu, so every <select> in
 // the app is replaced by that component while the native element stays in the
 // DOM as the single source of truth for form submits and existing listeners.
-const CS_PAGE_SIZE = 8;
+const CS_PAGE_SIZE = 10;
+const ANALYTICS_TABLE_PAGE_SIZE = 3;
 const CS_SVG_NS = 'http://www.w3.org/2000/svg';
+const storeSelectPageCache = { total: null, pages: {}, inflight: {} };
+
+function csOptionNode(value, label, disabled, fixed) {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = label;
+    if (disabled) o.disabled = true;
+    if (fixed) o.dataset.pagedFixed = '1';
+    return o;
+}
+
+function csFixedOptions(select) {
+    const all = select._csVirtual || Array.from(select.options);
+    if (select._csVirtual) return all.filter(o => o.fixed);
+    return all.filter(o => o.dataset && o.dataset.pagedFixed === '1');
+}
+
+function fetchStoreSelectPage(page) {
+    if (storeSelectPageCache.pages[page]) return Promise.resolve(storeSelectPageCache.pages[page]);
+    if (storeSelectPageCache.inflight[page]) return storeSelectPageCache.inflight[page];
+    storeSelectPageCache.inflight[page] = fetch(`?list_stores_page=1&page=${page}&per_page=${CS_PAGE_SIZE}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d && d.status === 'success') {
+                storeSelectPageCache.total = d.total;
+                storeSelectPageCache.pages[page] = d.items || [];
+            } else {
+                storeSelectPageCache.pages[page] = [];
+            }
+            delete storeSelectPageCache.inflight[page];
+            return storeSelectPageCache.pages[page];
+        })
+        .catch(() => {
+            storeSelectPageCache.pages[page] = [];
+            delete storeSelectPageCache.inflight[page];
+            return storeSelectPageCache.pages[page];
+        });
+    return storeSelectPageCache.inflight[page];
+}
+
+function primeStoreSelectPages(page) {
+    const total = storeSelectPageCache.total;
+    const pageCount = total != null ? Math.max(1, Math.ceil(total / CS_PAGE_SIZE)) : 99;
+    fetchStoreSelectPage(page);
+    if (page + 1 < pageCount) fetchStoreSelectPage(page + 1);
+}
+
+function storeSelectItemsForPage(page, valueMode) {
+    const items = storeSelectPageCache.pages[page] || [];
+    return items.map(row => ({
+        value: valueMode === 'id' ? String(row.id) : row.name,
+        label: row.name,
+        disabled: false,
+        fixed: false
+    }));
+}
+
+function syncRemoteStoreSelectDom(select, page) {
+    const valueMode = select.dataset.pagedStores || 'name';
+    const fixed = csFixedOptions(select);
+    const cur = select.value;
+    const pageCount = Math.max(1, Math.ceil((storeSelectPageCache.total || 0) / CS_PAGE_SIZE));
+    page = Math.max(0, Math.min(pageCount - 1, page));
+    const pages = pageCount > 1 ? [page, Math.min(page + 1, pageCount - 1)] : [page];
+    const merged = [];
+    const seen = new Set();
+    fixed.forEach(f => {
+        const v = select._csVirtual ? f.value : f.value;
+        const l = select._csVirtual ? f.label : f.textContent;
+        if (seen.has(v)) return;
+        seen.add(v);
+        merged.push({ value: v, label: l, disabled: !!(f.disabled), fixed: true });
+    });
+    pages.forEach(p => storeSelectItemsForPage(p, valueMode).forEach(item => {
+        if (seen.has(item.value)) return;
+        seen.add(item.value);
+        merged.push(item);
+    }));
+    if (cur && !seen.has(cur)) {
+        const hint = select._csSelectedLabel;
+        merged.push({ value: cur, label: hint || cur, disabled: false, fixed: false });
+    }
+    select.replaceChildren();
+    merged.forEach(item => select.appendChild(csOptionNode(item.value, item.label, item.disabled, item.fixed)));
+    if (merged.some(item => item.value === cur)) select.value = cur;
+    else if (fixed.length) select.value = fixed[0].value;
+    select._csStorePageCount = pageCount;
+}
+
+function captureVirtualSelectOptions(select) {
+    if (select._csVirtual) return;
+    select._csVirtual = Array.from(select.options).map(o => ({
+        value: o.value,
+        label: o.textContent,
+        disabled: o.disabled,
+        fixed: o.dataset.pagedFixed === '1'
+    }));
+    if (select._csVirtual.length <= CS_PAGE_SIZE) return;
+    const cur = select.value;
+    const curLabel = select.selectedOptions[0] ? select.selectedOptions[0].textContent : '';
+    if (cur) select._csSelectedLabel = curLabel.trim();
+    syncVirtualSelectDom(select, 0);
+}
+
+function syncVirtualSelectDom(select, page) {
+    const all = select._csVirtual || [];
+    const fixed = all.filter(o => o.fixed);
+    const rest = all.filter(o => !o.fixed);
+    const pageCount = Math.max(1, Math.ceil(rest.length / CS_PAGE_SIZE));
+    page = Math.max(0, Math.min(pageCount - 1, page));
+    const pages = pageCount > 1 ? [page, Math.min(page + 1, pageCount - 1)] : [page];
+    const cur = select.value;
+    const merged = [];
+    const seen = new Set();
+    fixed.forEach(item => { seen.add(item.value); merged.push(item); });
+    pages.forEach(p => {
+        rest.slice(p * CS_PAGE_SIZE, (p + 1) * CS_PAGE_SIZE).forEach(item => {
+            if (seen.has(item.value)) return;
+            seen.add(item.value);
+            merged.push(item);
+        });
+    });
+    if (cur && !seen.has(cur)) {
+        const hit = all.find(o => o.value === cur);
+        merged.push(hit || { value: cur, label: select._csSelectedLabel || cur, disabled: false, fixed: false });
+    }
+    select.replaceChildren();
+    merged.forEach(item => select.appendChild(csOptionNode(item.value, item.label, item.disabled, item.fixed)));
+    if (merged.some(item => item.value === cur)) select.value = cur;
+    select._csVirtualPageCount = pageCount;
+}
+
+function attachRemoteStoreSelect(select) {
+    if (!select || select.dataset.pagedStoresReady === '1') return;
+    select.dataset.pagedStoresReady = '1';
+    select._csRemoteStores = true;
+    const fixedNodes = Array.from(select.options).filter(o => o.dataset.pagedFixed === '1');
+    select._csVirtual = fixedNodes.map(o => ({ value: o.value, label: o.textContent, disabled: o.disabled, fixed: true }));
+    const cur = select.value;
+    if (cur && cur !== fixedNodes[0]?.value) {
+        const hit = select.selectedOptions[0];
+        select._csSelectedLabel = hit ? hit.textContent.trim() : cur;
+    }
+    syncRemoteStoreSelectDom(select, 0);
+    primeStoreSelectPages(0);
+    select._csPageHook = page => {
+        syncRemoteStoreSelectDom(select, page);
+        primeStoreSelectPages(page);
+    };
+}
+
+function attachSelectPagingIfNeeded(select) {
+    if (!select || select.multiple || csShouldSkip(select) || select.dataset.csNoPager === '1') return;
+    if (select.dataset.pagedStores) {
+        attachRemoteStoreSelect(select);
+        return;
+    }
+    if (select.options.length > CS_PAGE_SIZE) captureVirtualSelectOptions(select);
+}
+
+function csPagedOptionList(select, page) {
+    if (select.dataset && select.dataset.csNoPager === '1') {
+        return { options: csOptions(select), pageCount: 1 };
+    }
+    if (select._csRemoteStores) {
+        const fixed = (select._csVirtual || []).filter(o => o.fixed);
+        const valueMode = select.dataset.pagedStores || 'name';
+        const pageCount = select._csStorePageCount || Math.max(1, Math.ceil((storeSelectPageCache.total || 0) / CS_PAGE_SIZE));
+        page = Math.max(0, Math.min(pageCount - 1, page));
+        syncRemoteStoreSelectDom(select, page);
+        primeStoreSelectPages(page);
+        const start = page * CS_PAGE_SIZE;
+        const items = storeSelectItemsForPage(page, valueMode);
+        return { options: [...fixed, ...items], pageCount };
+    }
+    if (select._csVirtual) {
+        const fixed = select._csVirtual.filter(o => o.fixed);
+        const rest = select._csVirtual.filter(o => !o.fixed);
+        const pageCount = select._csVirtualPageCount || Math.max(1, Math.ceil(rest.length / CS_PAGE_SIZE));
+        page = Math.max(0, Math.min(pageCount - 1, page));
+        syncVirtualSelectDom(select, page);
+        const items = rest.slice(page * CS_PAGE_SIZE, (page + 1) * CS_PAGE_SIZE);
+        return { options: [...fixed, ...items], pageCount };
+    }
+    const options = Array.from(select.options);
+    const pageCount = Math.max(1, Math.ceil(options.length / CS_PAGE_SIZE));
+    page = Math.max(0, Math.min(pageCount - 1, page));
+    const start = page * CS_PAGE_SIZE;
+    return { options: options.slice(start, start + CS_PAGE_SIZE), pageCount };
+}
+
+function initAllPagedStoreSelects(root) {
+    (root || document).querySelectorAll('select[data-paged-stores]').forEach(attachRemoteStoreSelect);
+}
+
+function resetStoreSelectPageCache() {
+    storeSelectPageCache.total = null;
+    storeSelectPageCache.pages = {};
+    storeSelectPageCache.inflight = {};
+    document.querySelectorAll('select[data-paged-stores]').forEach(sel => {
+        delete sel.dataset.pagedStoresReady;
+        delete sel._csRemoteStores;
+        delete sel._csPageHook;
+    });
+}
+
+function primeStorePageForValue(select, value) {
+    if (!value || value === '__all__') return Promise.resolve(0);
+    return fetch(`?list_stores_page=1&find_name=${encodeURIComponent(value)}&per_page=${CS_PAGE_SIZE}`)
+        .then(r => r.json())
+        .then(d => {
+            const page = d && d.status === 'success' ? Math.max(0, d.page || 0) : 0;
+            primeStoreSelectPages(page);
+            syncRemoteStoreSelectDom(select, page);
+            if (select._cs) select._cs.page = page;
+            return page;
+        })
+        .catch(() => 0);
+}
 
 function csShouldSkip(select) {
     return !select || select.multiple || select.hidden
@@ -100,6 +422,7 @@ function csShouldSkip(select) {
 }
 
 function csOptions(select) {
+    if (select._csVirtual) return select._csVirtual.map(o => ({ value: o.value, textContent: o.label, disabled: o.disabled }));
     return Array.from(select.options);
 }
 
@@ -137,6 +460,7 @@ function enhanceSelect(select) {
     select.dataset.csReady = '1';
     const wrap = document.createElement('span');
     wrap.className = 'cs-select' + (select.classList.contains('manual-cal-select') ? ' cs-inline' : '');
+    if (select.classList.contains('manual-cal-select-year')) wrap.classList.add('cs-cal-year');
     select.parentNode.insertBefore(wrap, select);
     wrap.appendChild(select);
     select.classList.add('cs-native');
@@ -181,9 +505,50 @@ function enhanceSelect(select) {
         wrap, trigger, label, menu, list, pager, page: 0,
         open() {
             csCloseOthers(wrap);
-            const options = csOptions(select);
-            const selectedIndex = options.findIndex(option => option.value === select.value);
-            ui.page = selectedIndex >= 0 ? Math.floor(selectedIndex / CS_PAGE_SIZE) : 0;
+            attachSelectPagingIfNeeded(select);
+            let selectedIndex = -1;
+            if (select._csRemoteStores || select._csVirtual) {
+                const value = select.value;
+                if (select._csRemoteStores) {
+                    const valueMode = select.dataset.pagedStores || 'name';
+                    const tryPage = p => {
+                        const items = storeSelectItemsForPage(p, valueMode);
+                        const idx = items.findIndex(o => o.value === value);
+                        return idx >= 0 ? { page: p, idx: idx + csFixedOptions(select).length } : null;
+                    };
+                    const hit = tryPage(ui.page) || tryPage(0);
+                    if (hit) { ui.page = hit.page; selectedIndex = hit.idx; }
+                    else if (value && !csFixedOptions(select).some(o => o.value === value)) {
+                        ui.page = 0;
+                        primeStoreSelectPages(0);
+                        primeStorePageForValue(select, value).then(page => {
+                            if (!wrap.classList.contains('is-open')) return;
+                            const items = storeSelectItemsForPage(page, valueMode);
+                            const idx = items.findIndex(o => o.value === value);
+                            ui.page = page;
+                            ui.render(idx >= 0 ? idx + csFixedOptions(select).length : undefined);
+                            ui.position();
+                        });
+                    } else {
+                        ui.page = 0;
+                        primeStoreSelectPages(0);
+                    }
+                } else {
+                    const fixed = (select._csVirtual || []).filter(o => o.fixed);
+                    const rest = (select._csVirtual || []).filter(o => !o.fixed);
+                    const idxInRest = rest.findIndex(o => o.value === value);
+                    if (idxInRest >= 0) {
+                        ui.page = Math.floor(idxInRest / CS_PAGE_SIZE);
+                        selectedIndex = fixed.length + (idxInRest % CS_PAGE_SIZE);
+                    }
+                }
+            } else {
+                const options = csOptions(select);
+                selectedIndex = options.findIndex(option => option.value === select.value);
+                if (select.dataset.csNoPager === '1') ui.page = 0;
+                else ui.page = selectedIndex >= 0 ? Math.floor(selectedIndex / CS_PAGE_SIZE) : 0;
+            }
+            if (selectedIndex < 0) ui.page = ui.page || 0;
             wrap.classList.add('is-open');
             trigger.setAttribute('aria-expanded', 'true');
             menu.hidden = false;
@@ -203,7 +568,8 @@ function enhanceSelect(select) {
             const openUp = spaceBelow < Math.min(180, preferred) && spaceAbove > spaceBelow;
             const available = Math.max(140, openUp ? spaceAbove : spaceBelow);
             menu.style.maxHeight = Math.min(preferred, available) + 'px';
-            menu.style.width = rect.width + 'px';
+            const minMenuW = select.classList.contains('manual-cal-select-year') ? 96 : 0;
+            menu.style.width = Math.max(rect.width, minMenuW) + 'px';
             menu.style.left = Math.max(margin, Math.min(rect.left, window.innerWidth - rect.width - margin)) + 'px';
             menu.style.top = openUp
                 ? Math.max(margin, rect.top - Math.min(menu.offsetHeight || preferred, available) - 6) + 'px'
@@ -215,10 +581,11 @@ function enhanceSelect(select) {
             menu.hidden = true;
         },
         render(focusIndex) {
-            const options = csOptions(select);
-            const pageCount = Math.max(1, Math.ceil(options.length / CS_PAGE_SIZE));
+            const paged = csPagedOptionList(select, ui.page);
+            const options = paged.options;
+            const pageCount = paged.pageCount;
             ui.page = Math.max(0, Math.min(ui.page, pageCount - 1));
-            const start = ui.page * CS_PAGE_SIZE;
+            if (select._csPageHook) select._csPageHook(ui.page);
             list.replaceChildren();
             if (!options.length) {
                 const empty = document.createElement('div');
@@ -226,24 +593,29 @@ function enhanceSelect(select) {
                 empty.textContent = t('no_data', 'No data');
                 list.appendChild(empty);
             }
-            options.slice(start, start + CS_PAGE_SIZE).forEach((option, index) => {
+            options.forEach((option, index) => {
                 const item = document.createElement('button');
                 item.type = 'button';
                 item.className = 'cs-option';
                 item.setAttribute('role', 'option');
-                item.setAttribute('aria-selected', option.value === select.value ? 'true' : 'false');
+                const val = option.value != null ? option.value : option.value;
+                const label = option.label != null ? option.label : option.textContent;
+                item.setAttribute('aria-selected', val === select.value ? 'true' : 'false');
                 if (option.disabled) item.disabled = true;
                 const text = document.createElement('span');
                 text.className = 'cs-option-label';
-                text.textContent = option.textContent.trim();
+                text.textContent = String(label || '').trim();
                 item.appendChild(text);
-                if (option.value === select.value) {
+                if (val === select.value) {
                     const dot = document.createElement('span');
                     dot.className = 'cs-option-dot';
                     item.appendChild(dot);
                 }
-                item.onclick = () => csChoose(select, option.value);
-                if (focusIndex !== undefined && start + index === focusIndex) item.classList.add('is-active');
+                item.onclick = () => {
+                    if (label) select._csSelectedLabel = String(label).trim();
+                    csChoose(select, val);
+                };
+                if (focusIndex !== undefined && index === focusIndex) item.classList.add('is-active');
                 list.appendChild(item);
             });
             pager.hidden = pageCount <= 1;
@@ -310,10 +682,16 @@ function enhanceSelect(select) {
             if (items.length) items[event.key === 'Home' ? 0 : items.length - 1].focus();
         }
     });
-    select.addEventListener('change', () => csSync(select));
-    // Options are filled by other code (stores, currencies, analytics), so the
-    // trigger label follows the native element instead of caching the text.
-    new MutationObserver(() => csSync(select)).observe(select, { childList: true, subtree: true, characterData: true });
+    select.addEventListener('change', () => {
+        const hit = select.selectedOptions[0];
+        if (hit) select._csSelectedLabel = hit.textContent.trim();
+        csSync(select);
+    });
+    new MutationObserver(() => {
+        if (!select._csRemoteStores && select.options.length > CS_PAGE_SIZE && !select._csVirtual) captureVirtualSelectOptions(select);
+        csSync(select);
+    }).observe(select, { childList: true, subtree: true, characterData: true });
+    attachSelectPagingIfNeeded(select);
 }
 
 function enhanceAllSelects(root) {
@@ -324,11 +702,13 @@ function enhanceAllSelects(root) {
 
 window.syncCustomSelects = function () {
     enhanceAllSelects(document);
+    initAllPagedStoreSelects(document);
     document.querySelectorAll('select[data-cs-ready="1"]').forEach(csSync);
 };
 
 function initCustomSelects() {
     enhanceAllSelects(document);
+    initAllPagedStoreSelects(document);
     new MutationObserver(mutations => {
         mutations.forEach(mutation => {
             mutation.addedNodes.forEach(node => {
@@ -435,8 +815,8 @@ function enhanceDateField(input) {
         <div class="cal-pop-head">
             <button type="button" class="cal-nav" data-dir="-1" aria-label="${t('prev_month', 'Previous month')}">‹</button>
             <div class="cal-selects">
-                <select class="cal-month" aria-label="${t('month_label', 'Month')}" data-native-select="0"></select>
-                <select class="cal-year" aria-label="${t('year_label', 'Year')}" data-native-select="0"></select>
+                <select class="cal-month" aria-label="${t('month_label', 'Month')}" data-native-select="0" data-cs-no-pager="1"></select>
+                <select class="cal-year" aria-label="${t('year_label', 'Year')}" data-native-select="0" data-cs-no-pager="1"></select>
             </div>
             <button type="button" class="cal-nav" data-dir="1" aria-label="${t('next_month', 'Next month')}">›</button>
         </div>
@@ -679,7 +1059,8 @@ function showNotification(message, type='info') {
     s.textContent = message;
     const b = document.createElement('button');
     b.className = 'notification-close';
-    b.textContent = '×';
+    b.type = 'button';
+    b.innerHTML = spIcon('close', 16);
     b.onclick = () => n.remove();
     n.append(s, b);
     c.appendChild(n);
@@ -1136,15 +1517,32 @@ const INPUT_CURRENCIES=['USD','EUR','PLN','UAH','BYN'];
 let amountRatesCache=null;
 const AMOUNT_RATE_TTL=300000;
 let currencyPopoverInput=null;
+async function spendsFetchRatesSnapshot(base,bust){
+    base=(base||'USD').toUpperCase();
+    const q=bust?'&nocache=1':'';
+    try{
+        const ctrl=new AbortController();
+        const timer=setTimeout(()=>ctrl.abort(),8000);
+        const r=await fetch(`?get_exchange_rates=1&base=${encodeURIComponent(base)}${q}`,{signal:ctrl.signal});
+        clearTimeout(timer);
+        const d=await r.json();
+        if(d&&d.status==='success'&&d.rates&&Object.keys(d.rates).length)return d.rates;
+    }catch(_){}
+    try{
+        const r=await fetch(`https://open.er-api.com/v6/latest/${encodeURIComponent(base)}`);
+        const d=await r.json();
+        if(d&&d.result==='success'&&d.rates&&typeof d.rates==='object')return d.rates;
+    }catch(_){}
+    return null;
+}
 async function fetchAmountRatesMap(){
     const base=(userSettings.currency||'USD').toUpperCase();
     const now=Date.now();
     if(amountRatesCache&&amountRatesCache.base===base&&now-amountRatesCache.ts<AMOUNT_RATE_TTL)return amountRatesCache.rates;
-    const r=await fetch(`?get_exchange_rates=1&base=${encodeURIComponent(base)}`);
-    const d=await r.json();
-    if(!d||d.status!=='success'||!d.rates||typeof d.rates!=='object')throw new Error('bad');
-    amountRatesCache={base,rates:d.rates,ts:now};
-    return d.rates;
+    const rates=await spendsFetchRatesSnapshot(base,false);
+    if(!rates)throw new Error('bad');
+    amountRatesCache={base,rates,ts:now};
+    return rates;
 }
 function foreignAmountToBase(amount,fromCur,rates,base){
     fromCur=(fromCur||'').toUpperCase();
@@ -1292,7 +1690,7 @@ function previewExpression(input) {
             const txt = (translations.preview_result||'= {result}').replace('{result}',res.toFixed(2));
             result.textContent=txt; result.style.color='green';
         } else throw new Error('invalid');
-    } catch(e) { result.textContent='❌ '+(translations.invalid_expression||'Invalid expression'); result.style.color='red'; }
+    } catch(e) { result.className='tx-preview-result'; result.style.color='red'; result.innerHTML=spIcon('error',16)+' '+(translations.invalid_expression||'Invalid expression'); }
     tooltip.style.display='block';
     tooltip.style.left=(rect.left+window.scrollX)+'px';
     tooltip.style.top=(rect.top+window.scrollY-tooltip.offsetHeight-15)+'px';
@@ -1454,11 +1852,22 @@ function updateChart() {
 
 // ══ Activity feed (transactions under the dashboard) ═══════════════════════
 const ACTIVITY_PAGE_SIZE = 6;
+const HISTORY_ACTIVITY_PAGE_SIZE = 20;
 let activityTransactions = [];
 let activityPage = 1;
 let activitySourceFilter = 'all';
 let activeActivityId = null;
+let historyActivityPage = 1;
+let historyActivityTotal = 0;
+let historyActivityTotalPages = 1;
+let historyActivityItems = [];
+let historyActivityFetch = 0;
+let historySearchTimer = null;
 
+function activitySourceLabel(source){
+    const label=source==='notification'?t('activity_filter_notification','Notification'):t('activity_filter_manual','Manual');
+    return `<span class="activity-card__source-label">${activitySourceIcon(source)}<span>${activityEsc(label)}</span></span>`;
+}
 function activityEsc(value){
     return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
@@ -1535,9 +1944,7 @@ function activityStoreIcon(store){
     return `<span class="activity-card__icon activity-card__icon--initial">${activityEsc(initial)}</span>`;
 }
 function activityCardHtml(tx, showDate){
-    const sourceLabel = tx.source === 'notification'
-        ? `🔔 ${t('activity_filter_notification', 'Notification')}`
-        : `✏️ ${t('activity_filter_manual', 'Manual')}`;
+    const sourceLabel = activitySourceLabel(tx.source);
     return `<button type="button" class="activity-card" data-tx-id="${activityEsc(tx.id)}" onclick="openTxDetails('${activityEsc(tx.id).replace(/'/g, "\\'")}')" title="${activityEsc(tx.store)}">
         ${activityStoreIcon(tx.store)}
         <span class="activity-card__main">
@@ -1586,9 +1993,9 @@ function renderActivityFeed(){
     listEl.innerHTML = activityGroupHtml(slice, true);
     if (pager) pager.innerHTML = activityPaginationHtml(start, slice.length, activityTransactions.length, page, totalPages);
 }
-function activityPaginationHtml(start, count, total, page, totalPages){
+function activityPaginationHtml(start, count, total, page, totalPages, goFn = 'goToActivityPage'){
     const summary = `${t('activity_shown', 'Showing')} ${start + 1}–${start + count} ${t('activity_of', 'of')} ${total}`;
-    const btn = (label, target, disabled, active) => `<button type="button" class="activity-pager__btn${active ? ' is-active' : ''}" ${disabled ? 'disabled' : ''} onclick="goToActivityPage(${target})">${label}</button>`;
+    const btn = (label, target, disabled, active) => `<button type="button" class="activity-pager__btn${active ? ' is-active' : ''}" ${disabled ? 'disabled' : ''} onclick="${goFn}(${target})">${label}</button>`;
     let pages = '';
     const windowSize = 5;
     let from = Math.max(1, page - 2), to = Math.min(totalPages, from + windowSize - 1);
@@ -1598,9 +2005,9 @@ function activityPaginationHtml(start, count, total, page, totalPages){
     if (to < totalPages) pages += (to < totalPages - 1 ? '<span class="activity-pager__gap">…</span>' : '') + btn(String(totalPages), totalPages, false, page === totalPages);
     return `<div class="activity-pager__summary">${activityEsc(summary)}</div>
         <div class="activity-pager__controls">
-            ${btn(`← ${activityEsc(t('activity_prev', 'Back'))}`, page - 1, page === 1, false)}
+            ${btn(`${spIcon('chevron-left',14)} ${activityEsc(t('activity_prev', 'Back'))}`, page - 1, page === 1, false)}
             ${pages}
-            ${btn(`${activityEsc(t('activity_next', 'Next'))} →`, page + 1, page === totalPages, false)}
+            ${btn(`${activityEsc(t('activity_next', 'Next'))} ${spIcon('chevron-right',14)}`, page + 1, page === totalPages, false)}
         </div>`;
 }
 function goToActivityPage(page){
@@ -1609,23 +2016,87 @@ function goToActivityPage(page){
     const section = document.getElementById('dashboard-activity-section');
     if (section && section.scrollIntoView) section.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
-function activityFilteredList(){
-    const query = String(document.getElementById('history-search-input')?.value || '').toLowerCase().trim();
-    return activityTransactions.filter(tx => {
-        if (activitySourceFilter !== 'all' && tx.source !== activitySourceFilter) return false;
-        if (!query) return true;
-        return tx.store.toLowerCase().includes(query)
-            || tx.category.toLowerCase().includes(query)
-            || activityConvert(tx.amount).toFixed(2).includes(query);
+function mapActivityRow(row){
+    const raw = String(row.entry_source || 'manual').toLowerCase();
+    const source = (raw === 'manual' || raw === 'subscription') ? 'manual' : 'notification';
+    return {
+        id: `${row.date}|${row.store}`,
+        date: row.date,
+        store: row.store,
+        amount: Number(row.amount) || 0,
+        source: source,
+        raw: '',
+        category: activityStoreCategory(row.store),
+    };
+}
+function fetchHistoryActivityPage(page){
+    const container = document.getElementById('full-activity-list');
+    const pager = document.getElementById('full-activity-pagination');
+    if (!container) return Promise.resolve();
+    const search = String(document.getElementById('history-search-input')?.value || '').trim();
+    const token = ++historyActivityFetch;
+    container.innerHTML = `<div class="activity-empty">${activityEsc(t('activity_loading', 'Loading…'))}</div>`;
+    if (pager) pager.innerHTML = '';
+    const params = new URLSearchParams({
+        get_activity_page: '1',
+        page: String(page || 1),
+        per_page: String(HISTORY_ACTIVITY_PAGE_SIZE),
+        source: activitySourceFilter || 'all',
+    });
+    if (search) params.set('search', search);
+    return fetch('?' + params.toString(), {headers: {'Accept': 'application/json'}})
+        .then(r => r.json())
+        .then(d => {
+            if (token !== historyActivityFetch) return;
+            if (!d || d.status !== 'success') {
+                container.innerHTML = `<div class="activity-empty">${activityEsc(t('error_generic', 'Error'))}</div>`;
+                return;
+            }
+            historyActivityPage = d.page || 1;
+            historyActivityTotal = Number(d.total) || 0;
+            historyActivityTotalPages = Math.max(1, Number(d.totalPages) || 1);
+            historyActivityItems = (d.items || []).map(mapActivityRow);
+            renderHistoryActivityList();
+        })
+        .catch(() => {
+            if (token !== historyActivityFetch) return;
+            container.innerHTML = `<div class="activity-empty">${activityEsc(t('network_error', 'Network error'))}</div>`;
+        });
+}
+function renderHistoryActivityList(){
+    const container = document.getElementById('full-activity-list');
+    const pager = document.getElementById('full-activity-pagination');
+    if (!container) return;
+    if (!historyActivityItems.length) {
+        container.innerHTML = `<div class="activity-empty">${activityEsc(t('activity_no_results', 'No transactions match the filter'))}</div>`;
+        if (pager) pager.innerHTML = '';
+        return;
+    }
+    container.innerHTML = activityGroupHtml(historyActivityItems, true);
+    if (pager) {
+        const start = (historyActivityPage - 1) * HISTORY_ACTIVITY_PAGE_SIZE;
+        pager.innerHTML = activityPaginationHtml(start, historyActivityItems.length, historyActivityTotal, historyActivityPage, historyActivityTotalPages, 'goToHistoryActivityPage');
+    }
+}
+function goToHistoryActivityPage(page){
+    fetchHistoryActivityPage(Number(page) || 1).then(() => {
+        const list = document.getElementById('full-activity-list');
+        if (list) list.scrollTop = 0;
     });
 }
 function renderFullActivity(){
-    const container = document.getElementById('full-activity-list');
-    if (!container) return;
-    const list = activityFilteredList();
-    container.innerHTML = list.length
-        ? activityGroupHtml(list, true)
-        : `<div class="activity-empty">${activityEsc(t('activity_no_results', 'No transactions match the filter'))}</div>`;
+    const modal = document.getElementById('activity-history-modal');
+    if (!modal || getComputedStyle(modal).display === 'none') return;
+    if (historySearchTimer) clearTimeout(historySearchTimer);
+    historySearchTimer = setTimeout(() => {
+        historySearchTimer = null;
+        fetchHistoryActivityPage(1);
+    }, 260);
+}
+function findActivityTransaction(id){
+    return historyActivityItems.find(item => item.id === id)
+        || activityTransactions.find(item => item.id === id)
+        || buildActivityTransactions().find(item => item.id === id);
 }
 function setActivitySourceFilter(source){
     activitySourceFilter = source || 'all';
@@ -1635,15 +2106,39 @@ function setActivitySourceFilter(source){
     renderFullActivity();
 }
 function openActivityHistory(){
-    activityTransactions = buildActivityTransactions();
-    setActivitySourceFilter('all');
+    activitySourceFilter = 'all';
+    document.querySelectorAll('#history-source-filters .hist-filter').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.source === 'all');
+    });
     const search = document.getElementById('history-search-input');
     if (search) search.value = '';
-    renderFullActivity();
+    historyActivityPage = 1;
+    fetchHistoryActivityPage(1);
     showModal('activity-history-modal');
 }
+let txEditPendingId = '';
+function syncExpenseStoreDatalist(listId){
+    const list = document.getElementById(listId);
+    if(!list) return;
+    list.innerHTML = manualAddStores().map(s => `<option value="${activityEsc(s.name)}"></option>`).join('');
+}
+function openTxEditModal(id){
+    const tx = findActivityTransaction(id);
+    if(!tx) return;
+    txEditPendingId = tx.id;
+    syncExpenseStoreDatalist('tx-edit-modal-stores');
+    const storeEl = document.getElementById('tx-edit-modal-store');
+    const dateEl = document.getElementById('tx-edit-modal-date');
+    const amountEl = document.getElementById('tx-edit-modal-amount');
+    if(dateEl) dateEl.value = tx.date;
+    if(amountEl) amountEl.value = (Number(tx.amount) || 0).toFixed(2);
+    showModal('tx-edit-modal');
+    enhanceAllDateFields(document.getElementById('tx-edit-modal'));
+    if(storeEl) storeEl.value = tx.store;
+    if(storeEl && window.innerWidth > 768) storeEl.focus();
+}
 function openTxDetails(id){
-    const tx = activityTransactions.find(item => item.id === id) || buildActivityTransactions().find(item => item.id === id);
+    const tx = findActivityTransaction(id);
     if (!tx) return;
     activeActivityId = tx.id;
     const box = document.getElementById('tx-details-content');
@@ -1651,12 +2146,13 @@ function openTxDetails(id){
     const sourceText = tx.source === 'notification'
         ? t('activity_source_notification', 'Notification (Google Wallet / Bank)')
         : t('activity_source_manual', 'Manual entry');
+    const idJs = activityEsc(tx.id).replace(/'/g, "\\'");
     box.innerHTML = `
         <div class="tx-detail__hero">
             ${activityStoreIcon(tx.store)}
             <div class="tx-detail__hero-text">
                 <h4>${activityEsc(tx.store)}</h4>
-                <span class="tx-detail__badge">${tx.source === 'notification' ? '🔔' : '✏️'} ${activityEsc(tx.source === 'notification' ? t('activity_filter_notification', 'Notification') : t('activity_filter_manual', 'Manual'))}</span>
+                <span class="tx-detail__badge">${activitySourceLabel(tx.source)}</span>
             </div>
             <div class="tx-detail__amount">-${activityAmountText(tx.amount)}</div>
         </div>
@@ -1667,15 +2163,18 @@ function openTxDetails(id){
         </div>
         <div id="tx-detail-raw-slot"></div>
         <div class="tx-detail__actions">
-            <button type="button" class="tx-detail__delete" onclick="deleteTransaction('${activityEsc(tx.id).replace(/'/g, "\\'")}')">${activityEsc(t('activity_delete', 'Delete transaction'))}</button>
-            <button type="button" class="tx-detail__done" onclick="closeModal('tx-details-modal')">${activityEsc(t('activity_done', 'Done'))}</button>
+            <button type="button" class="tx-detail__delete" onclick="deleteTransaction('${idJs}')">${activityEsc(t('activity_delete', 'Delete transaction'))}</button>
+            <div class="tx-detail__actions-end">
+                <button type="button" class="tx-detail__edit" onclick="openTxEditModal('${idJs}')">${spIcon('pencil', 16)}<span>${activityEsc(t('edit', 'Edit'))}</span></button>
+                <button type="button" class="tx-detail__done" onclick="closeModal('tx-details-modal')">${activityEsc(t('activity_done', 'Done'))}</button>
+            </div>
         </div>`;
     showModal('tx-details-modal');
     // The page ships only source/amount for the year; the encrypted OCR note is
     // fetched on demand for the card the user actually opened.
     const renderRaw = (raw) => {
         const slot = document.getElementById('tx-detail-raw-slot');
-        if (slot && raw) slot.innerHTML = `<div class="tx-detail__raw"><div class="tx-detail__raw-title">🔔 ${activityEsc(t('activity_raw_notification', 'Original notification'))}</div><p>${activityEsc(raw)}</p></div>`;
+        if (slot && raw) slot.innerHTML = `<div class="tx-detail__raw"><div class="tx-detail__raw-title">${activitySourceIcon('notification', 16)}<span>${activityEsc(t('activity_raw_notification', 'Original notification'))}</span></div><p>${activityEsc(raw)}</p></div>`;
     };
     if (tx.raw) {
         renderRaw(tx.raw);
@@ -1690,8 +2189,89 @@ function openTxDetails(id){
             .catch(() => {});
     }
 }
+function saveTxEditModal(){
+    saveTxDetails(txEditPendingId);
+}
+function saveTxDetails(id){
+    const tx = findActivityTransaction(id);
+    if(!tx) return;
+    const storeEl = document.getElementById('tx-edit-modal-store');
+    const dateEl = document.getElementById('tx-edit-modal-date');
+    const amountEl = document.getElementById('tx-edit-modal-amount');
+    const saveBtn = document.getElementById('tx-edit-modal-save');
+    const newStore = storeEl ? String(storeEl.value || '').trim() : tx.store;
+    const newDate = dateEl ? String(dateEl.value || '').trim() : tx.date;
+    let newAmount = parseManualAmount(amountEl ? amountEl.value : '');
+    if(!newStore){ showNotification(t('manual_pick_store', 'Pick a store first'), 'info'); if(storeEl) storeEl.focus(); return; }
+    if(!isValidDate(newDate)){ showNotification(t('invalid_date_format', 'Invalid date format'), 'error'); if(dateEl) dateEl.focus(); return; }
+    if(!(newAmount > 0)){ showNotification(t('manual_amount_required', 'Enter the amount'), 'error'); if(amountEl) amountEl.focus(); return; }
+    newAmount = Math.round(newAmount * 100) / 100;
+    const postExpense = (date, store, amount) => fetch('', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({update_expense: '1', date, store, amount})
+    }).then(r => r.json());
+    const keysMatch = newDate === tx.date && newStore === tx.store;
+    if(saveBtn) saveBtn.disabled = true;
+    const chain = keysMatch
+        ? postExpense(newDate, newStore, newAmount)
+        : postExpense(tx.date, tx.store, 0).then(d => {
+            if(d.status !== 'success') return d;
+            return postExpense(newDate, newStore, newAmount);
+        });
+    chain.then(d => {
+        if(!d || d.status !== 'success'){
+            showNotification((d && d.message) || t('error_generic', 'Error'), 'error');
+            return;
+        }
+        if(expensesData[tx.date]) delete expensesData[tx.date][tx.store];
+        if(expenseActivityMeta[tx.date]) delete expenseActivityMeta[tx.date][tx.store];
+        if(!expensesData[newDate]) expensesData[newDate] = {};
+        expensesData[newDate][newStore] = newAmount;
+        activeActivityId = `${newDate}|${newStore}`;
+        updateFinancialSummary();
+        updateChart();
+        renderActivityFeed();
+        fetchHistoryActivityPage(historyActivityPage);
+        showNotification(t('activity_saved', 'Changes saved'), 'success');
+        closeModal('tx-edit-modal');
+        openTxDetails(activeActivityId);
+    })
+    .catch(e => showNotification(`${t('network_error', 'Network error')}: ${e}`, 'error'))
+    .finally(() => { if(saveBtn) saveBtn.disabled = false; });
+}
+function openManualContextEditModal(){
+    syncExpenseStoreDatalist('manual-context-stores');
+    const storeEl = document.getElementById('manual-context-store');
+    const dateEl = document.getElementById('manual-context-date');
+    showModal('manual-context-edit-modal');
+    enhanceAllDateFields(document.getElementById('manual-context-edit-modal'));
+    if(storeEl) storeEl.value = manualAddState.store || '';
+    if(dateEl) dateEl.value = manualAddState.date || manualAddYmd(0);
+    if(storeEl && window.innerWidth > 768) storeEl.focus();
+}
+function applyManualContextEdit(){
+    const storeEl = document.getElementById('manual-context-store');
+    const dateEl = document.getElementById('manual-context-date');
+    const store = storeEl ? String(storeEl.value || '').trim() : '';
+    const date = dateEl ? String(dateEl.value || '').trim() : '';
+    if(!store){ showNotification(t('manual_pick_store', 'Pick a store first'), 'info'); if(storeEl) storeEl.focus(); return; }
+    if(!isValidDate(date)){ showNotification(t('invalid_date_format', 'Invalid date format'), 'error'); if(dateEl) dateEl.focus(); return; }
+  const today = manualAddYmd(0);
+    if(date > today){ showNotification(t('invalid_date_format', 'Invalid date format'), 'error'); if(dateEl) dateEl.focus(); return; }
+    manualAddState.store = store;
+    manualAddState.date = date;
+    manualAddSyncCalendarView();
+    document.querySelectorAll('#manual-store-grid .manual-store-btn').forEach(b => {
+        const on = b.getAttribute('data-store') === store;
+        b.classList.toggle('selected', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    renderManualSummary();
+    closeModal('manual-context-edit-modal');
+}
 function deleteTransaction(id){
-    const tx = activityTransactions.find(item => item.id === id);
+    const tx = findActivityTransaction(id);
     if (!tx) return;
     const doDelete = () => {
         fetch('', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -1704,7 +2284,8 @@ function deleteTransaction(id){
             closeModal('tx-details-modal');
             updateFinancialSummary();
             updateChart();
-            renderFullActivity();
+            renderActivityFeed();
+            fetchHistoryActivityPage(historyActivityPage);
             showNotification(`${t('activity_deleted', 'Transaction deleted')}: ${tx.store}`, 'success');
         })
         .catch(e => showNotification(`${t('network_error', 'Network error')}: ${e}`, 'error'));
@@ -1724,7 +2305,7 @@ function renderChartLegend(){
         return `<button type="button" class="chart-legend-item${off?' is-off':''}" data-label="${esc(e.label)}" title="${esc(e.label)}">`
             +`<i class="chart-legend-swatch" style="background:${esc(e.color)}"></i>`
             +`<span class="chart-legend-label">${esc(e.label)}</span>`
-            +`<span class="chart-legend-check" aria-hidden="true">${off?'':'✓'}</span></button>`;
+            +`<span class="chart-legend-check" aria-hidden="true">${off?'':spIcon('check',16)}</span></button>`;
     }).join('');
     list.querySelectorAll('.chart-legend-item').forEach(btn=>{
         btn.onclick=()=>{
@@ -1845,12 +2426,77 @@ function xrSparkline(cur,color){
     return svg;
 }
 
+function xrSnapshotRate(cur){
+    const rates=currentRates||window.currentRates;
+    if(!rates||cur===xrBase)return cur===xrBase?1:null;
+    const v=rates[cur];
+    return (v!==undefined&&v>0)?v:null;
+}
+function xrHistoryHasData(h,base){
+    if(!h||!h.history)return false;
+    const b=(base||h.base||xrBase||'').toUpperCase();
+    return XR_CURRENCIES.some(c=>c!==b&&h.history[c]&&Object.values(h.history[c]).some(v=>v!==null&&v>0&&isFinite(v)));
+}
+function xrLastDates(days){
+    const out=[];
+    for(let i=days-1;i>=0;i--){
+        const d=new Date();
+        d.setHours(12,0,0,0);
+        d.setDate(d.getDate()-i);
+        out.push(localYmd(d));
+    }
+    return out;
+}
+async function xrFetchClientHistory(base,days=14){
+    base=(base||'EUR').toUpperCase();
+    const baseKey=base.toLowerCase();
+    const dates=xrLastDates(days);
+    const history={};
+    XR_CURRENCIES.forEach(c=>{if(c!==base)history[c]={};});
+    await Promise.all(dates.map(async date=>{
+        try{
+            const ctrl=new AbortController();
+            const timer=setTimeout(()=>ctrl.abort(),6000);
+            const r=await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${date}/v1/currencies/${baseKey}.min.json`,{signal:ctrl.signal});
+            clearTimeout(timer);
+            if(!r.ok)return;
+            const data=await r.json();
+            const bag=data&&data[baseKey];
+            if(!bag)return;
+            XR_CURRENCIES.forEach(c=>{
+                if(c===base)return;
+                const v=bag[c.toLowerCase()];
+                if(typeof v==='number'&&v>0&&isFinite(v))history[c][date]=+v;
+            });
+        }catch(_){}
+    }));
+    if(!xrHistoryHasData({history},base))return null;
+    return {status:'success',base,days,dates,history,timestamp:Date.now(),source:'cdn'};
+}
+async function xrApplyClientHistory(base,bust){
+    const ck='client:'+base;
+    if(!bust&&xrHistoryCache[ck]&&xrHistoryHasData(xrHistoryCache[ck],base)){
+        xrHistory=xrHistoryCache[ck];
+        xrRenderRows();
+        return true;
+    }
+    const data=await xrFetchClientHistory(base,14);
+    if(!data)return false;
+    xrHistoryCache[ck]=data;
+    if(!xrHistoryHasData(xrHistory,base)||(xrHistory&&xrHistory.source==='cdn')){
+        xrHistory=data;
+        xrHistoryCache[base]=data;
+        xrRenderRows();
+    }
+    return true;
+}
 function xrRenderRows(){
     const wrap=document.getElementById('xr-rows');
     if(!wrap)return;
     const dates=xrHistory&&xrHistory.dates?xrHistory.dates:[];
-    const anyData=xrHistory&&xrHistory.history&&XR_CURRENCIES.some(c=>c!==xrBase&&xrHistory.history[c]&&Object.values(xrHistory.history[c]).some(v=>v!==null));
-    if(!anyData){
+    const anyHistory=xrHistory&&xrHistory.history&&XR_CURRENCIES.some(c=>c!==xrBase&&xrHistory.history[c]&&Object.values(xrHistory.history[c]).some(v=>v!==null));
+    const anySnapshot=XR_CURRENCIES.some(c=>c!==xrBase&&xrSnapshotRate(c)!==null);
+    if(!anyHistory&&!anySnapshot){
         xrRenderEmpty();
         return;
     }
@@ -1858,7 +2504,7 @@ function xrRenderRows(){
     XR_CURRENCIES.filter(c=>c!==xrBase).forEach((cur,idx)=>{
         const series=xrHistory&&xrHistory.history&&xrHistory.history[cur]?xrHistory.history[cur]:null;
         const vals=series?Object.values(series).filter(v=>v!==null):[];
-        const last=vals.length?vals[vals.length-1]:null;
+        const last=vals.length?vals[vals.length-1]:xrSnapshotRate(cur);
         const prev=series&&dates.length>=2?(series[dates[dates.length-2]]??null):null;
         const diff=(last!==null&&prev!==null&&prev!==0)?((last-prev)/prev*100):null;
         const row=document.createElement('div');
@@ -1868,7 +2514,7 @@ function xrRenderRows(){
             `<div class="xr-rate">${xrFmt(last)}<small>${xrBase}</small></div>`;
         const ch=document.createElement('div');
         ch.className='xr-change '+(diff===null?'flat':(diff>=0?'up':'down'));
-        ch.textContent=diff===null?'—':`${diff>=0?'▲':'▼'} ${Math.abs(diff).toFixed(2)}%`;
+        ch.innerHTML=diff===null?'—':`<span class="xr-trend">${diff>=0?spIcon('trend-up',14):spIcon('trend-down',14)}<span>${Math.abs(diff).toFixed(2)}%</span></span>`;
         row.appendChild(ch);
         row.appendChild(xrSparkline(cur,diff!==null&&diff<0?'#ff5656':'#2ecb71'));
         wrap.appendChild(row);
@@ -1893,41 +2539,48 @@ function xrFetchJson(url, timeoutMs=12000){
     const timer=setTimeout(()=>ctrl.abort(),timeoutMs);
     return fetch(url,{signal:ctrl.signal}).finally(()=>clearTimeout(timer));
 }
-function loadExchangeRates(retry) {
+async function loadExchangeRates(retry) {
     const loader=document.getElementById('rates-loading');
     const cached=retry?null:xrHistoryCache[xrBase];
     if(retry)delete xrHistoryCache[xrBase];
     if(loader)loader.style.display=cached?'none':'block';
     if(cached){ xrHistory=cached; xrRenderRows(); }
-    const bust=retry?'&nocache=1':'';
-    // current snapshot (for other app features) + 14-day history for sparklines
-    xrFetchJson(`?get_exchange_rates=1&base=${xrBase}${bust}`)
+    const bust=!!retry;
+    const snapshot=await spendsFetchRatesSnapshot(xrBase,bust);
+    if(snapshot){
+        currentRates=snapshot;
+        window.currentRates=snapshot;
+        xrRenderRows();
+        if(loader&&document.querySelector('#xr-rows .xr-row'))loader.style.display='none';
+    }
+    const clientHistP=!cached||!xrHistoryHasData(cached,xrBase)?xrApplyClientHistory(xrBase,bust).catch(()=>false):Promise.resolve(false);
+    xrFetchJson(`?get_exchange_history=1&base=${xrBase}&days=14${bust?'&nocache=1':''}`)
         .then(r=>r.json())
-        .then(data=>{
-            if(data.status==='success'&&data.rates){
-                currentRates=data.rates;
-                window.currentRates=data.rates;
-            }
-        })
-        .catch(()=>{});
-    xrFetchJson(`?get_exchange_history=1&base=${xrBase}&days=14${bust}`)
-        .then(r=>r.json())
-        .then(data=>{
+        .then(async data=>{
             if(loader)loader.style.display='none';
-            if(data.status==='success'){
+            if(data.status==='success'&&xrHistoryHasData(data,xrBase)){
                 xrHistoryCache[xrBase]=data;
                 xrHistory=data;
                 xrRenderRows();
-                const up=document.getElementById('xr-updated');
-                if(up)up.textContent=new Date().toLocaleTimeString();
-            } else if(!cached) {
+            } else if(data.status==='success'&&snapshot){
+                await clientHistP;
+            } else if(!cached&&!snapshot) {
                 xrRenderEmpty();
                 showNotification(t('failed_load_exchange_rates','Failed to load exchange rates'),'error');
+            } else if(snapshot) {
+                await clientHistP;
             }
+            const up=document.getElementById('xr-updated');
+            if(up&&(snapshot||xrHistoryHasData(xrHistory,xrBase)))up.textContent=new Date().toLocaleTimeString();
         })
-        .catch(e=>{
+        .catch(async e=>{
             if(loader)loader.style.display='none';
-            // Keep whatever is already rendered instead of an endless spinner.
+            if(snapshot){
+                await clientHistP;
+                const up=document.getElementById('xr-updated');
+                if(up)up.textContent=new Date().toLocaleTimeString();
+                return;
+            }
             if(!cached){
                 if(!document.querySelector('#xr-rows .xr-row'))xrRenderEmpty();
                 showNotification(`${t('network_error','Network error')}: ${e&&e.name==='AbortError'?'timeout':e}`,'error');
@@ -2235,24 +2888,38 @@ function renderManualSummary(){
     const box = document.getElementById('manual-summary');
     if(!box) return;
     box.innerHTML = '';
+    const storeVal = manualAddState.store || '—';
+    const dateVal = manualAddFormatDate(manualAddState.date || manualAddYmd(0));
+    const storeCard = document.createElement('div');
+    storeCard.className = 'manual-summary-card';
+    const storeLab = document.createElement('span');
+    storeLab.className = 'manual-summary-label';
+    storeLab.textContent = t('manual_step_store', 'Store');
+    const storeBody = document.createElement('div');
+    storeBody.className = 'manual-summary-card__body';
     if(manualAddState.store){
         const avatar = manualAddStoreAvatar(manualAddState.store);
         avatar.classList.add('manual-summary-avatar');
-        box.appendChild(avatar);
+        storeBody.appendChild(avatar);
     }
-    const add = (label, value) => {
-        const item = document.createElement('div');
-        item.className = 'manual-summary-item';
-        const lab = document.createElement('span');
-        lab.className = 'manual-summary-label';
-        lab.textContent = label;
-        const val = document.createElement('strong');
-        val.textContent = value;
-        item.append(lab, val);
-        box.appendChild(item);
-    };
-    add(t('manual_step_store','Store'), manualAddState.store || '—');
-    add(t('manual_step_date','Date'), manualAddFormatDate(manualAddState.date || manualAddYmd(0)));
+    const storeName = document.createElement('strong');
+    storeName.className = 'manual-summary-value';
+    storeName.textContent = storeVal;
+    storeBody.appendChild(storeName);
+    storeCard.append(storeLab, storeBody);
+    const dateCard = document.createElement('div');
+    dateCard.className = 'manual-summary-card';
+    const dateLab = document.createElement('span');
+    dateLab.className = 'manual-summary-label';
+    dateLab.textContent = t('manual_step_date', 'Date');
+    const dateBody = document.createElement('div');
+    dateBody.className = 'manual-summary-card__body';
+    const dateStrong = document.createElement('strong');
+    dateStrong.className = 'manual-summary-value';
+    dateStrong.textContent = dateVal;
+    dateBody.appendChild(dateStrong);
+    dateCard.append(dateLab, dateBody);
+    box.append(storeCard, dateCard);
 }
 function manualAddBaseCurrency(){ return String(userSettings.currency || 'USD').toUpperCase(); }
 // A native <select> popup takes system colors, so the currency list is custom.
@@ -2339,6 +3006,13 @@ async function updateManualAmountHint(){
         if(token === manualHintToken) hint.textContent = '';
     }
 }
+function manualAddStepReachable(step){
+    step = Number(step) || 1;
+    if(step === 1) return true;
+    if(step === 2) return !!manualAddState.store;
+    if(step === 3) return !!manualAddState.store && !!(manualAddState.date || manualAddYmd(0));
+    return false;
+}
 function manualAddPickStore(name){
     manualAddState.store = name;
     document.querySelectorAll('#manual-store-grid .manual-store-btn').forEach(b => {
@@ -2346,7 +3020,12 @@ function manualAddPickStore(name){
         b.classList.toggle('selected', on);
         b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    manualAddGo(2);
+    const fromAmountStep = manualAddState.step === 3;
+    if(fromAmountStep){
+        renderManualSummary();
+        return;
+    }
+    manualAddGo(manualAddState.date ? 3 : 2);
 }
 function manualAddPickDate(ymd){
     if(!isValidDate(ymd)) return;
@@ -2356,6 +3035,10 @@ function manualAddPickDate(ymd){
     });
     manualAddSyncCalendarView();
     renderManualCalendar();
+    if(manualAddState.step === 3){
+        renderManualSummary();
+        return;
+    }
     manualAddGo(3);
 }
 function manualAddGo(step){
@@ -2367,6 +3050,7 @@ function manualAddGo(step){
         showNotification(t('manual_pick_store','Pick a store first'),'info');
     }
     if(step >= 3 && !manualAddState.date) manualAddState.date = manualAddYmd(0);
+    if(!manualAddStepReachable(step)) step = 1;
     manualAddState.step = step;
     document.querySelectorAll('#manual-add-modal .manual-panel').forEach(p => {
         p.classList.toggle('active', Number(p.getAttribute('data-panel')) === step);
@@ -2375,7 +3059,7 @@ function manualAddGo(step){
         const n = Number(b.getAttribute('data-step'));
         b.classList.toggle('active', n === step);
         b.classList.toggle('done', n < step);
-        b.disabled = n > step;
+        b.disabled = !manualAddStepReachable(n);
         b.setAttribute('aria-selected', n === step ? 'true' : 'false');
     });
     if(step === 1){
@@ -3095,11 +3779,11 @@ function cropStorePhoto(){const p=document.getElementById('store-photo-preview')
 function rekeyExpensesDataStore(oldN,newN){if(!oldN||oldN===newN)return;Object.keys(expensesData||{}).forEach(d=>{const o=expensesData[d];if(o&&Object.prototype.hasOwnProperty.call(o,oldN)){o[newN]=o[oldN];delete o[oldN];}});}
 function storePhotoUrl(s,withPhoto){if(!withPhoto||!s||!s.photo_url)return'';return `${s.photo_url}${s.photo_url.includes('?')?'&':'?'}t=${Date.now()}`;}
 function applyStoreToSettingsUI(s,withPhoto){if(!s)return;const idStr=String(s.id);const prevI=(userSettings.stores||[]).findIndex(x=>String(x.id)===idStr);if(prevI>=0){rekeyExpensesDataStore(userSettings.stores[prevI].name,s.name);userSettings.stores[prevI]={...userSettings.stores[prevI],...s};}else{userSettings.stores.push(s);Object.keys(expensesData||{}).forEach(d=>{if(expensesData[d]&&typeof expensesData[d][s.name]==='undefined')expensesData[d][s.name]=0;});}const list=document.getElementById('store-list');if(!list)return;let row=list.querySelector(`.store-item[data-store-id="${CSS.escape(idStr)}"]`);const photoU=storePhotoUrl(s,withPhoto);if(!row){row=document.createElement('div');row.className='store-item';row.dataset.storeId=idStr;row.innerHTML=`<span style="flex:1;"></span><button class="visibility-toggle" data-store-id="${idStr}" data-visible="${s.visible!==false?'true':'false'}" title="${translations.visible||'Visible'}"></button><button class="edit-store-btn" type="button">${translations.edit_store||'Edit'}</button><button class="delete-store-btn" type="button"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ${translations.delete||'Delete'}</button>`;list.appendChild(row);}row.dataset.storeName=s.name;row.setAttribute('data-visible',s.visible!==false?'true':'false');row.querySelector('span').textContent=s.name;row.querySelector('.edit-store-btn').onclick=()=>showAddEditStoreModal(s.id,s.name,s.visible,'',s.category);row.querySelector('.delete-store-btn').onclick=()=>confirmDeleteStore(s.id,s.name);const vt=row.querySelector('.visibility-toggle');if(vt){vt.setAttribute('data-visible',s.visible!==false?'true':'false');vt.innerHTML=s.visible!==false?visEyeSvg:visEyeOffSvg;vt.onclick=()=>toggleStoreVisibility(vt);}let img=row.querySelector('img.store-icon');if(photoU){if(!img){img=document.createElement('img');img.className='store-icon';row.insertBefore(img,row.firstChild);}img.src=photoU;img.alt=s.name;}refreshCategoryPicker();loadAvailableYears().then(()=>updateChart());loadPage(1);}
-function saveStore(){const name=document.getElementById('store-name-input').value.trim();if(!name){showNotification(t('store_name_required','Store name is required'),'error');return;}const withPhoto=!!storePhotoFile,pendingRaw=pendingOCRStoreRaw,fd=new FormData();fd.append('add_edit_store','1');fd.append('store_id',currentStoreId||Date.now());fd.append('store_name',name);fd.append('store_category',document.getElementById('store-category-input')?.value||'other');if(storePhotoFile)fd.append('store_photo',storePhotoFile,'store_photo.png');fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}closeAddEditStoreModal();showNotification(translations.store_saved||'Store saved','success');if(d.store)applyStoreToSettingsUI(d.store,withPhoto);if(pendingRaw&&d.store){const selected=readUnresolvedSelections();selected[pendingRaw]=d.store.name;renderUnresolvedModal(selected);}storePhotoFile=null;}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
+function saveStore(){const name=document.getElementById('store-name-input').value.trim();if(!name){showNotification(t('store_name_required','Store name is required'),'error');return;}const withPhoto=!!storePhotoFile,pendingRaw=pendingOCRStoreRaw,fd=new FormData();fd.append('add_edit_store','1');fd.append('store_id',currentStoreId||Date.now());fd.append('store_name',name);fd.append('store_category',document.getElementById('store-category-input')?.value||'other');if(storePhotoFile)fd.append('store_photo',storePhotoFile,'store_photo.png');fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}resetStoreSelectPageCache();closeAddEditStoreModal();showNotification(translations.store_saved||'Store saved','success');if(d.store)applyStoreToSettingsUI(d.store,withPhoto);initAllPagedStoreSelects(document);if(pendingRaw&&d.store){const selected=readUnresolvedSelections();selected[pendingRaw]=d.store.name;renderUnresolvedModal(selected);}storePhotoFile=null;}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
 function confirmDeleteStore(id,name){pendingConfirmAction=null;pendingDelete={type:'store',id,name};document.getElementById('confirm-delete-title').textContent=translations.confirm_delete_store||t('confirm_action_title','Confirm action');document.getElementById('confirm-delete-message').textContent=translations.confirm_delete_store_message||`Delete store "${name}"?`;document.getElementById('confirm-delete-action').textContent=t('delete','Delete');showModal('confirm-delete-modal');}
 function executeDelete(){const action=pendingConfirmAction;pendingConfirmAction=null;closeModal('confirm-delete-modal');if(action){action();return;}if(pendingDelete.type==='store')deleteStore(pendingDelete.id,pendingDelete.name);}
 function removeDataTableStoreColumnByName(storeName){const ths=document.querySelectorAll('#data-table thead th');let col=-1;ths.forEach((th,idx)=>{if(idx>0&&th.textContent.trim()===storeName)col=idx;});if(col<0)return;document.querySelectorAll('#data-table tr').forEach(tr=>{const c=tr.children[col];if(c)c.remove();});if(typeof updateChart==='function')updateChart();}
-function deleteStore(id,name){const fd=new FormData();fd.append('delete_store','1');fd.append('store_id',id);fd.append('store_name',name);fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}const idS=String(id);userSettings.stores=userSettings.stores.filter(s=>String(s.id)!==idS);Object.keys(expensesData||{}).forEach(dt=>{if(expensesData[dt]&&Object.prototype.hasOwnProperty.call(expensesData[dt],name))delete expensesData[dt][name];});document.querySelector(`#store-list .store-item[data-store-id="${CSS.escape(idS)}"]`)?.remove();document.querySelector(`.store-visibility-table .visibility-toggle[data-store-id="${CSS.escape(idS)}"]`)?.closest('tr')?.remove();removeDataTableStoreColumnByName(name);refreshCategoryPicker();showNotification(translations.delete_store_ok||'Store deleted','success');closeModal('confirm-delete-modal');}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
+function deleteStore(id,name){const fd=new FormData();fd.append('delete_store','1');fd.append('store_id',id);fd.append('store_name',name);fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}const idS=String(id);userSettings.stores=userSettings.stores.filter(s=>String(s.id)!==idS);Object.keys(expensesData||{}).forEach(dt=>{if(expensesData[dt]&&Object.prototype.hasOwnProperty.call(expensesData[dt],name))delete expensesData[dt][name];});document.querySelector(`#store-list .store-item[data-store-id="${CSS.escape(idS)}"]`)?.remove();document.querySelector(`.store-visibility-table .visibility-toggle[data-store-id="${CSS.escape(idS)}"]`)?.closest('tr')?.remove();removeDataTableStoreColumnByName(name);refreshCategoryPicker();resetStoreSelectPageCache();initAllPagedStoreSelects(document);showNotification(translations.delete_store_ok||'Store deleted','success');closeModal('confirm-delete-modal');}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
 function toggleStoreVisibility(btn){const nv=btn.getAttribute('data-visible')!=='true';btn.setAttribute('data-visible',nv?'true':'false');btn.innerHTML=nv?visEyeSvg:visEyeOffSvg;const row=btn.closest('.store-item');if(row)row.setAttribute('data-visible',nv?'true':'false');scheduleSaveTableSettings();}
 
 // ══ Crop modal ═════════════════════════════════════════════════════════════
@@ -3232,19 +3916,23 @@ function renderBankCsvAnalysis(d){
     const rows=(d.groups||[]).map(g=>{
         const lab=String(g.label||'').replace(/</g,'&lt;');
         const inc=g.income?` <span class="bank-csv-inc-tag">(${String(t('bank_csv_income_group','Income')).replace(/</g,'&lt;')})</span>`:'';
-        const opts=stores.map(sn=>`<option value="${String(sn).replace(/"/g,'&quot;')}">${String(sn).replace(/</g,'&lt;')}</option>`).join('');
         const ds=(g.dates||[]).join(', ')||'—';
         const gk=String(g.key||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-        return `<tr data-gk="${gk}"><td class="bank-csv-td-inc"><input type="checkbox" checked data-gk="${gk}" class="bank-csv-inc bank-csv-ch" aria-label="${thInc}"></td><td class="bank-csv-td-label"><strong>${lab}</strong>${inc}</td><td class="bank-csv-td-dates"><span class="bank-csv-n">n=${g.count}</span><div class="bank-csv-dates">${String(ds).replace(/</g,'&lt;')}</div></td><td class="bank-csv-td-sel"><select class="bank-csv-store bank-csv-sel" data-gk="${gk}">${opts}</select></td><td class="bank-csv-td-amt">${g.total.toFixed(2)}</td></tr>`;
+        return `<tr data-gk="${gk}"><td class="bank-csv-td-inc"><input type="checkbox" checked data-gk="${gk}" class="bank-csv-inc bank-csv-ch" aria-label="${thInc}"></td><td class="bank-csv-td-label"><strong>${lab}</strong>${inc}</td><td class="bank-csv-td-dates"><span class="bank-csv-n">n=${g.count}</span><div class="bank-csv-dates">${String(ds).replace(/</g,'&lt;')}</div></td><td class="bank-csv-td-sel"><select class="bank-csv-store bank-csv-sel" data-paged-stores="name" data-gk="${gk}"></select></td><td class="bank-csv-td-amt">${g.total.toFixed(2)}</td></tr>`;
     }).join('');
     wrap.innerHTML=`<table class="bank-csv-table"><colgroup><col class="bank-csv-col-inc"><col><col class="bank-csv-col-dates"><col class="bank-csv-col-store"><col class="bank-csv-col-amt"></colgroup><thead><tr><th>${thInc}</th><th>${thLab}</th><th>${thDates}</th><th>${thStore}</th><th class="bank-csv-th-num">${thAmt}</th></tr></thead><tbody>${rows}</tbody></table>`;
     wrap.querySelectorAll('select.bank-csv-store').forEach(sel=>{
         const gk=sel.getAttribute('data-gk');
         const g=(d.groups||[]).find(x=>String(x.key)===gk);
         const want=g&&(g.income?(stores[0]||''):pickStoreForMerchant(String(g.label||'')));
-        Array.from(sel.options).forEach(o=>{if(o.value===want)sel.value=o.value;});
-        if(!Array.from(sel.options).some(o=>o.value===sel.value)&&sel.options.length){sel.selectedIndex=0;}
+        attachRemoteStoreSelect(sel);
+        if(want){
+            sel._csSelectedLabel=want;
+            sel.value=want;
+            primeStorePageForValue(sel,want);
+        }
     });
+    if(window.syncCustomSelects)syncCustomSelects();
     const sels=Array.from(wrap.querySelectorAll('select.bank-csv-store'));
     sels.forEach((sel,idx)=>{
         sel.addEventListener('change',()=>{
@@ -3338,11 +4026,13 @@ function uniqueRawMerchants(rows){return [...new Set(rows.map(r=>r.merchant_raw)
 function readUnresolvedSelections(){const map={};document.querySelectorAll('#unresolved-list select').forEach(s=>{if(s.value){map[s.dataset.raw]=s.value;}});return map;}
 function suggestedStoreName(raw){const row=(unresolvedRows||[]).find(item=>item&&item.merchant_raw===raw&&item.suggested_store);return row&&row.suggested_store?row.suggested_store:'';}
 function renderUnresolvedModal(selectedMap=null){
-    const stores=(userSettings.stores||[]).map(s=>s.name);
     const list=document.getElementById('unresolved-list');
     const selected=selectedMap||readUnresolvedSelections();
-    list.innerHTML=uniqueRawMerchants(unresolvedRows).map(raw=>{const nextValue=selected[raw]||'';const nextName=suggestedStoreName(raw)||raw;return `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:10px;align-items:center;margin-bottom:8px;"><div>${escHtml(raw)}</div><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;"><select data-raw="${escHtml(raw)}" style="padding:8px;background:var(--group-block-bg);border:1px solid var(--border-color);color:var(--text-color);"><option value="">${translations.ocr_choose_store||''}</option>${stores.map(s=>`<option value="${escHtml(s)}"${s===nextValue?' selected':''}>${escHtml(s)}</option>`).join('')}</select><button type="button" class="ocr-create-store-btn" data-raw="${escHtml(raw)}" data-name="${escHtml(nextName)}" style="padding:8px 10px;background:var(--primary-color);color:#fff;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;">+ ${escHtml(translations.add_store||'Add Store')}</button></div></div>`;}).join('');
+    const ph=escHtml(translations.ocr_choose_store||'');
+    list.innerHTML=uniqueRawMerchants(unresolvedRows).map(raw=>{const nextName=suggestedStoreName(raw)||raw;return `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:10px;align-items:center;margin-bottom:8px;"><div>${escHtml(raw)}</div><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;"><select data-paged-stores="name" data-raw="${escHtml(raw)}" style="padding:8px;background:var(--group-block-bg);border:1px solid var(--border-color);color:var(--text-color);"><option value="" data-paged-fixed="1">${ph}</option></select><button type="button" class="ocr-create-store-btn" data-raw="${escHtml(raw)}" data-name="${escHtml(nextName)}" style="padding:8px 10px;background:var(--primary-color);color:#fff;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;">+ ${escHtml(translations.add_store||'Add Store')}</button></div></div>`;}).join('');
+    list.querySelectorAll('select[data-paged-stores]').forEach(sel=>{const v=selected[sel.dataset.raw]||'';attachRemoteStoreSelect(sel);if(v){sel.value=v;sel._csSelectedLabel=v;primeStorePageForValue(sel,v);}});
     list.querySelectorAll('.ocr-create-store-btn').forEach(btn=>btn.onclick=()=>showAddEditStoreModal(null,btn.dataset.name||btn.dataset.raw,true,btn.dataset.raw));
+    if(window.syncCustomSelects)syncCustomSelects();
     showModal('unresolved-modal');
 }
 function submitUnresolvedMappings(){
@@ -3628,6 +4318,7 @@ function expenseGradientStyle(value,min,max){
 }
 // ══ Statistics window ══════════════════════════════════════════════════════
 const analyticsState = { store: '__all__', payload: null, hidden: new Set() };
+const analyticsListPages = { store: 0, category: 0 };
 let lastAnalyticsPayload = null;
 
 const analyticsPalette = [
@@ -3637,7 +4328,7 @@ const analyticsPalette = [
     { fill: '#4A6B33', stroke: '#6B8E4E' },
     { fill: '#5F3F78', stroke: '#8A5FA8' }
 ];
-const analyticsChartBox = { width: 1040, height: 315, left: 46, right: 24, top: 14, bottom: 34 };
+const analyticsChartBox = { width: 1040, height: 400, left: 46, right: 24, top: 18, bottom: 38 };
 
 function analyticsStoreRows() {
     const payload = analyticsState.payload || {};
@@ -3672,7 +4363,85 @@ function analyticsTotalClass(values, value) {
     return share >= .6 ? 'is-hot' : share >= .3 ? 'is-warm' : 'is-ok';
 }
 
-function renderAnalyticsSummaryTable(id, rows, nameKey, kind) {
+function ensureAnalyticsTablePage(kind, rows) {
+    const pageSize = ANALYTICS_TABLE_PAGE_SIZE;
+    const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+    if (kind === 'store' && analyticsState.store !== '__all__') {
+        const idx = rows.findIndex(row => row.store === analyticsState.store);
+        if (idx >= 0) {
+            analyticsListPages.store = Math.floor(idx / pageSize);
+            return;
+        }
+    }
+    analyticsListPages[kind] = Math.max(0, Math.min(analyticsListPages[kind], pageCount - 1));
+}
+
+function analyticsDaysInYear(year) {
+    const y = Number(year) || new Date().getFullYear();
+    return Math.round((Date.UTC(y, 11, 31) - Date.UTC(y, 0, 0)) / 86400000);
+}
+function analyticsStoreInitial(name) {
+    const value = String(name || '').trim();
+    if (!value) return '?';
+    return value[0].toUpperCase();
+}
+function renderAnalyticsTablePagination(kind, totalItems, onPage, pageSliceCount) {
+    const host = document.getElementById(`analytics-${kind}-pagination`);
+    const hint = document.getElementById(`analytics-${kind}-count-hint`);
+    const pageSize = ANALYTICS_TABLE_PAGE_SIZE;
+    if (!host) return pageSize;
+    const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
+    analyticsListPages[kind] = Math.max(0, Math.min(analyticsListPages[kind], pageCount - 1));
+    host.replaceChildren();
+    host.hidden = totalItems <= pageSize;
+    const shown = typeof pageSliceCount === 'number' ? pageSliceCount : Math.min(pageSize, totalItems);
+    if (hint) {
+        const tmpl = t('analytics_shown_of', 'Shown %1$d of %2$d');
+        hint.textContent = tmpl.replace('%1$d', String(shown)).replace('%2$d', String(totalItems));
+    }
+    if (totalItems <= pageSize) return pageSize;
+    const previous = document.createElement('button');
+    previous.type = 'button';
+    previous.className = 'settings-page-btn';
+    previous.textContent = '‹';
+    previous.setAttribute('aria-label', t('settings_previous', 'Previous page'));
+    previous.disabled = analyticsListPages[kind] === 0;
+    previous.onclick = () => { analyticsListPages[kind]--; onPage(); };
+    const status = document.createElement('span');
+    status.className = 'settings-page-status';
+    status.setAttribute('aria-live', 'polite');
+    status.textContent = t('settings_page', '%1$d of %2$d')
+        .replace('%1$d', String(analyticsListPages[kind] + 1))
+        .replace('%2$d', String(pageCount));
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'settings-page-btn';
+    next.textContent = '›';
+    next.setAttribute('aria-label', t('settings_next', 'Next page'));
+    next.disabled = analyticsListPages[kind] === pageCount - 1;
+    next.onclick = () => { analyticsListPages[kind]++; onPage(); };
+    host.append(previous, status, next);
+    return pageSize;
+}
+function renderAnalyticsKpis() {
+    const payload = analyticsState.payload || {};
+    const selected = analyticsState.store;
+    const stores = analyticsStoreRows().filter(row => selected === '__all__' || row.store === selected);
+    let total = 0;
+    stores.forEach(row => { total += Number(row.total) || 0; });
+    const days = analyticsDaysInYear(analyticsYear);
+    const daily = days > 0 ? total / days : 0;
+    const dailyRows = (payload.daily || []).filter(row => selected === '__all__' || row.store === selected);
+    const txCount = dailyRows.length;
+    const totalEl = document.getElementById('analytics-kpi-total');
+    const dailyEl = document.getElementById('analytics-kpi-daily');
+    const countEl = document.getElementById('analytics-kpi-count');
+    if (totalEl) totalEl.textContent = money(total);
+    if (dailyEl) dailyEl.textContent = money(daily);
+    if (countEl) countEl.textContent = String(txCount);
+}
+
+function renderAnalyticsSummaryTable(id, rows, kind, categoryGrandTotal) {
     const host = document.getElementById(id);
     if (!host) return;
     host.replaceChildren();
@@ -3685,58 +4454,70 @@ function renderAnalyticsSummaryTable(id, rows, nameKey, kind) {
     }
     const totals = rows.map(row => row.total);
     const selected = analyticsState.store;
-    const table = document.createElement('table');
-    table.className = 'analytics-table';
-    const head = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    [nameKey, t('today', 'Today'), t('average_day_year', 'Avg/day'), t('total_expenses', 'Total')].forEach((label, index) => {
-        const th = document.createElement('th');
-        th.textContent = label;
-        if (index === 0) th.scope = 'col';
-        headRow.appendChild(th);
-    });
-    head.appendChild(headRow);
-    table.appendChild(head);
-    const body = document.createElement('tbody');
-    rows.forEach(row => {
-        const tr = document.createElement('tr');
+    rows.forEach((row, index) => {
+        const btn = document.createElement(kind === 'store' ? 'button' : 'div');
+        if (kind === 'store') btn.type = 'button';
+        btn.className = 'stats-grid-row';
         if (kind === 'store') {
-            if (selected !== '__all__' && selected === row.store) tr.classList.add('is-selected');
-            else if (selected !== '__all__') tr.classList.add('is-dimmed');
-            tr.tabIndex = 0;
-            tr.setAttribute('role', 'button');
-            tr.setAttribute('aria-pressed', selected === row.store ? 'true' : 'false');
-            tr.title = t('analytics_filter_hint', 'Click a row to filter');
-            tr.onclick = () => selectAnalyticsStore(row.store);
-            tr.onkeydown = event => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    selectAnalyticsStore(row.store);
-                }
-            };
+            if (selected !== '__all__' && selected === row.store) btn.classList.add('is-selected');
+            else if (selected !== '__all__') btn.classList.add('is-dimmed');
+            btn.setAttribute('aria-pressed', selected === row.store ? 'true' : 'false');
+            btn.title = t('analytics_filter_hint', 'Click a row to filter');
+            btn.onclick = () => selectAnalyticsStore(row.store);
         }
-        const nameCell = document.createElement('td');
-        nameCell.className = 'analytics-name';
-        if (kind === 'store' && selected === row.store) {
+        const cols = document.createElement('div');
+        cols.className = 'stats-grid-cols';
+        const nameWrap = document.createElement('div');
+        nameWrap.className = 'stats-row-name';
+        if (kind === 'store') {
+            const avatar = document.createElement('span');
+            avatar.className = 'stats-row-avatar';
+            avatar.textContent = analyticsStoreInitial(row.label);
+            nameWrap.appendChild(avatar);
+        } else {
             const dot = document.createElement('span');
-            dot.className = 'analytics-store-dot';
-            nameCell.appendChild(dot);
+            dot.className = 'analytics-legend-swatch';
+            const palette = analyticsPalette[index % analyticsPalette.length];
+            dot.style.background = palette.fill;
+            nameWrap.appendChild(dot);
         }
-        nameCell.appendChild(document.createTextNode(row.label));
-        const today = document.createElement('td');
-        today.className = 'analytics-num is-ok';
+        const name = document.createElement('span');
+        name.className = 'stats-row-truncate';
+        name.textContent = row.label;
+        nameWrap.appendChild(name);
+        if (kind === 'category' && categoryGrandTotal > 0) {
+            const pct = document.createElement('span');
+            pct.style.color = 'var(--st-muted)';
+            pct.style.fontSize = '11px';
+            pct.style.fontWeight = '500';
+            pct.textContent = `${Math.round((Number(row.total) / categoryGrandTotal) * 100)}%`;
+            nameWrap.appendChild(pct);
+        }
+        const today = document.createElement('div');
+        today.className = 'stats-cell-today text-right' + (Number(row.today) <= 0 ? ' is-zero' : '');
         today.textContent = money(row.today);
-        const avg = document.createElement('td');
-        avg.className = 'analytics-num is-ok';
+        const avg = document.createElement('div');
+        avg.className = 'stats-cell-avg text-right';
         avg.textContent = money(row.year_day_avg);
-        const total = document.createElement('td');
-        total.className = 'analytics-num ' + analyticsTotalClass(totals, row.total);
-        total.textContent = money(row.total);
-        tr.append(nameCell, today, avg, total);
-        body.appendChild(tr);
+        const totalCell = document.createElement('div');
+        const totalClass = analyticsTotalClass(totals, row.total);
+        totalCell.className = 'stats-cell-total text-right'
+            + (Number(row.total) <= 0 ? ' is-zero' : totalClass === 'is-hot' ? ' is-hot' : totalClass === 'is-warm' ? ' is-warm' : '');
+        totalCell.textContent = money(row.total);
+        cols.append(nameWrap, today, avg, totalCell);
+        btn.appendChild(cols);
+        if (kind === 'category' && categoryGrandTotal > 0) {
+            const bar = document.createElement('div');
+            bar.className = 'stats-cat-bar';
+            const fill = document.createElement('span');
+            const palette = analyticsPalette[index % analyticsPalette.length];
+            fill.style.width = `${Math.round((Number(row.total) / categoryGrandTotal) * 100)}%`;
+            fill.style.background = palette.fill;
+            bar.appendChild(fill);
+            btn.appendChild(bar);
+        }
+        host.appendChild(btn);
     });
-    table.appendChild(body);
-    host.appendChild(table);
 }
 
 function renderAnalyticsSummaries(payload) {
@@ -3756,12 +4537,31 @@ function renderAnalyticsSummaries(payload) {
     const select = document.getElementById('ocr-analytics-store');
     if (select && select.value !== selected) select.value = selected;
     if (window.syncCustomSelects) syncCustomSelects();
-    renderAnalyticsSummaryTable('analytics-store-summary', analyticsStoreRows(), t('store_name', 'Store'), 'store');
-    renderAnalyticsSummaryTable('analytics-category-summary', analyticsCategoryRows(), t('store_category', 'Category'), 'category');
-    ['analytics-store-pagination', 'analytics-category-pagination'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) { el.hidden = true; el.replaceChildren(); }
-    });
+    const refreshTables = () => renderAnalyticsSummaries(analyticsState.payload);
+    const storeRows = analyticsStoreRows();
+    const categoryRows = analyticsCategoryRows();
+    ensureAnalyticsTablePage('store', storeRows);
+    ensureAnalyticsTablePage('category', categoryRows);
+    const storePageSize = ANALYTICS_TABLE_PAGE_SIZE;
+    const categoryPageSize = ANALYTICS_TABLE_PAGE_SIZE;
+    const storeStart = analyticsListPages.store * storePageSize;
+    const categoryStart = analyticsListPages.category * categoryPageSize;
+    const storeSlice = storeRows.slice(storeStart, storeStart + storePageSize);
+    const categorySlice = categoryRows.slice(categoryStart, categoryStart + categoryPageSize);
+    renderAnalyticsTablePagination('store', storeRows.length, refreshTables, storeSlice.length);
+    renderAnalyticsTablePagination('category', categoryRows.length, refreshTables, categorySlice.length);
+    const categoryGrand = categoryRows.reduce((sum, row) => sum + (Number(row.total) || 0), 0);
+    renderAnalyticsSummaryTable('analytics-store-summary', storeSlice, 'store', 0);
+    renderAnalyticsSummaryTable('analytics-category-summary', categorySlice, 'category', categoryGrand);
+    renderAnalyticsKpis();
+    const subtitle = document.getElementById('analytics-chart-subtitle');
+    if (subtitle) {
+        const storeLabel = selected === '__all__'
+            ? t('all_stores', 'All stores')
+            : (storeRows.find(row => row.store === selected)?.store || selected);
+        const tmpl = t('analytics_chart_subtitle', 'By category for %1$d • %2$s');
+        subtitle.textContent = tmpl.replace('%1$d', String(analyticsYear)).replace('%2$s', storeLabel);
+    }
 }
 
 // Rows per month for the chart: all visible categories, or the picked store.
@@ -3820,32 +4620,6 @@ function analyticsScaleMax(maxValue) {
     const normalized = maxValue / magnitude;
     const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
     return Math.max(1, factor * magnitude);
-}
-
-function renderAnalyticsLegend(series) {
-    const legend = document.getElementById('analytics-bars-legend');
-    if (!legend) return;
-    legend.replaceChildren();
-    series.forEach(item => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'analytics-legend-btn' + (analyticsState.hidden.has(item.key) ? ' is-off' : '');
-        button.setAttribute('aria-pressed', analyticsState.hidden.has(item.key) ? 'false' : 'true');
-        const swatch = document.createElement('span');
-        swatch.className = 'analytics-legend-swatch';
-        swatch.style.background = item.fill;
-        swatch.style.borderColor = item.stroke;
-        const label = document.createElement('span');
-        label.textContent = item.label;
-        button.append(swatch, label);
-        button.onclick = () => {
-            const visibleKeys = series.filter(entry => !analyticsState.hidden.has(entry.key));
-            if (analyticsState.hidden.has(item.key)) analyticsState.hidden.delete(item.key);
-            else if (visibleKeys.length > 1) analyticsState.hidden.add(item.key);
-            renderAnalyticsChart();
-        };
-        legend.appendChild(button);
-    });
 }
 
 function positionAnalyticsTooltip(event, tooltip) {
@@ -3918,6 +4692,26 @@ function analyticsTextColor() {
     return getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#f3f4f6';
 }
 
+function analyticsToken(name, fallback) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+}
+
+function analyticsRoundedBarPath(x, y, w, h, r, roundTop, roundBottom) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    if (h <= 0.5 || w <= 0.5) return '';
+    const x2 = x + w;
+    const y2 = y + h;
+    if (!roundTop && !roundBottom) return `M${x} ${y}H${x2}V${y2}H${x}Z`;
+    if (roundTop && roundBottom) {
+        return `M${x + r} ${y}H${x2 - r}A${r} ${r} 0 0 1 ${x2} ${y + r}V${y2 - r}A${r} ${r} 0 0 1 ${x2 - r} ${y2}H${x + r}A${r} ${r} 0 0 1 ${x} ${y2 - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+    }
+    if (roundTop) {
+        return `M${x + r} ${y}H${x2 - r}A${r} ${r} 0 0 1 ${x2} ${y + r}V${y2}H${x}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+    }
+    return `M${x} ${y}H${x2}V${y2 - r}A${r} ${r} 0 0 1 ${x2 - r} ${y2}H${x + r}A${r} ${r} 0 0 1 ${x} ${y2 - r}V${y}Z`;
+}
+
 function renderAnalyticsChart() {
     const gridLayer = document.getElementById('analytics-grid-layer');
     const barsLayer = document.getElementById('analytics-bars-layer');
@@ -3925,9 +4719,9 @@ function renderAnalyticsChart() {
     if (!gridLayer || !barsLayer || !labelsLayer) return;
     if (!analyticsState.payload) return;
 
+    analyticsState.hidden.clear();
     const all = analyticsChartSeries();
-    renderAnalyticsLegend(all.series);
-    const visibleSeries = all.series.filter(item => !analyticsState.hidden.has(item.key));
+    const visibleSeries = all.series;
     const series = all.labels.map((label, index) => ({
         label,
         values: visibleSeries.map(item => Number(item.values[index]) || 0)
@@ -3952,30 +4746,28 @@ function renderAnalyticsChart() {
         return node;
     };
 
+    const gridMajor = analyticsToken('--st-line', '#31353c');
+    const gridMinor = analyticsToken('--st-line-soft', '#3a3f47');
+    const tickColor = analyticsToken('--st-soft', '#9aa0a6');
     for (let value = 0; value <= scaleMax + 0.0001; value += step) {
         const y = top + chartH - (value / scaleMax) * chartH;
+        const isBase = value === 0;
         gridLayer.appendChild(make('line', {
             x1: left, y1: y.toFixed(1), x2: left + chartW, y2: y.toFixed(1),
-            stroke: value === 0 ? '#323532' : '#262826', 'stroke-width': 1
+            stroke: isBase ? gridMajor : gridMinor, 'stroke-width': isBase ? 1.25 : 1,
+            'stroke-dasharray': isBase ? 'none' : '4 6', 'stroke-opacity': isBase ? 1 : 0.9
         }));
         const tick = make('text', {
-            x: left - 10, y: (y + 3.5).toFixed(1), fill: '#8e928e',
-            'font-size': 10.5, 'text-anchor': 'end'
+            x: left - 10, y: (y + 3.5).toFixed(1), fill: tickColor,
+            'font-size': 10.5, 'font-weight': 600, 'text-anchor': 'end'
         });
         tick.textContent = (Math.round(value * 100) / 100).toString();
         labelsLayer.appendChild(tick);
     }
 
-    const columnWidth = chartW / series.length;
-    for (let index = 0; index <= series.length; index++) {
-        const x = left + index * columnWidth;
-        gridLayer.appendChild(make('line', {
-            x1: x.toFixed(1), y1: top, x2: x.toFixed(1), y2: top + chartH,
-            stroke: '#242624', 'stroke-width': 1
-        }));
-    }
-
-    const barWidth = Math.min(168, columnWidth * 0.72);
+    const columnWidth = chartW / Math.max(series.length, 1);
+    const barWidth = Math.min(78, columnWidth * 0.62);
+    const barRadius = 9;
     series.forEach((point, index) => {
         const centerX = left + index * columnWidth + columnWidth / 2;
         const barX = centerX - barWidth / 2;
@@ -3984,17 +4776,29 @@ function renderAnalyticsChart() {
         group.appendChild(make('rect', {
             x: barX.toFixed(1), y: top, width: barWidth.toFixed(1), height: chartH, fill: 'transparent'
         }));
+        let bottomSeriesIndex = -1;
+        for (let si = 0; si < visibleSeries.length; si++) {
+            if (Number(point.values[si]) > 0) { bottomSeriesIndex = si; break; }
+        }
+        const topSeriesIndex = (() => {
+            for (let si = visibleSeries.length - 1; si >= 0; si--) {
+                if (Number(point.values[si]) > 0) return si;
+            }
+            return -1;
+        })();
         let cursorY = baseY;
         visibleSeries.forEach((item, seriesIndex) => {
             const value = point.values[seriesIndex];
             if (!(value > 0)) return;
             const segmentHeight = (value / scaleMax) * chartH;
             const segmentY = cursorY - segmentHeight;
-            group.appendChild(make('rect', {
+            const roundTop = seriesIndex === topSeriesIndex;
+            const roundBottom = seriesIndex === bottomSeriesIndex;
+            const d = analyticsRoundedBarPath(barX, segmentY, barWidth, segmentHeight, barRadius, roundTop, roundBottom);
+            group.appendChild(make('path', {
                 class: 'analytics-bar-rect',
-                x: barX.toFixed(1), y: segmentY.toFixed(1),
-                width: barWidth.toFixed(1), height: segmentHeight.toFixed(1),
-                fill: item.fill, stroke: item.stroke, 'stroke-width': 1
+                d,
+                fill: item.fill
             }));
             cursorY = segmentY;
         });
@@ -4040,68 +4844,30 @@ function onAnalyticsStoreChange() {
     renderAnalyticsSelection();
 }
 
-// Long option lists are paged in chunks of 10 so a picker with hundreds of
-// stores stays light: only the current page's <option> nodes are in the DOM.
-function applyChunkedSelect(select, pageSize) {
-    if (!select) return;
-    pageSize = pageSize || 10;
-    const all = Array.from(select.options).map(option => ({ value: option.value, label: option.textContent }));
-    const previousNav = select.parentElement && select.parentElement.querySelector(':scope > .select-pager');
-    if (previousNav) previousNav.remove();
-    select.__chunkAll = all;
-    if (all.length <= pageSize) return;
-    const nav = document.createElement('div');
-    nav.className = 'select-pager';
-    nav.innerHTML = '<button type="button" data-chunk="prev" aria-label="Previous page">‹</button><span data-chunk-label></span><button type="button" data-chunk="next" aria-label="Next page">›</button>';
-    select.parentNode.insertBefore(nav, select.nextSibling);
-    const label = nav.querySelector('[data-chunk-label]');
-    const prev = nav.querySelector('[data-chunk="prev"]');
-    const next = nav.querySelector('[data-chunk="next"]');
-    const render = page => {
-        const pages = Math.max(1, Math.ceil(all.length / pageSize));
-        page = Math.max(0, Math.min(pages - 1, page));
-        select.__chunkPage = page;
-        const current = select.value;
-        select.replaceChildren();
-        all.slice(page * pageSize, page * pageSize + pageSize).forEach(item => {
-            const node = document.createElement('option');
-            node.value = item.value;
-            node.textContent = item.label;
-            select.appendChild(node);
-        });
-        if (all.some(item => item.value === current)) select.value = current;
-        label.textContent = (page + 1) + ' / ' + pages;
-        prev.disabled = page === 0;
-        next.disabled = page >= pages - 1;
-        if (window.syncCustomSelects) syncCustomSelects();
-    };
-    prev.addEventListener('click', () => render((select.__chunkPage || 0) - 1));
-    next.addEventListener('click', () => render((select.__chunkPage || 0) + 1));
-    const selectedIndex = all.findIndex(item => item.value === select.value);
-    render(selectedIndex > -1 ? Math.floor(selectedIndex / pageSize) : 0);
-}
-
 function loadOCRAnalytics() {
     const select = document.getElementById('ocr-analytics-store');
     fetch(`?get_ocr_stats=1&store=__all__&year=${encodeURIComponent(analyticsYear)}`)
         .then(r => r.json())
-        .then(d => {
+        .then(async d => {
             if (d.status !== 'success') { showNotification(t('failed_load_analytics', 'Failed to load analytics'), 'error'); return; }
+            if (d.stores_total != null) storeSelectPageCache.total = d.stores_total;
             const store = analyticsState.store || '__all__';
             if (select) {
-                const options = [{ value: '__all__', label: t('all_stores', 'All stores') }]
-                    .concat((d.stores || []).map(name => ({ value: name, label: name })));
-                select.replaceChildren();
-                options.forEach(option => {
-                    const node = document.createElement('option');
-                    node.value = option.value;
-                    node.textContent = option.label;
-                    select.appendChild(node);
-                });
-                select.value = (d.stores || []).includes(store) ? store : '__all__';
-                applyChunkedSelect(select, 10);
+                attachRemoteStoreSelect(select);
+                if (store !== '__all__') {
+                    select._csSelectedLabel = store;
+                    select.value = store;
+                    await primeStorePageForValue(select, store);
+                } else {
+                    select.value = '__all__';
+                    primeStoreSelectPages(0);
+                    syncRemoteStoreSelectDom(select, 0);
+                }
             }
+            analyticsListPages.store = 0;
+            analyticsListPages.category = 0;
             buildOCRAnalyticsChart(d, select ? select.value : store);
+            if (window.syncCustomSelects) syncCustomSelects();
         })
         .catch(() => showNotification(t('failed_load_analytics', 'Failed to load analytics'), 'error'));
 }

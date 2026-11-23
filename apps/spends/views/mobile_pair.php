@@ -2,8 +2,8 @@
 /**
  * Mobile app pairing modal.
  *
- * The pairing flow is manual only: the dashboard issues an app-scoped device
- * token and shows the endpoint, connection link and token for the phone.
+ * Pairing issues app-scoped API tokens (stored in client_auth_tokens). The raw
+ * token is shown once after creation for scripts and the mobile companion app.
  * Several phones can be paired at the same time; every active token is listed
  * under "Connected devices" and can be disconnected individually.
  */
@@ -41,6 +41,14 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
     .mobile-app-content .ma-device-name { font-size:13px; font-weight:700; color:var(--text-color); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .mobile-app-content .ma-device-state { flex:0 0 auto; font-size:11px; opacity:.75; }
     .mobile-app-content .ma-device-meta { font-size:11px; opacity:.7; margin:2px 0 8px; }
+    .mobile-app-content .ma-pager { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid color-mix(in srgb,var(--border-color) 70%,transparent); }
+    .mobile-app-content .ma-pager .ma-btn { min-width:88px; }
+    .mobile-app-content .ma-pager-info { font-size:11px; opacity:.75; font-variant-numeric:tabular-nums; }
+    .mobile-app-content .ma-idle-hint { margin:8px 0 0; font-size:11px; line-height:1.4; opacity:.6; }
+    @media (max-width:700px) {
+        .mobile-app-content .ma-pager .ma-btn { min-width:0; padding:6px 10px; }
+        .mobile-app-content .ma-pager-info { font-size:10.5px; }
+    }
     .mobile-app-content .ma-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:6px 12px; border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--surface-solid); color:var(--primary-text); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
     .mobile-app-content .ma-btn:hover { background:color-mix(in srgb,var(--primary-color) 12%,var(--surface-solid)); }
     .mobile-app-content .ma-btn:disabled { opacity:.6; cursor:wait; }
@@ -82,7 +90,7 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
 
 <div id="mobile-app-modal" class="modal">
     <div class="modal-content mobile-app-content">
-        <button class="modal-close" type="button" onclick="closeMobileAppModal()" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">×</button>
+        <button class="modal-close" type="button" onclick="closeMobileAppModal()" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>"><?= spends_icon('close') ?></button>
 
         <div class="ma-header">
             <h1><?= htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile app') ?></h1>
@@ -96,6 +104,12 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
             </div>
             <p class="ma-empty" id="mobile-app-devices-empty"><?= htmlspecialchars($translations['mobile_app_devices_empty'] ?? 'No devices connected yet.') ?></p>
             <ul class="ma-device-list" id="mobile-app-devices-list"></ul>
+            <div class="ma-pager" id="mobile-app-devices-pager" hidden>
+                <button type="button" class="ma-btn ma-btn-sm" id="mobile-app-devices-prev"><?= htmlspecialchars($translations['mobile_app_devices_prev'] ?? 'Previous') ?></button>
+                <span class="ma-pager-info" id="mobile-app-devices-page-info"></span>
+                <button type="button" class="ma-btn ma-btn-sm" id="mobile-app-devices-next"><?= htmlspecialchars($translations['mobile_app_devices_next'] ?? 'Next') ?></button>
+            </div>
+            <p class="ma-idle-hint" id="mobile-app-devices-idle"></p>
             <p class="ma-error" id="mobile-app-devices-error" hidden></p>
         </section>
 
@@ -105,16 +119,16 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                 </div>
                 <h3><?= htmlspecialchars($translations['mobile_app_connect_title'] ?? 'Connect a new device') ?></h3>
-                <p><?= htmlspecialchars($translations['mobile_app_connect_desc'] ?? 'Create a connection link and open it on your phone. The app connects automatically.') ?></p>
-                <button type="button" id="mobile-app-connect" class="ma-primary"><?= htmlspecialchars($translations['mobile_app_connect_button'] ?? 'Create a pairing token') ?></button>
+                <p><?= htmlspecialchars($translations['mobile_app_connect_desc'] ?? 'Create an API token for the mobile app or compatible scripts. Copy it once — it is shown only when created.') ?></p>
+                <button type="button" id="mobile-app-connect" class="ma-primary"><?= htmlspecialchars($translations['mobile_app_connect_button'] ?? 'Create API token') ?></button>
 
                 <div class="ma-pair-fields" id="mobile-app-pair-fields" hidden>
                     <div class="ma-pair-row">
                         <div class="ma-pair-field">
-                            <label><?= htmlspecialchars($translations['manual_pair_link_label'] ?? 'Connection link') ?></label>
-                            <pre id="mobile-app-pair-link"></pre>
+                            <label><?= htmlspecialchars($translations['manual_pair_token_label'] ?? 'API token') ?></label>
+                            <pre id="mobile-app-pair-token"></pre>
                         </div>
-                        <button type="button" class="ma-copy-btn" data-copy-target="mobile-app-pair-link" aria-label="<?= htmlspecialchars($translations['copy'] ?? 'Copy') ?>">
+                        <button type="button" class="ma-copy-btn" data-copy-target="mobile-app-pair-token" aria-label="<?= htmlspecialchars($translations['copy'] ?? 'Copy') ?>">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                         </button>
                     </div>
@@ -185,13 +199,19 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
     if (!modal) return;
     const connectBtn = document.getElementById('mobile-app-connect');
     const fields = document.getElementById('mobile-app-pair-fields');
-    const linkEl = document.getElementById('mobile-app-pair-link');
+    const tokenEl = document.getElementById('mobile-app-pair-token');
     const pairError = document.getElementById('mobile-app-pair-error');
     const devicesList = document.getElementById('mobile-app-devices-list');
     const devicesEmpty = document.getElementById('mobile-app-devices-empty');
     const devicesError = document.getElementById('mobile-app-devices-error');
     const devicesRefresh = document.getElementById('mobile-app-devices-refresh');
-    const endpoint = <?= json_encode($mobilePairLanEndpoint, JSON_HEX_TAG) ?> || (window.location.origin + '/api/spends');
+    const devicesPager = document.getElementById('mobile-app-devices-pager');
+    const devicesPageInfo = document.getElementById('mobile-app-devices-page-info');
+    const devicesPrev = document.getElementById('mobile-app-devices-prev');
+    const devicesNext = document.getElementById('mobile-app-devices-next');
+    const devicesIdleHint = document.getElementById('mobile-app-devices-idle');
+    const devicesPerPage = 5;
+    let devicesPage = 1;
     const t = {
         copy: <?= json_encode($translations['copy'] ?? 'Copy', JSON_HEX_TAG) ?>,
         copied: <?= json_encode($translations['copied'] ?? 'Copied', JSON_HEX_TAG) ?>,
@@ -201,7 +221,16 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
         waiting: <?= json_encode($translations['mobile_app_devices_state_pending'] ?? 'Waiting for the phone', JSON_HEX_TAG) ?>,
         created: <?= json_encode($translations['mobile_app_devices_created'] ?? 'Added {t}', JSON_HEX_TAG) ?>,
         lastUsed: <?= json_encode($translations['mobile_app_devices_last_used'] ?? 'Last used {t}', JSON_HEX_TAG) ?>,
-        disconnect: <?= json_encode($translations['mobile_app_devices_disconnect'] ?? 'Disconnect', JSON_HEX_TAG) ?>
+        expires: <?= json_encode($translations['mobile_app_devices_expires'] ?? 'Expires {t}', JSON_HEX_TAG) ?>,
+        disconnect: <?= json_encode($translations['mobile_app_devices_disconnect'] ?? 'Disconnect', JSON_HEX_TAG) ?>,
+        page: <?= json_encode($translations['mobile_app_devices_page'] ?? 'Page {page} of {pages}', JSON_HEX_TAG) ?>,
+        idleDays: <?php
+            if (!function_exists('app_client_auth_token_idle_ttl')) {
+                require_once dirname(__DIR__, 3) . '/lib/db_auth_security.php';
+            }
+            echo (int)ceil(app_client_auth_token_idle_ttl() / 86400);
+        ?>,
+        idleHint: <?= json_encode($translations['mobile_app_devices_idle_hint'] ?? 'Devices unused for {days} days are disconnected automatically.', JSON_HEX_TAG) ?>
     };
 
     function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -243,7 +272,8 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
         return res.json().catch(function () { return null; });
     }
 
-    function renderDevices(devices) {
+    function renderDevices(devices, meta) {
+        meta = meta || {};
         devicesList.innerHTML = '';
         devicesEmpty.style.display = devices.length ? 'none' : 'block';
         devices.forEach(function (device) {
@@ -259,12 +289,13 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
             state.textContent = device.claimed ? t.connected : t.waiting;
             top.appendChild(name); top.appendChild(state);
 
-            const meta = document.createElement('div');
-            meta.className = 'ma-device-meta';
+            const metaLine = document.createElement('div');
+            metaLine.className = 'ma-device-meta';
             const parts = [];
             if (device.created_at) parts.push(t.created.replace('{t}', fmt(device.created_at)));
             if (device.claimed && device.last_used_at) parts.push(t.lastUsed.replace('{t}', fmt(device.last_used_at)));
-            meta.textContent = parts.join(' · ');
+            if (device.expires_at) parts.push(t.expires.replace('{t}', fmt(device.expires_at)));
+            metaLine.textContent = parts.join(' · ');
 
             const row = document.createElement('div');
             const btn = document.createElement('button');
@@ -278,21 +309,32 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
                     const data = await request('revoke_mcp_token', { token_hash: device.token_hash });
                     if (!data || !data.success) throw new Error((data && (data.error || data.message)) || t.devicesError);
                     await fetchDevices();
+                    if (!devicesList.children.length && devicesPage > 1) await fetchDevices(devicesPage - 1);
                 } catch (error) {
                     showDevicesError(String(error && error.message ? error.message : error));
                 } finally { btn.disabled = false; }
             });
             row.appendChild(btn);
-            li.appendChild(top); li.appendChild(meta); li.appendChild(row);
+            li.appendChild(top); li.appendChild(metaLine); li.appendChild(row);
             devicesList.appendChild(li);
         });
+        const pages = Math.max(1, Number(meta.pages) || 1);
+        devicesPage = Math.min(Math.max(1, Number(meta.page) || devicesPage), pages);
+        const showPager = (Number(meta.total) || 0) > devicesPerPage;
+        if (devicesPager) devicesPager.hidden = !showPager;
+        if (showPager && devicesPageInfo && devicesPrev && devicesNext) {
+            devicesPageInfo.textContent = t.page.replace('{page}', String(devicesPage)).replace('{pages}', String(pages));
+            devicesPrev.disabled = devicesPage <= 1;
+            devicesNext.disabled = devicesPage >= pages;
+        }
     }
-    async function fetchDevices() {
+    async function fetchDevices(page) {
+        if (typeof page === 'number') devicesPage = Math.max(1, page);
         showDevicesError('');
         try {
-            const data = await request('list_mobile_tokens', {});
+            const data = await request('list_mobile_tokens', { page: devicesPage, per_page: devicesPerPage });
             if (!data || !data.success) throw new Error((data && (data.error || data.message)) || t.devicesError);
-            renderDevices(Array.isArray(data.devices) ? data.devices : []);
+            renderDevices(Array.isArray(data.devices) ? data.devices : [], data);
         } catch (error) {
             showDevicesError(String(error && error.message ? error.message : error));
         }
@@ -304,9 +346,10 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
         try {
             const data = await request('generate_mcp_token', { mcp_token_name: 'Spends mobile' });
             if (!data || !data.success || !data.token) throw new Error((data && (data.error || data.message)) || t.tokenError);
-            linkEl.textContent = 'spends://auth?endpoint=' + encodeURIComponent(endpoint) + '&token=' + encodeURIComponent(data.token);
+            tokenEl.textContent = data.token;
             fields.hidden = false;
-            await fetchDevices();
+            devicesPage = 1;
+            await fetchDevices(1);
         } catch (error) {
             showPairError(String(error && error.message ? error.message : error));
         } finally { connectBtn.disabled = false; }
@@ -318,12 +361,15 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
             copyText(target ? target.textContent.trim() : '', btn);
         });
     });
-    devicesRefresh.addEventListener('click', fetchDevices);
+    devicesRefresh.addEventListener('click', function () { fetchDevices(1); });
+    devicesPrev && devicesPrev.addEventListener('click', function () { if (devicesPage > 1) fetchDevices(devicesPage - 1); });
+    devicesNext && devicesNext.addEventListener('click', function () { fetchDevices(devicesPage + 1); });
+    if (devicesIdleHint) devicesIdleHint.textContent = t.idleHint.replace('{days}', String(t.idleDays));
 
     window.openMobileAppModal = function () {
         if (typeof showModal === 'function') showModal('mobile-app-modal');
         else { modal.style.display = 'flex'; document.body.classList.add('modal-open'); }
-        fetchDevices();
+        fetchDevices(1);
     };
     window.closeMobileAppModal = function () {
         if (typeof closeModal === 'function') closeModal('mobile-app-modal');
@@ -332,5 +378,8 @@ $mobilePairApkPath = '/downloads/spends-mobile.apk';
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && modal.style.display === 'flex') window.closeMobileAppModal();
     });
+    new MutationObserver(function () {
+        if (modal.classList.contains('show') || modal.style.display === 'flex') fetchDevices(1);
+    }).observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
 })();
 </script>
