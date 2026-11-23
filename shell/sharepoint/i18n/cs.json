@@ -193,7 +193,7 @@
   "passwordUpdated": "Password updated",
   "activeParams": "Active link settings",
   "views": "Views limit",
-  "passwordSet": "Password protected",
+  "passwordSet": "Chráněno heslem",
   "required": "required",
   "save": "Uložit",
   "login_required": "Sign in to open this link",

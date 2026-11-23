@@ -119,7 +119,7 @@
 
     function configureLoader() {
         if (typeof require === 'undefined' || typeof require.config !== 'function') return false;
-        require.config({ paths: { vs: CDN_BASE }, ignoreDuplicateModules: ['vs/editor/editor.main'] });
+        require.config({ paths: { vs: CDN_BASE }, ignoreDuplicateModules: ['vs/editor/editor.main', 'vs/basic-languages/markdown/markdown', 'vs/basic-languages/markdown/markdown.contribution'] });
         return true;
     }
 

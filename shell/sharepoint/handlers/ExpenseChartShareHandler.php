@@ -18,7 +18,7 @@ final class ExpenseChartShareHandler extends BaseAppHandler
 
     public function getDefaultPermissions(): array
     {
-        return ['view', 'interact'];
+        return [];
     }
 
     public function resolveResource(string $resourceId, array $resourceData, string $ownerEmail): ?Resource

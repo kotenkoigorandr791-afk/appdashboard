@@ -21,9 +21,10 @@
       document.head.appendChild(s);
     });
   }
-  function options(value) {
-    return (window.apQrStyleOptions ? window.apQrStyleOptions(value, 256) : {
-      width: 256, height: 256, type: 'svg', data: value, margin: 8,
+  function options(value, size) {
+    size = size || 256;
+    return (window.apQrStyleOptions ? window.apQrStyleOptions(value, size) : {
+      width: size, height: size, type: 'svg', data: value, margin: Math.max(2, Math.round(size / 40)),
       qrOptions: { errorCorrectionLevel: 'H' },
       dotsOptions: { type: 'rounded', gradient: { type: 'linear', rotation: Math.PI / 4, colorStops: [{ offset: 0, color: '#7c3aed' }, { offset: 0.5, color: '#2563eb' }, { offset: 1, color: '#06b6d4' }] } },
       cornersSquareOptions: { type: 'extra-rounded', color: '#2563eb' },
@@ -31,15 +32,16 @@
       backgroundOptions: { color: 'rgba(255,255,255,0)' }
     });
   }
-  function render(container, value) {
+  function render(container, value, size) {
     if (!container || !value) return;
     container.innerHTML = '';
     var card = document.createElement('div');
     card.className = 'sp-qr-card';
     container.appendChild(card);
+    var px = size || (container.classList.contains('sp-share__qr--cloud') ? 200 : 256);
     loadLoader().then(function (ensure) {
       return ensure().then(function (Ctor) {
-        new Ctor(options(value)).append(card);
+        new Ctor(options(value, px)).append(card);
       });
     }).catch(function () {
       var img = document.createElement('img');

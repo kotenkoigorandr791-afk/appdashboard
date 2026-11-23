@@ -7,8 +7,8 @@
   const APP_META = {
     cloud:      { icon: 'cloud', name: 'Cloud',      note: 'Create a public link for this cloud item.' },
     recipes:    { icon: 'recipes', name: 'Recipes',    note: 'Recipients can follow ingredients, tick steps and use timers.' },
-    spends:     { icon: 'spends', name: 'Spends',     note: 'Recipients can explore the chart, change periods and export CSV.' },
-    steps:      { icon: 'steps', name: 'Steps',      note: 'Recipients can view progress, daily chart and export the data.' },
+    spends:     { icon: 'spends', name: 'Spends',     note: 'Anyone with the link can view the chart in read-only mode.' },
+    steps:      { icon: 'steps', name: 'Steps',      note: 'Anyone with the link can view your routine summary.' },
     films:      { icon: 'films', name: 'Films',      note: 'A cinematic read-only page with poster, cast and trailer.' },
     smart_home: { icon: 'smart_home', name: 'Smart Home', note: 'Recipients see live device states; control requires edit access.' }
   };
@@ -28,12 +28,71 @@
     download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/>',
     interact: '<path d="M9 11V6a2 2 0 1 1 4 0v5"/><path d="M13 11V8a2 2 0 1 1 4 0v6"/><path d="M17 11a2 2 0 0 1 4 0v4a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7v-3a2 2 0 1 1 4 0"/>',
     edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
-    share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>'
+    share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
+    lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>',
+    close: '<path d="M6 6l12 12"/><path d="m18 6-12 12"/>',
+    chevron_down: '<path d="m6 9 6 6 6-6"/>',
+    view_off: '<path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M6.7 6.7C4.6 8.3 3.1 10 2 12s3.5 7 10 7c1.6 0 3-.3 4.2-.8"/><path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a16.5 16.5 0 0 1-2.1 3.1"/><path d="m2 2 20 20"/>',
+    shuffle: '<path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>'
   };
 
-  function icon(name) {
+  const APP_TINT = {
+    cloud: '#3b82f6',
+    recipes: '#84cc16',
+    spends: '#e11d48',
+    steps: '#2f9e6f',
+    films: '#a855f7',
+    smart_home: '#0ea5e9'
+  };
+
+  const UI_TINT = {
+    link: '#2563eb',
+    copy: '#2563eb',
+    check: '#10b981',
+    open: '#0891b2',
+    lock: '#d97706',
+    shuffle: '#7c3aed',
+    view: '#2563eb',
+    view_off: '#64748b',
+    close: '#94a3b8',
+    chevron_down: '#64748b'
+  };
+
+  function icon(name, tint) {
     const path = ICONS[name] || ICONS.link;
-    return '<span class="sp-share-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + '</svg></span>';
+    const stroke = tint || UI_TINT[name] || 'currentColor';
+    return '<span class="sp-share-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="' + stroke + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + '</svg></span>';
+  }
+
+  function appBadgeIcon(appId) {
+    const meta = APP_META[appId] || APP_META.cloud;
+    return icon(meta.icon, APP_TINT[appId] || UI_TINT.link);
+  }
+
+  function svgIcon(path, stroke, extraClass) {
+    return '<span class="sp-share-icon' + (extraClass ? ' ' + extraClass : '') + '" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="' + stroke + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + '</svg></span>';
+  }
+
+  function copyBtnIcons() {
+    return '<span class="sp-share__copy-icons" aria-hidden="true">' +
+      svgIcon(ICONS.copy, UI_TINT.copy, 'sp-share-icon--copy') +
+      svgIcon(ICONS.check, UI_TINT.check, 'sp-share-icon--check') +
+    '</span>';
+  }
+
+  function shareCopyFlash(btn) {
+    if (!btn || btn._cfBusy) return;
+    btn._cfBusy = true;
+    const textEl = btn.querySelector('[data-copy-text]');
+    const prev = textEl ? textEl.textContent : '';
+    btn.classList.add('is-copied');
+    if (textEl) textEl.textContent = t('copied');
+    setTimeout(() => {
+      btn.classList.remove('is-copied');
+      if (textEl) textEl.textContent = prev || t('share_copy_label');
+      btn._cfBusy = false;
+    }, 1500);
   }
 
   const ERROR_ALIASES = {
@@ -66,6 +125,21 @@
     return dict[key] || key;
   }
 
+  function uiLocale() {
+    const lang = String(document.documentElement.getAttribute('lang') || 'en').toLowerCase().split('-')[0];
+    const map = { en: 'en-US', ru: 'ru-RU', uk: 'uk-UA', be: 'be-BY', pl: 'pl-PL', cs: 'cs-CZ' };
+    return map[lang] || lang;
+  }
+
+  function formatShareDate(date) {
+    if (!date) return '';
+    try {
+      return new Intl.DateTimeFormat(uiLocale(), { dateStyle: 'short', timeStyle: 'short' }).format(date);
+    } catch (e) {
+      return date.toLocaleString(uiLocale());
+    }
+  }
+
   function translatedError(code) {
     const raw = String(code == null ? '' : code).trim();
     if (raw === '') return t('error');
@@ -95,13 +169,17 @@
     if (document.querySelector('link[data-sharepoint-share-modal]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/shell/sharepoint/assets/css/share-modal.css?v=12';
+    link.href = '/shell/sharepoint/assets/css/share-modal.css?v=18';
     link.dataset.sharepointShareModal = '1';
     document.head.appendChild(link);
   }
 
+  function isSimpleShareApp(appId) {
+    return appId === 'spends' || appId === 'steps';
+  }
+
   function defaultPermissions(appId, resourceType) {
-    if (appId === 'spends') return [];
+    if (isSimpleShareApp(appId)) return [];
     if (resourceType !== 'app') return ['download'];
     if (appId === 'films') return [];
     if (appId === 'smart_home') return ['edit'];
@@ -114,9 +192,7 @@
   // "view" is always granted implicitly (a share link is useless without it),
   // so it is not offered as a separate chip.
   function permissionList(appId, resourceType) {
-    // Spends shares a read-only chart: there is nothing to interact with or
-    // re-share, so the permissions block is not shown at all.
-    if (appId === 'spends') return [];
+    if (isSimpleShareApp(appId)) return [];
     if (resourceType !== 'app') return ['download', 'share'];
     if (appId === 'films') return ['share'];
     if (appId === 'smart_home') return ['edit', 'share'];
@@ -126,7 +202,7 @@
   // Financial data links must always expire: the "never" option is only
   // offered to apps that do not handle sensitive records.
   function allowsNoExpiry(appId) {
-    return appId !== 'spends';
+    return !isSimpleShareApp(appId);
   }
 
   class SharepointShareModal {
@@ -142,6 +218,158 @@
     }
 
     meta() { return APP_META[this.appId]; }
+
+    isSimpleShare() { return isSimpleShareApp(this.appId); }
+
+    premiumSubtitle() {
+      if (this.existing) return t('existingSubtitle');
+      const key = 'note_' + this.appId;
+      return t(key) !== key ? t(key) : this.meta().note;
+    }
+
+  statusActiveLabel(share) {
+      const expiresDate = parseDate(share && share.expires_at);
+      if (expiresDate) {
+        return t('share_status_active_until').replace('{date}', formatShareDate(expiresDate));
+      }
+      return t('noExpiry');
+    }
+
+  accessStatusLabel(mode) {
+      return mode === 'restricted' ? t('share_status_restricted') : t('share_status_public');
+    }
+
+    premiumHeroHtml(share, link) {
+      const restricted = share && share.access_mode === 'restricted';
+      const passLabel = share && share.password_protected ? t('share_password_on') : t('share_password_off');
+      return '<div class="sp-share__hero">' +
+        '<div class="sp-share__url-capsule">' +
+          '<div class="sp-share__url-fade">' +
+            '<input type="text" class="sp-share__url-input" readonly value="' + esc(link) + '" aria-label="' + esc(t('link')) + '">' +
+          '</div>' +
+          '<div class="sp-share__url-actions">' +
+            '<button type="button" class="sp-share__copy-btn" data-copy data-copy-premium>' +
+              copyBtnIcons() + '<span data-copy-text>' + esc(t('share_copy_label')) + '</span>' +
+            '</button>' +
+            '<a class="sp-share__open-btn" href="' + esc(link) + '" target="_blank" rel="noopener" title="' + esc(t('open')) + '">' + icon('open', UI_TINT.open) + '</a>' +
+          '</div>' +
+        '</div>' +
+        '<div class="sp-share__status-row" data-status-row>' +
+          '<span class="sp-share__status-item"><span class="sp-share__status-dot" aria-hidden="true"></span><span data-status-expiry>' + esc(this.statusActiveLabel(share)) + '</span></span>' +
+          '<span class="sp-share__status-sep" aria-hidden="true">•</span>' +
+          '<span class="sp-share__status-item" data-status-password>' + esc(passLabel) + '</span>' +
+          '<span class="sp-share__status-sep" aria-hidden="true">•</span>' +
+          '<span class="sp-share__status-item" data-status-access>' + esc(this.accessStatusLabel(restricted ? 'restricted' : 'public')) + '</span>' +
+        '</div>' +
+        '<div class="sp-share__qr sp-share__qr--cloud" data-qr aria-label="' + esc(t('qr_code')) + '"></div>' +
+      '</div>';
+    }
+
+    renderPremiumQr(link) {
+      const qr = this.dialog && this.dialog.querySelector('[data-qr]');
+      if (qr && link && window.SharepointQR) window.SharepointQR.render(qr, link);
+    }
+
+  premiumExpiryPicker(restricted) {
+      const options = [];
+      let current = (this.existing && this.existing.expires_option) || '1m';
+      const defs = [['1m', t('exp_1m')], ['1h', t('exp_1h')], ['1d', t('exp_1d')], ['1w', t('exp_1w')], ['3m', t('exp_3m')], ['6m', t('exp_6m')], ['1y', t('exp_1y')]];
+      if (allowsNoExpiry(this.appId)) defs.push(['never', t('never')]);
+      if (current === 'never' && !allowsNoExpiry(this.appId)) current = '1m';
+      const currentLabel = (defs.find(d => d[0] === current) || defs[0])[1];
+      const menu = defs.map(([value, label]) =>
+        '<li><button type="button" class="sp-share__expiry-item' + (value === current ? ' is-active' : '') + '" data-exp-value="' + esc(value) + '" data-exp-label="' + esc(label) + '">' +
+          '<span>' + esc(label) + '</span>' + (value === current ? icon('check', UI_TINT.check) : '') +
+        '</button></li>'
+      ).join('');
+      return '<div class="sp-share__expiry" data-expiry-picker>' +
+        '<select class="sp-share__select sp-share__select--native" id="sp-share-expiry" name="expires_option" tabindex="-1" aria-hidden="true">' + this.expiryOptions() + '</select>' +
+        '<button type="button" class="sp-share__expiry-trigger" data-expiry-trigger aria-haspopup="listbox" aria-expanded="false">' +
+          '<span class="sp-share__expiry-value">' + esc(currentLabel) + '</span>' +
+          '<span class="sp-share__expiry-chevron" aria-hidden="true">' + icon('chevron_down', UI_TINT.chevron_down) + '</span>' +
+        '</button>' +
+        '<ul class="sp-share__expiry-menu" role="listbox" hidden>' + menu + '</ul>' +
+      '</div>';
+    }
+
+  premiumPasswordField(ex) {
+      const hint = t(ex && ex.password_protected ? 'keepCurrent' : (this.options.requirePassword ? 'required' : 'optional'));
+      return '<section class="sp-share__section sp-share__section--password">' +
+        '<div class="sp-share__label-row">' +
+          '<label class="sp-share__label" for="sp-share-password">' + esc(t('password')) + '</label>' +
+          '<span class="sp-share__label-hint">' + esc(hint) + '</span>' +
+        '</div>' +
+        '<div class="sp-share__pw sp-share__pw--premium">' +
+          '<span class="sp-share__pw-lock" aria-hidden="true">' + icon('lock', UI_TINT.lock) + '</span>' +
+          '<input class="sp-share__input" id="sp-share-password" name="password" type="password" autocomplete="new-password" placeholder="••••••••"' +
+            (ex && ex.password_protected ? '' : (this.options.requirePassword ? ' required' : '')) + '>' +
+          '<div class="sp-share__pw-tools">' +
+            '<button type="button" class="sp-share__pw-tool sp-share__pw-tool--gen" data-gen-pass title="' + esc(t('share_gen_password')) + '" aria-label="' + esc(t('share_gen_password')) + '">' + icon('shuffle', UI_TINT.shuffle) + '</button>' +
+            '<button class="sp-share__pw-tool" type="button" data-eye aria-label="' + esc(t('password')) + '">' + icon('view', UI_TINT.view) + '</button>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+    }
+
+    buildPremiumModal(ex, meta, restricted) {
+      const headTitle = ex ? t('existingTitle') : t('create');
+      return '<div class="sp-share-modal sp-share--' + esc(this.appId) + ' sp-share--compact sp-share--premium" role="dialog" aria-modal="true" aria-labelledby="sp-share-title">' +
+        '<header class="sp-share__head sp-share__head--premium">' +
+          '<div class="sp-share__head-main">' +
+            '<span class="sp-share__badge sp-share__badge--premium" aria-hidden="true">' + icon('link', UI_TINT.link) + '</span>' +
+            '<div class="sp-share__head-text">' +
+              '<h2 class="sp-share__title" id="sp-share-title">' + esc(headTitle) + '</h2>' +
+              '<p class="sp-share__subtitle">' + esc(this.premiumSubtitle()) + '</p>' +
+            '</div>' +
+          '</div>' +
+          '<button class="sp-share__close sp-share__close--premium" type="button" data-close aria-label="' + esc(t('cancel')) + '">' + icon('close', UI_TINT.close) + '</button>' +
+        '</header>' +
+        '<div class="sp-share__body sp-share__body--premium">' +
+          '<div data-error hidden class="sp-share__error"></div>' +
+          '<div class="sp-share__hero-slot" data-hero-slot hidden></div>' +
+          '<form data-form class="sp-share__form--premium">' +
+            '<section class="sp-share__section">' +
+              '<label class="sp-share__label" for="sp-share-title-input">' + esc(t('title')) + '</label>' +
+              '<input class="sp-share__input sp-share__input--premium" id="sp-share-title-input" name="title" type="text" autofocus value="' +
+                esc((ex && ex.title) || this.options.title || '') + '" placeholder="' + esc(meta.name) + '">' +
+            '</section>' +
+            '<div class="sp-share__split">' +
+              '<section class="sp-share__section sp-share__section--access">' +
+                '<span class="sp-share__label">' + esc(t('access')) + '</span>' +
+                '<div class="sp-share__segmented sp-share__segmented--premium" data-segmented data-state="' + (restricted ? 'restricted' : 'public') + '">' +
+                  '<div class="sp-share__segment-thumb" aria-hidden="true"></div>' +
+                  '<label class="sp-share__segment sp-share__segment--premium' + (restricted ? '' : ' is-selected') + '">' +
+                    '<input type="radio" name="access_mode" value="public"' + (restricted ? '' : ' checked') + '>' +
+                    '<span>' + esc(t('share_public_short')) + '</span>' +
+                  '</label>' +
+                  '<label class="sp-share__segment sp-share__segment--premium' + (restricted ? ' is-selected' : '') + '">' +
+                    '<input type="radio" name="access_mode" value="restricted"' + (restricted ? ' checked' : '') + '>' +
+                    '<span>' + esc(t('restricted')) + '</span>' +
+                  '</label>' +
+                '</div>' +
+              '</section>' +
+              '<section class="sp-share__section sp-share__section--expiry">' +
+                '<span class="sp-share__label">' + esc(t('expiry')) + '</span>' +
+                this.premiumExpiryPicker(restricted) +
+              '</section>' +
+            '</div>' +
+            '<p class="sp-share__access-hint" data-access-hint>' + esc(t(restricted ? 'share_access_helper_restricted' : 'share_access_helper_public')) + '</p>' +
+            '<section class="sp-share__section" data-restricted-box' + (restricted ? '' : ' hidden') + '>' +
+              '<label class="sp-share__label" for="sp-share-emails">' + esc(t('allowedEmails')) + '</label>' +
+              '<textarea class="sp-share__input sp-share__input--premium" id="sp-share-emails" name="allowed_emails" rows="2" placeholder="user@example.com">' +
+                esc(((ex && ex.allowed_emails) || []).join(', ')) + '</textarea>' +
+            '</section>' +
+            this.premiumPasswordField(ex) +
+          '</form>' +
+        '</div>' +
+        '<footer class="sp-share__foot sp-share__foot--premium">' +
+          '<div class="sp-share__foot-actions">' +
+            '<button class="sp-share__btn sp-share__btn--pill sp-share__btn--ghost" type="button" data-close>' + esc(t('cancel')) + '</button>' +
+            '<button class="sp-share__btn sp-share__btn--pill sp-share__btn--primary" type="button" data-create>' + esc(t(ex ? 'save' : 'createBtn')) + '</button>' +
+          '</div>' +
+        '</footer>' +
+      '</div>';
+    }
 
     note() {
       const key = 'note_' + this.appId;
@@ -210,11 +438,9 @@
     paramsHtml(share) {
       const expiresDate = parseDate(share.expires_at);
       const items = [
-        t('expires') + ': ' + (expiresDate ? expiresDate.toLocaleString() : t('noExpiry'))
+        t('expires') + ': ' + (expiresDate ? formatShareDate(expiresDate) : t('noExpiry'))
       ];
-      // Spends shares a read-only chart, so permissions, views and data mode
-      // are irrelevant there and would only clutter the summary.
-      if (this.appId !== 'spends') {
+      if (!this.isSimpleShare()) {
         items.push((share.permissions || []).map((p) => t(p)).join(' · '));
         items.push(t('views') + ': ' + (share.max_views > 0 ? share.max_views : t('unlimited')));
         items.push(t('dataMode') + ': ' + t(share.data_mode));
@@ -242,19 +468,117 @@
       this.dialog.outerHTML = this.buildModal();
       this.dialog = this.overlay.querySelector('.sp-share-modal');
       this.bind(this.overlay);
-      const head = this.dialog.querySelector('.sp-share__head-text .sp-share__title');
-      head.textContent = t('existingTitle');
-      const body = this.dialog.querySelector('.sp-share__body');
-      body.insertAdjacentHTML('afterbegin', '<p class="sp-share__hint">' + esc(t('existingSub')) + '</p>' + this.linkBoxHtml(String(share.link || '')) +
-        '<div class="sp-share__meta" style="justify-content:flex-start">' + this.paramsHtml(share) + '</div>');
-      this.bindDialog(String(share.link || ''));
+      const link = String(share.link || '');
+      if (this.isSimpleShare()) {
+        const slot = this.dialog.querySelector('[data-hero-slot]');
+        if (slot) {
+          slot.hidden = false;
+          slot.innerHTML = this.premiumHeroHtml(share, link);
+        }
+        const subtitle = this.dialog.querySelector('.sp-share__subtitle');
+        if (subtitle) subtitle.textContent = t('existingSubtitle');
+      } else {
+        const body = this.dialog.querySelector('.sp-share__body');
+        body.insertAdjacentHTML('afterbegin', '<p class="sp-share__hint">' + esc(t('existingSub')) + '</p>' + this.linkBoxHtml(link) +
+          '<div class="sp-share__meta" style="justify-content:flex-start">' + this.paramsHtml(share) + '</div>');
+      }
+      this.bindDialog(link);
+      this.renderPremiumQr(link);
+    }
+
+    bindPremiumControls(overlay) {
+      const dialog = overlay.querySelector('.sp-share-modal');
+      if (!dialog || !dialog.classList.contains('sp-share--premium')) return;
+      const syncAccessUi = (mode) => {
+        const segmented = dialog.querySelector('[data-segmented]');
+        if (segmented) segmented.setAttribute('data-state', mode);
+        const hint = dialog.querySelector('[data-access-hint]');
+        if (hint) {
+          hint.textContent = t(mode === 'restricted' ? 'share_access_helper_restricted' : 'share_access_helper_public');
+        }
+        const accessStatus = dialog.querySelector('[data-status-access]');
+        if (accessStatus) accessStatus.textContent = this.accessStatusLabel(mode);
+        const box = dialog.querySelector('[data-restricted-box]');
+        if (box) box.hidden = mode !== 'restricted';
+      };
+      dialog.querySelectorAll('.sp-share__segment input[name="access_mode"]').forEach((input) => {
+        input.addEventListener('change', () => {
+          if (!input.checked) return;
+          syncAccessUi(input.value);
+          const group = input.closest('.sp-share__segmented');
+          if (group) {
+            group.querySelectorAll('.sp-share__segment').forEach((segment) => {
+              segment.classList.toggle('is-selected', !!segment.querySelector('input:checked'));
+            });
+          }
+        });
+      });
+      const picker = dialog.querySelector('[data-expiry-picker]');
+      if (picker) {
+        const native = picker.querySelector('.sp-share__select--native');
+        const trigger = picker.querySelector('[data-expiry-trigger]');
+        const menu = picker.querySelector('.sp-share__expiry-menu');
+        const valueEl = picker.querySelector('.sp-share__expiry-value');
+        const setOpen = (open) => {
+          if (!menu || !trigger) return;
+          menu.hidden = !open;
+          trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+          picker.classList.toggle('is-open', open);
+          if (dialog) dialog.toggleAttribute('data-expiry-open', open);
+        };
+        trigger && trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setOpen(menu.hidden);
+        });
+        picker.querySelectorAll('.sp-share__expiry-item').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const val = btn.getAttribute('data-exp-value');
+            if (native && val) native.value = val;
+            picker.querySelectorAll('.sp-share__expiry-item').forEach(b => b.classList.toggle('is-active', b === btn));
+            if (valueEl) valueEl.textContent = btn.getAttribute('data-exp-label') || btn.textContent.trim();
+            setOpen(false);
+          });
+        });
+        document.addEventListener('click', (e) => {
+          if (!picker.contains(e.target)) setOpen(false);
+        }, { once: false });
+      }
+      dialog.querySelectorAll('[data-gen-pass]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const input = dialog.querySelector('[name="password"]');
+          if (!input) return;
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#%';
+          let out = '';
+          for (let i = 0; i < 12; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+          input.value = out;
+          input.type = 'text';
+          btn.classList.add('is-pressed');
+          setTimeout(() => btn.classList.remove('is-pressed'), 320);
+          const eye = dialog.querySelector('.sp-share__pw-tool[data-eye]');
+          if (eye) eye.innerHTML = icon('view_off', UI_TINT.view_off);
+          const passStatus = dialog.querySelector('[data-status-password]');
+          if (passStatus) passStatus.textContent = t('share_password_on');
+        });
+      });
+      const passInput = dialog.querySelector('[name="password"]');
+      passInput && passInput.addEventListener('input', () => {
+        const passStatus = dialog.querySelector('[data-status-password]');
+        if (passStatus) {
+          passStatus.textContent = String(passInput.value || '').trim()
+            ? t('share_password_on') : (this.existing && this.existing.password_protected ? t('share_password_on') : t('share_password_off'));
+        }
+      });
     }
 
     bindDialog(link) {
       this.dialog.querySelectorAll('[data-eye]').forEach((eye) => {
         eye.addEventListener('click', () => {
-          const input = eye.parentNode.querySelector('input');
-          input.type = input.type === 'password' ? 'text' : 'password';
+          const wrap = eye.closest('.sp-share__pw');
+          const input = wrap ? wrap.querySelector('input') : eye.parentNode.querySelector('input');
+          if (!input) return;
+          const show = input.type === 'password';
+          input.type = show ? 'text' : 'password';
+          eye.innerHTML = icon(show ? 'view_off' : 'view', show ? UI_TINT.view_off : UI_TINT.view);
         });
       });
       this.dialog.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => this.close()));
@@ -304,6 +628,8 @@
     buildModal() {
       const meta = this.meta();
       const ex = this.existing;
+      const restricted = !!ex && ex.access_mode === 'restricted';
+      if (this.isSimpleShare()) return this.buildPremiumModal(ex, meta, restricted);
       const defaults = (ex && ex.permissions) || this.options.defaultPermissions || defaultPermissions(this.appId, this.resourceType);
       const permissionOptions = permissionList(this.appId, this.resourceType);
       const permissions = permissionOptions.map((permission) => {
@@ -313,17 +639,49 @@
           icon(PERMISSION_META[permission].icon) + esc(t(PERMISSION_META[permission].key)) +
           '</label>';
       }).join('');
-      const restricted = !!ex && ex.access_mode === 'restricted';
-      // Data mode is no longer a choice: app shares always reflect live data.
-      const dataMode = '';
-      return '<div class="sp-share-modal sp-share--' + esc(this.appId) + '" role="dialog" aria-modal="true" aria-labelledby="sp-share-title">' +
+      const simple = false;
+      const passwordSection = '<section class="sp-share__section">' +
+        '<label class="sp-share__label" for="sp-share-password">' + esc(t('password')) + ' <span style="font-weight:500;text-transform:none;letter-spacing:0">(' + esc(t(ex && ex.password_protected ? 'keepCurrent' : (this.options.requirePassword ? 'required' : 'optional'))) + ')</span></label>' +
+        this.passwordField('sp-share-password', 'password', ex && ex.password_protected ? '' : (this.options.requirePassword ? ' required' : '')) +
+      '</section>';
+      const expiryAccess = (simple
+        ? '<div class="sp-share__row sp-share__row--simple">' +
+            '<section class="sp-share__section">' +
+              '<span class="sp-share__label">' + esc(t('access')) + '</span>' +
+              '<div class="sp-share__segmented">' +
+                '<label class="sp-share__segment' + (restricted ? '' : ' is-selected') + '"><input type="radio" name="access_mode" value="public"' + (restricted ? '' : ' checked') + '>' + esc(t('public')) + '</label>' +
+                '<label class="sp-share__segment' + (restricted ? ' is-selected' : '') + '"><input type="radio" name="access_mode" value="restricted"' + (restricted ? ' checked' : '') + '>' + esc(t('restricted')) + '</label>' +
+              '</div>' +
+            '</section>' +
+            '<section class="sp-share__section">' +
+              '<label class="sp-share__label" for="sp-share-expiry">' + esc(t('expiry')) + '</label>' +
+              '<select class="sp-share__select" id="sp-share-expiry" name="expires_option">' + this.expiryOptions() + '</select>' +
+            '</section>' +
+          '</div>' + passwordSection
+        : '<section class="sp-share__section">' +
+            '<span class="sp-share__label">' + esc(t('access')) + '</span>' +
+            '<div class="sp-share__segmented">' +
+              '<label class="sp-share__segment' + (restricted ? '' : ' is-selected') + '"><input type="radio" name="access_mode" value="public"' + (restricted ? '' : ' checked') + '>' + esc(t('public')) + '</label>' +
+              '<label class="sp-share__segment' + (restricted ? ' is-selected' : '') + '"><input type="radio" name="access_mode" value="restricted"' + (restricted ? ' checked' : '') + '>' + esc(t('restricted')) + '</label>' +
+            '</div>' +
+          '</section>' +
+          '<section class="sp-share__section" data-restricted-box' + (restricted ? '' : ' hidden') + '>' +
+            '<label class="sp-share__label" for="sp-share-emails">' + esc(t('allowedEmails')) + '</label>' +
+            '<textarea class="sp-share__input" id="sp-share-emails" name="allowed_emails" rows="2" placeholder="user@example.com, other@example.com">' + esc(((ex && ex.allowed_emails) || []).join(', ')) + '</textarea>' +
+            '<p class="sp-share__hint">' + esc(t('restrictedHint')) + '</p>' +
+          '</section>' +
+          '<section class="sp-share__section">' +
+            '<label class="sp-share__label" for="sp-share-expiry">' + esc(t('expiry')) + '</label>' +
+            '<select class="sp-share__select" id="sp-share-expiry" name="expires_option">' + this.expiryOptions() + '</select>' +
+          '</section>' + passwordSection);
+      return '<div class="sp-share-modal sp-share--' + esc(this.appId) + (simple ? ' sp-share--compact' : '') + '" role="dialog" aria-modal="true" aria-labelledby="sp-share-title">' +
         '<header class="sp-share__head">' +
-          '<span class="sp-share__badge" aria-hidden="true">' + icon(meta.icon) + '</span>' +
+          '<span class="sp-share__badge" aria-hidden="true">' + appBadgeIcon(this.appId) + '</span>' +
           '<div class="sp-share__head-text">' +
             '<p class="sp-share__eyebrow">' + esc(meta.name) + ' · SharePoint</p>' +
             '<h2 class="sp-share__title" id="sp-share-title">' + esc(t('create')) + '</h2>' +
           '</div>' +
-          '<button class="sp-share__close" type="button" data-close aria-label="' + esc(t('cancel')) + '">&times;</button>' +
+          '<button class="sp-share__close" type="button" data-close aria-label="' + esc(t('cancel')) + '">' + icon('close', UI_TINT.close) + '</button>' +
         '</header>' +
         '<div class="sp-share__body">' +
           '<div data-error hidden></div>' +
@@ -337,29 +695,11 @@
               '<div class="sp-share__chips" data-permissions>' + permissions + '</div>' +
               '<p class="sp-share__hint">' + esc(this.note()) + '</p>' +
             '</section>' : '') +
-            '<section class="sp-share__section">' +
-              '<span class="sp-share__label">' + esc(t('access')) + '</span>' +
-              '<div class="sp-share__segmented">' +
-                '<label class="sp-share__segment' + (restricted ? '' : ' is-selected') + '"><input type="radio" name="access_mode" value="public"' + (restricted ? '' : ' checked') + '>' + esc(t('public')) + '</label>' +
-                '<label class="sp-share__segment' + (restricted ? ' is-selected' : '') + '"><input type="radio" name="access_mode" value="restricted"' + (restricted ? ' checked' : '') + '>' + esc(t('restricted')) + '</label>' +
-              '</div>' +
-            '</section>' +
-            '<section class="sp-share__section" data-restricted-box' + (restricted ? '' : ' hidden') + '>' +
+            expiryAccess +
+            (simple ? '<section class="sp-share__section" data-restricted-box' + (restricted ? '' : ' hidden') + '>' +
               '<label class="sp-share__label" for="sp-share-emails">' + esc(t('allowedEmails')) + '</label>' +
-              '<textarea class="sp-share__input" id="sp-share-emails" name="allowed_emails" rows="2" placeholder="user@example.com, other@example.com">' + esc(((ex && ex.allowed_emails) || []).join(', ')) + '</textarea>' +
-              '<p class="sp-share__hint">' + esc(t('restrictedHint')) + '</p>' +
-            '</section>' +
-            '<section class="sp-share__section">' +
-              '<label class="sp-share__label" for="sp-share-expiry">' + esc(t('expiry')) + '</label>' +
-              '<select class="sp-share__select" id="sp-share-expiry" name="expires_option">' +
-                this.expiryOptions() +
-              '</select>' +
-            '</section>' +
-            '<section class="sp-share__section">' +
-              '<label class="sp-share__label" for="sp-share-password">' + esc(t('password')) + ' <span style="font-weight:500;text-transform:none;letter-spacing:0">(' + esc(t(ex && ex.password_protected ? 'keepCurrent' : (this.options.requirePassword ? 'required' : 'optional'))) + ')</span></label>' +
-              this.passwordField('sp-share-password', 'password', ex && ex.password_protected ? '' : (this.options.requirePassword ? ' required' : '')) +
-            '</section>' +
-            dataMode +
+              '<textarea class="sp-share__input" id="sp-share-emails" name="allowed_emails" rows="2" placeholder="user@example.com">' + esc(((ex && ex.allowed_emails) || []).join(', ')) + '</textarea>' +
+            '</section>' : '') +
           '</form>' +
         '</div>' +
         '<footer class="sp-share__foot">' +
@@ -399,13 +739,14 @@
         event.preventDefault();
         this.create();
       });
+      this.bindPremiumControls(overlay);
     }
 
     payload() {
       if (this.existing) return this.updatePayload();
       const form = this.overlay.querySelector('form');
       const formData = new FormData(form);
-      const permissions = formData.getAll('permissions').map(String);
+      const permissions = this.isSimpleShare() ? [] : formData.getAll('permissions').map(String);
       return {
         resource_type: this.resourceType,
         resource_app: this.appId,
@@ -425,7 +766,7 @@
 
     updatePayload() {
       const data = new FormData(this.overlay.querySelector('form'));
-      const permissions = data.getAll('permissions').map(String);
+      const permissions = this.isSimpleShare() ? [] : data.getAll('permissions').map(String);
       return {
         action: 'update',
         id: this.existing.id,
@@ -465,12 +806,14 @@
       const original = button.textContent;
       button.innerHTML = '<span class="sp-share__spinner" aria-hidden="true"></span>' + esc(t('createBtn'));
       try {
+        const wasUpdate = !!this.existing;
         const result = await this.post(this.payload());
-        if (this.existing) {
+        this.share = result.share;
+        this.existing = result.share;
+        if (this.isSimpleShare() || wasUpdate) {
           this.showExisting(result.share);
           return;
         }
-        this.share = result.share;
         this.showSuccess();
       } catch (error) {
         errorBox.hidden = false;
@@ -489,19 +832,21 @@
       const share = this.share || {};
       const link = String(share.link || '');
       const expiresDate = parseDate(share.expires_at);
-      const expires = expiresDate ? expiresDate.toLocaleString() : t('noExpiry');
+      const expires = expiresDate ? formatShareDate(expiresDate) : t('noExpiry');
       this.dialog.innerHTML =
         '<header class="sp-share__head">' +
-          '<span class="sp-share__badge" aria-hidden="true">' + icon('check') + '</span>' +
+          '<span class="sp-share__badge" aria-hidden="true">' + icon('check', UI_TINT.check) + '</span>' +
           '<div class="sp-share__head-text"><p class="sp-share__eyebrow">' + esc(this.meta().name) + ' · SharePoint</p><h2 class="sp-share__title">' + esc(t('linkReady')) + '</h2></div>' +
-          '<button class="sp-share__close" type="button" data-close aria-label="' + esc(t('done')) + '">&times;</button>' +
+          '<button class="sp-share__close" type="button" data-close aria-label="' + esc(t('done')) + '">' + icon('close', UI_TINT.close) + '</button>' +
         '</header>' +
         '<div class="sp-share__body"><div class="sp-share__success">' +
           '<div class="sp-share__success-icon" aria-hidden="true">' + icon('link') + '</div>' +
           '<h3>' + esc(this.meta().name) + '</h3>' +
           '<p>' + esc(t('linkReadySub')) + '</p>' +
           this.linkBoxHtml(link) +
-          '<div class="sp-share__meta"><span>' + esc(t('expires')) + ': ' + esc(expires) + '</span><span>' + esc((share.permissions || []).join(' · ')) + '</span></div>' +
+          '<div class="sp-share__meta">' + (this.isSimpleShare()
+            ? ('<span>' + esc(t('expires')) + ': ' + esc(expires) + '</span>')
+            : ('<span>' + esc(t('expires')) + ': ' + esc(expires) + '</span><span>' + esc((share.permissions || []).join(' · ')) + '</span>')) + '</div>' +
           '<div class="sp-share__qr" data-qr></div>' +
         '</div></div>' +
         '<footer class="sp-share__foot"><button class="sp-share__btn sp-share__btn--ghost" type="button" data-close>' + esc(t('done')) + '</button><button class="sp-share__btn sp-share__btn--primary" type="button" data-copy>' + esc(t('copy')) + '</button></footer>';
@@ -512,7 +857,8 @@
 
     copy(link, button) {
       const done = () => {
-        if (button && window.copyFlash) window.copyFlash(button);
+        if (button && button.hasAttribute('data-copy-premium')) shareCopyFlash(button);
+        else if (button && window.copyFlash) window.copyFlash(button);
         else if (button && button.tagName === 'BUTTON') {
           const prev = button.innerHTML;
           button.textContent = t('copied');

@@ -1,5 +1,6 @@
     <script src="/shell/sharepoint/assets/js/qr-code.js?v=5"></script>
-    <script src="/shell/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
+    <?php require_once dirname(__DIR__, 3) . '/shell/sharepoint/i18n_loader.php'; ?>
+    <script>window.SHAREPOINT_SHARE_I18N=<?= json_encode(sharepoint_load_share_i18n($language), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <?php
     // The share endpoint verifies X-SharePoint-CSRF against the session token, so
     // the page has to publish it. Without this every create/list call answered
@@ -7,7 +8,7 @@
     if (empty($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(24));
     ?>
     <script>window.SHAREPOINT_CSRF=<?= json_encode($_SESSION['sharepoint_csrf']) ?>;</script>
-    <script src="/shell/sharepoint/assets/js/share-modal.js?v=15"></script>
+    <script src="/shell/sharepoint/assets/js/share-modal.js?v=18"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var shareButton = document.getElementById('sharepoint-share-button');
@@ -40,7 +41,7 @@
                     if (!window.openShareModal) return;
                     window.openShareModal('steps', 'app', 'step_routine', {
                         title: <?php echo json_encode($translations['steps_counter_title'] ?? 'My steps', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
-                        defaultPermissions: ['interact'],
+                        defaultPermissions: [],
                         apiUrl: '/apps/steps/api/share.php'
                     });
                 });

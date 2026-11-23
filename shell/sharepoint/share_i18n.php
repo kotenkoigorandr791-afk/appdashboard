@@ -1,20 +1,9 @@
 <?php
 declare(strict_types=1);
 
-$lang = preg_replace('/[^a-z]/', '', strtolower((string)($_GET['lang'] ?? 'en')));
-if ($lang === '') {
-    $lang = 'en';
-}
-$root = __DIR__ . '/i18n';
-$load = static function (string $code) use ($root): array {
-    $file = $root . '/' . $code . '.json';
-    if (!is_file($file)) {
-        return [];
-    }
-    $data = json_decode((string)file_get_contents($file), true);
-    return is_array($data) ? $data : [];
-};
-$messages = array_merge($load('en'), $load($lang));
+require_once __DIR__ . '/i18n_loader.php';
+
+$messages = sharepoint_load_share_i18n();
 
 header('Content-Type: application/javascript; charset=utf-8');
 header('Cache-Control: public, max-age=3600');

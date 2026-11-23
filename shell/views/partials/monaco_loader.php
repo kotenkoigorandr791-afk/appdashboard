@@ -21,7 +21,7 @@
     function loadEditor(vsPath){
       return new Promise(function(resolve, reject){
         try {
-          require.config({ paths: { vs: vsPath }, ignoreDuplicateModules: ['vs/editor/editor.main'] });
+          require.config({ paths: { vs: vsPath }, ignoreDuplicateModules: ['vs/editor/editor.main', 'vs/basic-languages/markdown/markdown', 'vs/basic-languages/markdown/markdown.contribution'] });
           require(['vs/editor/editor.main'], function(){ resolve(window.monaco); }, reject);
         } catch (e) { reject(e); }
       });
