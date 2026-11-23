@@ -873,7 +873,19 @@ $metricButtons = [
                                 const hl=isFocus?'#f43f5e':(isSel?'#facc15':null);
                                 if(hl) L.geoJSON(feature,{pane:'routesGlow',style:{color:hl,weight:routeWidth*6,opacity:0.38,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
                                 else L.geoJSON(feature,{pane:'routesGlow',style:{color:'#38bdf8',weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
-                                L.geoJSON(feature,{pane:'routes',style:{color:hl||'#60a5fa',weight:hl?routeWidth+2:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}}).bindPopup(popup).addTo(layerGroup);
+                                const tripShape=L.geoJSON(feature,{pane:'routes',style:{color:hl||'#60a5fa',weight:hl?routeWidth+2:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}}).bindPopup(popup).addTo(layerGroup);
+                                // Clicking the drawn route selects the trip, glides the camera to it
+                                // and keeps its popup so the map and the trips panel stay in sync.
+                                tripShape.on('click',()=>{
+                                    if(p.id==null) return;
+                                    const center=tripShape.getBounds().getCenter();
+                                    focusTripId=p.id;
+                                    const list=document.getElementById('ma-trips-list')||tripsList;
+                                    if(list) list.querySelectorAll('.trip-item').forEach(el=>el.classList.toggle('is-focused',el.dataset.tripId===String(p.id)));
+                                    render(lastFeatures);
+                                    flyToTrip(p.id);
+                                    if(map&&center) map.openPopup(popup,center,{maxWidth:300});
+                                });
                             } else if(p.layer==='smooth'){
                                 L.geoJSON(feature,{pane:'routesGlow',style:{color:'#34d399',weight:routeWidth*3.2,opacity:0.18,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
                                 L.geoJSON(feature,{pane:'routes',style:{color:'#34d399',weight:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}})
@@ -1002,6 +1014,10 @@ $metricButtons = [
                                 if(pop.hidden) open(); else close();
                             });
                             pop.addEventListener('click',event=>{
+                                // Keep popover clicks away from the document click handler:
+                                // re-rendering on month change detaches the target, which
+                                // made the outside-click check close the calendar.
+                                event.stopPropagation();
                                 const nav=event.target.closest('[data-dp-nav]');
                                 if(nav){ view.setMonth(view.getMonth()+Number(nav.getAttribute('data-dp-nav'))); render(); return; }
                                 const day=event.target.closest('[data-dp-date]');
@@ -1078,6 +1094,24 @@ $metricButtons = [
                         const selected=tripsList.querySelectorAll('.trip-pick:checked').length;
                         if(tripMergeBtn) tripMergeBtn.disabled=selected<2;
                     }
+                    // Trip features carry the id as string in some payloads, so compare loosely.
+                    function findTripFeature(tripId){
+                        const id=String(tripId);
+                        return (lastFeatures||[]).find(f=>f.properties&&f.properties.layer==='trip'&&String(f.properties.id)===id)||null;
+                    }
+                    function flyToTrip(tripId){
+                        if(!map||!window.L) return false;
+                        const feat=findTripFeature(tripId);
+                        if(!feat) return false;
+                        try{
+                            const bounds=window.L.geoJSON(feat).getBounds();
+                            if(!bounds||!bounds.isValid()) return false;
+                            const opts={padding:[60,60],maxZoom:16,duration:0.9,easeLinearity:0.22};
+                            if(typeof map.flyToBounds==='function') map.flyToBounds(bounds,opts);
+                            else map.fitBounds(bounds,opts);
+                            return true;
+                        }catch(e){ return false; }
+                    }
                     function renderTrips(){
                         tripsList.innerHTML='';
                         if(!tripsCache.length){
@@ -1107,8 +1141,7 @@ $metricButtons = [
                                 focusTripId=focusTripId===trip.id?null:trip.id;
                                 tripsList.querySelectorAll('.trip-item').forEach(el=>el.classList.toggle('is-focused',el.dataset.tripId===focusTripId));
                                 render(lastFeatures);
-                                const feat=lastFeatures.find(f=>f.properties&&f.properties.layer==='trip'&&f.properties.id===trip.id);
-                                if(focusTripId&&feat&&map&&window.L){ try{ map.fitBounds(window.L.geoJSON(feat).getBounds(),{padding:[60,60],maxZoom:16}); }catch(e){} }
+                                if(focusTripId) flyToTrip(trip.id);
                                 openTripEditor(trip);
                             });
                             const actions=document.createElement('div'); actions.className='trip-actions';
@@ -4152,6 +4185,43 @@ $metricButtons = [
             </div>
         </div>
         
+        <!-- Location sharing Modal -->
+        <div id="share-location-modal" style="display:none;">
+            <div class="share-location-content">
+                <div class="md3-modal-head">
+                    <div class="md3-modal-head-main">
+                        <div class="md3-modal-icon"><i class="fas fa-location-dot" aria-hidden="true"></i></div>
+                        <div><h2><?php echo htmlspecialchars($translations['location_share_title'] ?? 'Location sharing'); ?></h2></div>
+                    </div>
+                    <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+                </div>
+                <div class="share-location-body">
+                    <p class="location-hint"><?php echo htmlspecialchars($translations['location_share_hint'] ?? 'Share your location only with consent. You can pause or revoke access at any time.'); ?></p>
+                    <div class="share-location-grid">
+                        <label class="share-field"><span><?php echo htmlspecialchars($translations['location_share_viewer'] ?? 'Person email'); ?></span><input id="share-viewer" type="email" autocomplete="off" placeholder="user@example.com"></label>
+                        <label class="share-field"><span><?php echo htmlspecialchars($translations['location_share_level'] ?? 'Access level'); ?></span>
+                            <select id="share-level">
+                                <option value="recent"><?php echo htmlspecialchars($translations['location_share_level_recent'] ?? 'Recent history'); ?></option>
+                                <option value="current"><?php echo htmlspecialchars($translations['location_share_level_current'] ?? 'Current location'); ?></option>
+                                <option value="range"><?php echo htmlspecialchars($translations['location_share_level_range'] ?? 'Date range'); ?></option>
+                                <option value="places"><?php echo htmlspecialchars($translations['location_share_level_places'] ?? 'Places only'); ?></option>
+                            </select>
+                        </label>
+                        <label class="share-field"><span><?php echo htmlspecialchars($translations['location_share_precision'] ?? 'Precision, metres (0 = exact)'); ?></span><input id="share-precision" type="number" min="0" step="50" value="0" inputmode="numeric"></label>
+                        <label class="share-field"><span><?php echo htmlspecialchars($translations['location_share_until'] ?? 'Until'); ?></span><input id="share-until" type="date"></label>
+                        <label class="share-field"><span><?php echo htmlspecialchars($translations['location_share_from'] ?? 'From'); ?></span><input id="share-from" type="date"></label>
+                        <label class="share-field"><span><?php echo htmlspecialchars($translations['location_share_to'] ?? 'To'); ?></span><input id="share-to" type="date"></label>
+                    </div>
+                    <label class="share-field"><span><?php echo htmlspecialchars($translations['location_share_reason'] ?? 'Reason (shown to you)'); ?></span><input id="share-reason" type="text" maxlength="200"></label>
+                    <label class="share-consent"><input type="checkbox" id="share-consent"><span><?php echo htmlspecialchars($translations['location_share_consent'] ?? 'I agree to share my location with this person'); ?></span></label>
+                    <div class="share-location-actions">
+                        <button type="button" id="share-create" class="excel-btn"><?php echo htmlspecialchars($translations['location_share_add'] ?? 'Share location'); ?></button>
+                        <span id="share-status" role="status" aria-live="polite"></span>
+                    </div>
+                    <div id="share-grants" class="share-grants"></div>
+                </div>
+            </div>
+        </div>
         <!-- Toast container -->
         <!-- Alert Modal -->
         <div id="alert-modal" style="display:none;">

@@ -7,25 +7,40 @@
     if (empty($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(24));
     ?>
     <script>window.SHAREPOINT_CSRF=<?= json_encode($_SESSION['sharepoint_csrf']) ?>;</script>
-    <script src="/shell/sharepoint/assets/js/share-modal.js?v=13"></script>
+    <script src="/shell/sharepoint/assets/js/share-modal.js?v=15"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var shareButton = document.getElementById('sharepoint-share-button');
             var chooser = document.getElementById('share-chooser');
             if (shareButton && chooser) {
+                // Anchor the dropdown to the share button instead of the whole
+                // topbar action cluster, otherwise it opens far to the right.
+                var placeChooser = function () {
+                    if (chooser.hidden) return;
+                    var rect = shareButton.getBoundingClientRect();
+                    var width = chooser.offsetWidth || 220;
+                    var left = Math.min(Math.max(8, rect.right - width), window.innerWidth - width - 8);
+                    chooser.style.position = 'fixed';
+                    chooser.style.top = (rect.bottom + 8) + 'px';
+                    chooser.style.left = left + 'px';
+                    chooser.style.right = 'auto';
+                };
                 shareButton.addEventListener('click', function (event) {
                     event.stopPropagation();
                     chooser.hidden = !chooser.hidden;
+                    if (!chooser.hidden) placeChooser();
                 });
                 document.addEventListener('click', function (event) {
                     if (!chooser.contains(event.target) && event.target !== shareButton) chooser.hidden = true;
                 });
+                window.addEventListener('resize', placeChooser);
+                window.addEventListener('scroll', placeChooser, true);
                 document.getElementById('share-choose-steps')?.addEventListener('click', function () {
                     chooser.hidden = true;
                     if (!window.openShareModal) return;
                     window.openShareModal('steps', 'app', 'step_routine', {
                         title: <?php echo json_encode($translations['steps_counter_title'] ?? 'My steps', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
-                        defaultPermissions: ['view', 'interact'],
+                        defaultPermissions: ['interact'],
                         apiUrl: '/apps/steps/api/share.php'
                     });
                 });
@@ -33,6 +48,9 @@
                     chooser.hidden = true;
                     openModal('share-location-modal');
                     window.dispatchEvent(new CustomEvent('steps-share-location-open'));
+                });
+                document.querySelector('#share-location-modal .modal-close')?.addEventListener('click', function () {
+                    closeModal('share-location-modal');
                 });
             }
         });
@@ -6026,6 +6044,11 @@
         };
         trigger.addEventListener('click', e => { e.stopPropagation(); pop.hidden ? open() : close(); });
         pop.addEventListener('click', e => {
+            // Clicks inside the popover must never reach the document-level
+            // outside-click handler. Month navigation re-renders the popover, so
+            // the original target is already detached from the DOM by the time
+            // that handler runs and it would close the calendar after one click.
+            e.stopPropagation();
             const nav = e.target.closest('[data-nav]');
             if (nav) { view.setMonth(view.getMonth() + Number(nav.dataset.nav)); render(); return; }
             const day = e.target.closest('[data-day]');

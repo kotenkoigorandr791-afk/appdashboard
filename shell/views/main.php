@@ -1047,7 +1047,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
                 width:auto;
                 height:auto;
                 max-height:min(58vh,420px);
-                padding:8px;
+                padding:6px;
                 border:1px solid var(--border-color);
                 border-radius:16px;
                 overflow:hidden;
@@ -1075,18 +1075,18 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             #sidebar #sidebarWeatherWidget{display:none!important;}
             #sidebar .group-letter{display:none!important;}
             #sidebar #app-list-container{
-                flex:1 1 auto;
+                flex:0 0 auto;
                 min-height:0;
-                padding:0 0 6px;
+                padding:0 0 4px;
                 overflow-x:auto;
                 overflow-y:hidden;
                 scrollbar-width:none;
                 -ms-overflow-style:none;
             }
             #sidebar #app-list-container::-webkit-scrollbar{display:none;}
-            #sidebar #app-list{display:flex;gap:6px;}
-            #sidebar .group-block{display:contents;}
-            #sidebar .group-block ul{display:flex;gap:6px;}
+            #sidebar #app-list{display:flex;gap:6px;padding:0!important;margin:0!important;height:auto!important;}
+            #sidebar .group-block{display:contents!important;padding:0!important;margin:0!important;background:transparent!important;border:0!important;border-radius:0!important;}
+            #sidebar .group-block ul{display:flex;gap:6px;margin:0!important;padding:0!important;}
             #sidebar #app-list li{
                 width:auto;
                 margin:0;
@@ -1098,27 +1098,27 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             #sidebar #app-list a,
             #sidebar #app-list a.app-tile-link{
                 flex-direction:column-reverse;
-                gap:4px;
-                width:66px;
-                max-width:66px;
-                min-height:65px;
+                gap:3px;
+                width:62px;
+                max-width:62px;
+                min-height:56px;
                 justify-content:center;
                 align-items:center;
-                padding:7px 4px;
-                border-radius:12px;
+                padding:6px 3px;
+                border-radius:11px;
                 background:var(--app-item-bg);
                 border:1px solid transparent;
                 box-sizing:border-box;
             }
-            #sidebar .sidebar-app-icon-wrap{order:0;margin:0;width:24px;height:24px;}
+            #sidebar .sidebar-app-icon-wrap{order:0;margin:0;width:21px;height:21px;}
             #sidebar .sidebar-app-icon,
-            #sidebar .sidebar-app-icon-svg{width:24px!important;height:24px!important;}
+            #sidebar .sidebar-app-icon-svg{width:21px!important;height:21px!important;}
             #sidebar .sidebar-app-name{
                 order:1;
                 flex:none;
                 width:100%;
-                font-size:9.5px;
-                line-height:1.12;
+                font-size:9px;
+                line-height:1.1;
                 text-align:center;
                 white-space:normal;
                 overflow:hidden;
@@ -1126,7 +1126,13 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
                 max-height:2.3em;
             }
             #sidebar .tooltip{display:none!important;}
-            #sidebar #bottom-bar{position:relative;display:flex;align-items:center;gap:6px;margin-top:2px;padding-top:6px;flex-shrink:0;border-top:1px solid var(--border-color);}
+            #sidebar #bottom-bar{position:relative;display:flex;align-items:center;gap:4px;margin-top:0;padding-top:5px;flex-shrink:0;border-top:1px solid var(--border-color);}
+            #sidebar #bottom-bar .sidebar-button,
+            #sidebar #bottom-bar .user-profile,
+            #sidebar #bottom-bar #support-chat-btn.app-page-chat{width:32px!important;height:32px!important;min-width:32px!important;}
+            #sidebar #bottom-bar #support-chat-btn.app-page-chat{margin-left:0;}
+            #sidebar #bottom-bar .sidebar-button svg,
+            #sidebar #bottom-bar #support-chat-btn.app-page-chat svg{width:18px;height:18px;}
             #sidebar .bottom-bar-actions{position:static;margin-left:auto;align-self:center;gap:6px;}
         }
         .search-container.open + #support-chat-btn.app-page-chat,
@@ -5125,6 +5131,11 @@ var T=<?php echo json_encode([
                     const content=Array.from(el.querySelectorAll(contentSelectors)).filter(child=>isVisibleLayer(child,win));
                     if(content.length)return content.map(child=>child.getBoundingClientRect());
                     if(el.matches('dialog[open]'))return [rect];
+                    // Overlays without a recognised content class (e.g. #info-modal >
+                    // .info-content) still need their visible panel measured, otherwise
+                    // the menu button stays on top of the open modal.
+                    const kids=Array.from(el.children).filter(child=>isVisibleLayer(child,win));
+                    if(kids.length)return kids.map(child=>child.getBoundingClientRect());
                     return [];
                 }
                 return [rect];
