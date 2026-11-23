@@ -270,7 +270,12 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                             setMultiTouchControls(true)
                             overlays.add(MapRotationOverlay(this))
                             if (!darkTheme) setTilesScaledToDpi(false)
-                            applyBasemap(this, MapStyle.fromKey(prefs.getMapBasemap()), darkTheme)
+                            applyBasemap(
+                                this,
+                                MapStyle.fromKey(prefs.getMapBasemap()),
+                                darkTheme,
+                                orbit.nex.steps.screens.MapTileScheme.fromKey(prefs.getMapTileScheme()),
+                            )
                             zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
                             controller.setZoom(if (focus != null) 16.0 else 5.0)
                             controller.setCenter(focus ?: GeoPoint(20.0, 0.0))

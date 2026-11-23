@@ -20,10 +20,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/apps/steps/assets/md3-redesign.css?v=20261121r">
-    <link rel="stylesheet" href="/apps/steps/assets/md3-from-preview.css?v=20261121r">
-    <link rel="stylesheet" href="/apps/steps/assets/md3-modals.css?v=20261121r">
-    <link rel="stylesheet" href="/apps/steps/assets/md3-exact.css?v=20261121r">
+    <link rel="stylesheet" href="/apps/steps/assets/md3-redesign.css?v=20261123j">
+    <link rel="stylesheet" href="/apps/steps/assets/md3-from-preview.css?v=20261123j">
+    <link rel="stylesheet" href="/apps/steps/assets/md3-modals.css?v=20261123j">
+    <link rel="stylesheet" href="/apps/steps/assets/md3-exact.css?v=20261123j">
     <script>
     // Chart.js is interaction-only. It is loaded on demand by scripts.php
     // instead of blocking the initial render. Cropper had no call sites.
@@ -3845,12 +3845,16 @@ height: 48px;
     z-index: 500;
     top: 14px;
     left: 14px;
-    right: 14px;
+    right: 64px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
     pointer-events: none;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
 }
 .map-hud h3 {
     margin: 0;
@@ -3896,6 +3900,49 @@ height: 48px;
 }
 .map-hud #ma-map-live[hidden] { display: none; }
 .map-hud #ma-map-live.is-stale { color: #fde9c8; border-color: rgba(245,158,11,0.4); }
+.map-segment-legend {
+    pointer-events: auto;
+    display: grid;
+    gap: 6px;
+    min-width: 180px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(11,17,23,0.78);
+    color: #e2e8f0;
+    border: 1px solid rgba(251,146,60,0.45);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.4);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+.map-segment-legend[hidden] { display: none !important; }
+.map-segment-legend-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; line-height: 1.3; }
+.map-segment-legend-row span { color: #94a3b8; }
+.map-segment-legend-row strong { font-family: var(--font-mono, ui-monospace, monospace); font-weight: 600; color: #fdba74; }
+.map-segment-clear {
+    pointer-events: auto;
+    width: 40px; height: 40px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(11,17,23,0.78);
+    color: #e2e8f0;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+    cursor: pointer;
+}
+.map-segment-clear[hidden] { display: none !important; }
+.map-segment-clear:hover { background: rgba(239,68,68,0.28); color: #fff; border-color: rgba(239,68,68,0.5); }
+body[data-theme="light"] .map-segment-legend {
+    background: rgba(255,255,255,0.92);
+    color: #0f172a;
+    border-color: rgba(249,115,22,0.4);
+}
+body[data-theme="light"] .map-segment-legend-row span { color: #64748b; }
+body[data-theme="light"] .map-segment-legend-row strong { color: #c2410c; }
+body[data-theme="light"] .map-segment-clear {
+    background: rgba(255,255,255,0.92);
+    color: #0f172a;
+    border-color: rgba(15,23,42,0.12);
+}
 .map-live-pulse {
     width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto;
     background: #22c55e;
@@ -4114,18 +4161,39 @@ height: 48px;
     border: 2px solid rgba(255,255,255,0.75);
     box-shadow: 0 0 0 6px rgba(14,165,233,0.18), 0 10px 24px rgba(0,0,0,0.45);
 }
-.map-workspace { transition: grid-template-columns 0.25s ease; }
-.map-workspace.is-collapsed { grid-template-columns: minmax(0, 1fr) 0; gap: 0; }
-.map-workspace.is-collapsed .map-sidebar { display: none; }
+.map-workspace { transition: grid-template-columns 0.32s cubic-bezier(0.4, 0, 0.2, 1), gap 0.32s ease; }
+.map-workspace.is-collapsed { grid-template-columns: minmax(0, 1fr) 0fr; gap: 0; }
+.map-workspace .map-sidebar {
+    transition: opacity 0.22s ease, transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), padding 0.32s ease, border-color 0.32s ease, box-shadow 0.32s ease;
+    transform: translateX(0);
+    opacity: 1;
+}
+.map-workspace.is-collapsed .map-sidebar {
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+    min-width: 0;
+    overflow: hidden;
+    border-color: transparent;
+    box-shadow: none;
+}
 .map-sidebar-backdrop { display: none; }
 body.map-sidebar-open { overflow: hidden !important; }
 .map-sidebar-show {
-    position: absolute; top: 12px; right: 12px; z-index: 1000;
+    position: absolute; top: 14px; right: 14px; z-index: 520;
     width: 40px; height: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18);
     background: rgba(11,17,23,0.78); color: #dbeafe; cursor: pointer; font-size: 16px;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+    transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.16s ease;
 }
-.map-sidebar-show[hidden] { display: none; }
+.map-sidebar-show[hidden] { display: none !important; }
 .map-sidebar-show:hover { background: rgba(56,189,248,0.28); }
+@media (prefers-reduced-motion: reduce) {
+    .map-workspace,
+    .map-workspace .map-sidebar,
+    .map-sidebar-show { transition: none !important; }
+}
 @media (max-width: 1024px) {
     .map-workspace { grid-template-columns: minmax(0, 1fr) 286px; height: min(76vh, 720px); }
     .map-workspace.is-collapsed { grid-template-columns: minmax(0, 1fr) 0; }
@@ -4970,8 +5038,10 @@ iframe.render-preview-media { height: 60vh; }
         .rplayer-pos { background: var(--accent-color, #60a5fa); }
         .rplayer-knob { position: absolute; top: 50%; left: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; }
         .rplayer-time { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .settings-field input[type="color"] { width: 100%; height: 38px; padding: 2px 4px; cursor: pointer; }
-        .settings-field input[type="range"] { width: 100%; }
+        .settings-field input[type="color"],
+        .settings-field .m3-color-input { width: 100%; height: 42px; padding: 5px; cursor: pointer; border-radius: 12px; box-sizing: border-box; }
+        .settings-field input[type="range"],
+        .settings-field .m3-range-input { width: 100%; }
 /* The point list grows with its content; the settings panel scrolls instead of
    trapping the list in its own scrollbar. */
 .points-list { display: flex; flex-direction: column; gap: 4px; max-height: none; overflow: visible; }
@@ -4980,13 +5050,29 @@ iframe.render-preview-media { height: 60vh; }
 .points-row input { flex: 0 0 auto; width: auto; min-height: 0; }
 .points-row span { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .points-row em { flex: 0 0 auto; font-style: normal; color: var(--muted-text); font-size: 12px; }
-.map-area-tools { display: flex; align-items: center; gap: 8px; margin-top: 8px; pointer-events: auto; }
-.map-area-tools [hidden] { display: none; }
+.map-area-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; pointer-events: auto; }
+.map-area-tools [hidden] { display: none !important; }
 /* Icon-only buttons in the map panel stay square, not stretched rectangles. */
-.map-area-tools .trip-btn { width: 40px; padding: 0; }
+.map-area-tools .trip-btn,
+.map-area-tools .trip-btn.trip-btn-primary {
+    width: 40px !important; min-width: 40px !important; max-width: 40px !important;
+    height: 40px !important; min-height: 40px !important; max-height: 40px !important;
+    padding: 0 !important; overflow: hidden; white-space: nowrap; font-size: 0 !important; line-height: 0 !important;
+    display: inline-flex !important; align-items: center; justify-content: center; flex: 0 0 40px !important;
+    box-sizing: border-box !important;
+}
+.map-area-tools .trip-btn i { font-size: 14px; line-height: 1; }
+#ma-area-info {
+    color: var(--md-text, #e2e8f0);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    padding: 0 2px;
+    white-space: nowrap;
+}
 /* Tolerance picker sits between the smooth and delete buttons, so it stays
    compact enough for the same single row on a phone. */
-.map-area-tolerance { display: inline-flex; align-items: center; }
+.map-area-tolerance { display: inline-flex; align-items: center; flex: 0 0 auto; }
 .map-area-tolerance select { width: auto; min-width: 72px; height: 40px; padding: 0 6px; font-size: 12px; border-radius: 10px; }
 #ma-area-toggle.active { background: #ef4444; color: #fff; border-color: #ef4444; }
 @media (max-width: 820px) {
@@ -4994,7 +5080,8 @@ iframe.render-preview-media { height: 60vh; }
     .points-row em { flex-basis: 100%; }
     /* Touch-sized but still square icon buttons. */
     .map-day-btn { width: 34px; height: 34px; font-size: 12px; }
-    .map-area-tools .trip-btn { width: 44px; }
+    .map-area-tools .trip-btn,
+    .map-area-tools .trip-btn.trip-btn-primary { width: 44px; min-width: 44px; max-width: 44px; height: 44px; min-height: 44px; flex-basis: 44px; }
     .map-area-tolerance select { height: 44px; }
 }
 
@@ -5199,7 +5286,12 @@ iframe.render-preview-media { height: 60vh; }
 .modal-close > .material-symbols-rounded,
 #global-image-viewer-close > .material-symbols-rounded,
 .trip-close > .material-symbols-rounded,
-.picker-x > .material-symbols-rounded {
+.picker-x > .material-symbols-rounded,
+.app-close-button > .icon-svg,
+.modal-close > .icon-svg,
+#global-image-viewer-close > .icon-svg,
+.trip-close > .icon-svg,
+.picker-x > .icon-svg {
   display: block !important;
   width: 20px !important;
   height: 20px !important;
@@ -5219,14 +5311,19 @@ iframe.render-preview-media { height: 60vh; }
 }
 .modal-close:hover > i,
 .modal-close:hover > .material-symbols-rounded,
+.modal-close:hover > .icon-svg,
 .app-close-button:hover > i,
 .app-close-button:hover > .material-symbols-rounded,
+.app-close-button:hover > .icon-svg,
 #global-image-viewer-close:hover > i,
 #global-image-viewer-close:hover > .material-symbols-rounded,
+#global-image-viewer-close:hover > .icon-svg,
 .trip-close:hover > i,
 .trip-close:hover > .material-symbols-rounded,
+.trip-close:hover > .icon-svg,
 .picker-x:hover > i,
-.picker-x:hover > .material-symbols-rounded {
+.picker-x:hover > .material-symbols-rounded,
+.picker-x:hover > .icon-svg {
   transform: rotate(90deg) !important;
 }
 .modal-close:active,
@@ -5609,6 +5706,7 @@ body.md3-steps.light .picker-x:hover {
                 border-radius: 8px !important;
             }
             body.md3-steps .app-steps.md3 .mode-switch-btn .material-symbols-rounded { font-size: 19px !important; }
+            body.md3-steps .app-steps.md3 .mode-switch-btn .icon-svg { width: 19px !important; height: 19px !important; }
             body.md3-steps .app-steps.md3 .app-topbar-actions {
                 order: 1 !important;
                 width: auto !important;
@@ -5633,6 +5731,7 @@ body.md3-steps.light .picker-x:hover {
                 font-size: 18px !important;
             }
             body.md3-steps .app-steps.md3 .topbar-icon-btn .material-symbols-rounded { font-size: 18px !important; }
+            body.md3-steps .app-steps.md3 .topbar-icon-btn .icon-svg { width: 18px !important; height: 18px !important; }
             body.md3-steps .app-steps.md3 #user-button img {
                 width: 22px !important;
                 height: 22px !important;
@@ -5654,6 +5753,7 @@ body.md3-steps.light .picker-x:hover {
             body.md3-steps .kpi-label { font-size: 10.5px !important; letter-spacing: 0.04em !important; line-height: 1.15 !important; }
             body.md3-steps .kpi-icon-badge { width: 26px !important; height: 26px !important; border-radius: 7px !important; }
             body.md3-steps .kpi-icon-badge .material-symbols-rounded { font-size: 17px !important; }
+            body.md3-steps .kpi-icon-badge .icon-svg { width: 17px !important; height: 17px !important; }
             body.md3-steps .kpi-value { font-size: 26px !important; }
             body.md3-steps .kpi-unit { font-size: 12px !important; }
             body.md3-steps .kpi-badge { font-size: 11px !important; padding: 1px 8px !important; border-radius: 7px !important; }
@@ -5724,6 +5824,7 @@ body.md3-steps.light .picker-x:hover {
             /* Calendar button loses its label, keeps the icon, so the date fits. */
             body.md3-steps .step-activity-toolbar > .btn-today { font-size: 0 !important; gap: 0 !important; padding: 0 11px !important; }
             body.md3-steps .step-activity-toolbar > .btn-today .material-symbols-rounded { font-size: 18px !important; }
+            body.md3-steps .step-activity-toolbar > .btn-today .icon-svg { width: 18px !important; height: 18px !important; }
         }
         @media (max-width: 340px) {
             /* The APK download button is the least useful one on a phone. */
@@ -5799,10 +5900,13 @@ body.md3-steps.light .picker-x:hover {
                 min-height: 320px !important;
             }
             body.md3-steps .map-hud {
-                right: 14px !important;
+                right: 64px !important;
                 left: 14px !important;
-                max-width: calc(100% - 28px) !important;
+                max-width: calc(100% - 78px) !important;
                 box-sizing: border-box !important;
+                background: transparent !important;
+                border: none !important;
+                padding: 0 !important;
             }
             /* Summary used to be clipped to one ellipsised line; wrap it instead. */
             body.md3-steps .map-hud p {

@@ -25,6 +25,8 @@ data class GeoTrip(
     val distanceM: Double,
     val pending: Boolean = false,
     val kind: String = "trip",
+    val startedAt: String? = null,
+    val endedAt: String? = null,
 )
 
 /**
@@ -234,6 +236,8 @@ class GeoMapRepository(
                         title = properties.optString("title"),
                         path = path,
                         distanceM = properties.optDouble("distance_m", 0.0),
+                        startedAt = properties.optString("started_at").ifBlank { null },
+                        endedAt = properties.optString("ended_at").ifBlank { null },
                     )
                 }
             }

@@ -1,6 +1,6 @@
 /* Auto-extracted from MD3 preview — visual tokens & motion */
 .app-steps.md3 {
-  color: #E3E5E8;
+  color: var(--md-text, #E3E5E8);
   font-family: Inter, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
 }
@@ -39,9 +39,9 @@
       width: 44px;
       height: 44px;
       border-radius: 12px;
-      background-color: #242528;
-      border: 1px solid #34363B;
-      color: #D2D5DA;
+      background-color: var(--md-container, #242528);
+      border: 1px solid var(--md-border, #34363B);
+      color: var(--md-muted, #D2D5DA);
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -52,9 +52,9 @@
                   transform 160ms cubic-bezier(0.2, 0, 0, 1);
     }
     .app-steps.md3 .topbar-icon-btn:hover {
-      background-color: #2E3034;
-      border-color: #464950;
-      color: #FFFFFF;
+      background-color: var(--md-elevated, #2E3034);
+      border-color: var(--md-border, #464950);
+      color: var(--md-text, #FFFFFF);
     }
     .app-steps.md3 .topbar-icon-btn:active {
       transform: scale(0.95);

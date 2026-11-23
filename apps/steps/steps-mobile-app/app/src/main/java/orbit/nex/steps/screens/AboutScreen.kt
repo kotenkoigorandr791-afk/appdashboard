@@ -12,8 +12,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -157,7 +160,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     )
     LazyColumn(modifier.fillMaxSize().padding(horizontal = Layout.screenPadding), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         item { Spacer(Modifier.height(Spacing.sm)) }
-        items(entries.size) { index ->
+        items(entries.size, key = { entries[it].first }) { index ->
             val (key, icon, title) = entries[index]
             FilledTonalButton(
                 onClick = { open = key },
@@ -401,7 +404,14 @@ private fun AccountDetails(profile: ServerProfile, photo: String?, connected: Bo
         val page = orbit.nex.steps.location.PointManagementRepository(prefs, context).loadPage(config, 0, null, null, null, null)
         if (page.error == null) points = page.total
     }
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_cd)) }
             Text(stringResource(R.string.account_title), style = MaterialTheme.typography.titleLarge)
@@ -433,7 +443,8 @@ private fun AccountDetails(profile: ServerProfile, photo: String?, connected: Bo
                 }
             }
         }
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(8.dp))
         if (connected) OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(14.dp)) { Icon(Icons.Filled.LinkOff, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.account_disconnect)) }
+        Spacer(Modifier.height(12.dp))
     }
 }

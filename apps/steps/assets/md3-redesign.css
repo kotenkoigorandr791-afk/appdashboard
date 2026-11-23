@@ -109,7 +109,7 @@ body.md3-steps,
   --bg-color: var(--md-bg);
   --text-color: var(--md-text);
   --primary-color: var(--md-primary);
-  --modal-bg: rgba(28, 29, 31, 0.96);
+  --modal-bg: color-mix(in srgb, var(--md-surface) 96%, transparent);
   --border-color: var(--md-border);
   --group-block-bg: var(--md-container);
   --chart-color: var(--md-text);
@@ -155,6 +155,38 @@ body.md3-steps,
 }
 .material-symbols-rounded.icon-sm.filled {
   font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 20;
+}
+.icon-svg {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  flex-shrink: 0;
+  vertical-align: middle;
+  pointer-events: none;
+}
+.icon-svg.icon-sm {
+  width: 20px;
+  height: 20px;
+}
+.app-brand-mark .icon-svg {
+  width: 24px;
+  height: 24px;
+}
+.kpi-icon-badge .icon-svg {
+  width: 22px;
+  height: 22px;
+}
+.step-activity-icon .icon-svg {
+  width: 24px;
+  height: 24px;
+}
+.trip-close .icon-svg,
+.picker-x .icon-svg,
+.modal-close .icon-svg,
+.app-close-button .icon-svg {
+  width: 20px;
+  height: 20px;
 }
 
 .app-steps.md3 .mono-num,
@@ -758,12 +790,14 @@ body.md3-steps,
   border-color: #60A5FA;
 }
 .app-steps.md3 .map-hud {
-  background: color-mix(in srgb, var(--md-surface) 92%, transparent) !important;
-  border: 1px solid var(--md-border) !important;
-  border-radius: 12px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   color: var(--md-text) !important;
   font-size: 12px !important;
-  padding: 10px 12px !important;
+  padding: 0 !important;
+  right: 64px !important;
 }
 .app-steps.md3 .map-apply-btn {
   display: inline-flex;

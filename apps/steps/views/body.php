@@ -1,5 +1,6 @@
 <body class="md3-steps <?php echo $theme === 'dark' ? 'dark' : 'light'; ?>" data-theme="<?php echo htmlspecialchars($theme === 'dark' ? 'dark' : 'light'); ?>">
     <?php
+require_once __DIR__ . '/../core/icons.php';
 $bgFull = $theme === 'dark' ? 'background_dark.jpg' : 'background_light.jpg';
 $bgBase = $theme === 'dark' ? 'background_dark' : 'background_light';
 $bgSrcset = $bgBase . '-960.jpg 960w, ' . $bgBase . '-1920.jpg 1920w, ' . $bgFull . ' 5001w';
@@ -10,10 +11,6 @@ $stepmonitorMeta = is_file($stepmonitorMetaFile) ? (json_decode((string)file_get
 $stepmonitorVersionName = (string)($stepmonitorMeta['version'] ?? '');
 $stepmonitorBuiltAt = (int)($stepmonitorMeta['built_at'] ?? 0);
 $stepmonitorAvailable = is_file($stepmonitorApk);
-// The endpoint must be reachable from the phone, not from inside the container:
-// SERVER_ADDR/SERVER_PORT are the Docker bridge IP and nginx's internal port.
-require_once dirname(__DIR__, 3) . '/lib/mobile_pair_endpoint.php';
-$stepmonitorLanEndpoint = mobile_pair_endpoint('steps');
 $stepmonitorApkDownloadName = 'NexSteps' . ($stepmonitorVersionName !== '' ? '-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', $stepmonitorVersionName) : '') . '.apk';
 $metricHasValue = static function (array $metrics, string $type): bool {
     if ($type === 'distance') return isset($metrics['distance']['total_meters']) && is_numeric($metrics['distance']['total_meters']) && (float)$metrics['distance']['total_meters'] > 0;
@@ -58,7 +55,7 @@ $metricButtons = [
         <div class="app-topbar">
             <div class="app-topbar-inner">
                 <div class="app-brand">
-                    <div class="app-brand-mark" aria-hidden="true"><span class="material-symbols-rounded filled">directions_walk</span></div>
+                    <div class="app-brand-mark" aria-hidden="true"><?php echo steps_icon('walk'); ?></div>
                     <div class="app-brand-text">
                         <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
                         <p class="app-brand-sub"><?php echo htmlspecialchars($translations['activity_mobility'] ?? 'Activity & Mobility'); ?></p>
@@ -66,34 +63,34 @@ $metricButtons = [
                 </div>
                 <div class="mode-switch" role="tablist" aria-label="<?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?> / <?php echo htmlspecialchars($translations['map_title'] ?? 'Map'); ?>">
                     <button type="button" class="mode-switch-btn active" data-mode="steps" role="tab" aria-selected="true">
-                        <span class="material-symbols-rounded icon-sm filled" aria-hidden="true">directions_walk</span>
+                        <?php echo steps_icon('walk', 'icon-sm'); ?>
                         <span class="mode-label"><?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?></span>
                     </button>
                     <button type="button" class="mode-switch-btn" data-mode="map" role="tab" aria-selected="false">
-                        <span class="material-symbols-rounded icon-sm" aria-hidden="true">map</span>
+                        <?php echo steps_icon('map', 'icon-sm'); ?>
                         <span class="mode-label"><?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></span>
                     </button>
                 </div>
                 <div class="app-topbar-actions">
-                    <button id="sharepoint-share-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><span class="material-symbols-rounded" aria-hidden="true">share</span></button>
+                    <button id="sharepoint-share-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><?php echo steps_icon('share'); ?></button>
                     <div id="share-chooser" class="share-chooser" hidden>
                         <button type="button" id="share-choose-steps"><i class="fas fa-shoe-prints"></i> <?php echo htmlspecialchars($translations['share_steps'] ?? 'Share steps'); ?></button>
                         <button type="button" id="share-choose-location"><i class="fas fa-location-dot"></i> <?php echo htmlspecialchars($translations['location_share_title'] ?? 'Location sharing'); ?></button>
                     </div>
                     <button id="add-steps-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>" aria-label="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
-                        <span class="material-symbols-rounded" aria-hidden="true">add</span>
+                        <?php echo steps_icon('add'); ?>
                     </button>
-                    <button id="stepmonitor-apk-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><span class="material-symbols-rounded" aria-hidden="true">smartphone</span></button>
+                    <button id="stepmonitor-apk-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><?php echo steps_icon('smartphone'); ?></button>
                     <?php if (!empty($stepsData)): ?>
                     <button id="stats-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Activity & Movement'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Activity & Movement'); ?>">
-                        <span class="material-symbols-rounded" aria-hidden="true">pie_chart</span>
+                        <?php echo steps_icon('pie_chart'); ?>
                     </button>
                     <?php endif; ?>
                     <button id="settings-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>" aria-label="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>">
-                        <span class="material-symbols-rounded" aria-hidden="true">settings</span>
+                        <?php echo steps_icon('settings'); ?>
                     </button>
                     <button id="info-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>" aria-label="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>">
-                        <span class="material-symbols-rounded" aria-hidden="true">info</span>
+                        <?php echo steps_icon('info'); ?>
                     </button>
                     <div id="user-button" class="topbar-icon-btn" title="<?php echo htmlspecialchars($userName); ?>" role="button" tabindex="0" aria-label="<?php echo htmlspecialchars($userName); ?>">
                         <img src="<?php echo htmlspecialchars($profilePhoto); ?>" alt="">
@@ -118,7 +115,7 @@ $metricButtons = [
             <div class="kpi-card">
                 <div class="kpi-card-top">
                     <span class="kpi-label"><?php echo htmlspecialchars($translations['distance_km'] ?? 'Distance'); ?></span>
-                    <span class="kpi-icon-badge kpi-icon-badge--blue" aria-hidden="true"><span class="material-symbols-rounded">straighten</span></span>
+                    <span class="kpi-icon-badge kpi-icon-badge--blue" aria-hidden="true"><?php echo steps_icon('straighten'); ?></span>
                 </div>
                 <div class="kpi-metric-row">
                     <span class="kpi-value" id="kpi-distance-val">0.00</span>
@@ -129,7 +126,7 @@ $metricButtons = [
             <div class="kpi-card">
                 <div class="kpi-card-top">
                     <span class="kpi-label"><?php echo htmlspecialchars($translations['calories'] ?? 'Calories'); ?></span>
-                    <span class="kpi-icon-badge kpi-icon-badge--amber" aria-hidden="true"><span class="material-symbols-rounded">local_fire_department</span></span>
+                    <span class="kpi-icon-badge kpi-icon-badge--amber" aria-hidden="true"><?php echo steps_icon('fire'); ?></span>
                 </div>
                 <div class="kpi-metric-row">
                     <span class="kpi-value" id="kpi-calories-val">0</span>
@@ -140,7 +137,7 @@ $metricButtons = [
             <div class="kpi-card">
                 <div class="kpi-card-top">
                     <span class="kpi-label"><?php echo htmlspecialchars($translations['goal_days'] ?? 'Daily Goal Streak'); ?></span>
-                    <span class="kpi-icon-badge kpi-icon-badge--emerald" aria-hidden="true"><span class="material-symbols-rounded">trending_up</span></span>
+                    <span class="kpi-icon-badge kpi-icon-badge--emerald" aria-hidden="true"><?php echo steps_icon('trending_up'); ?></span>
                 </div>
                 <div class="kpi-metric-row">
                     <span class="kpi-value" id="kpi-streak-val">0</span>
@@ -152,7 +149,7 @@ $metricButtons = [
         <section class="step-activity" aria-label="<?php echo htmlspecialchars($translations['step_activity'] ?? 'Step activity'); ?>">
             <div class="step-activity-head">
                 <div class="step-activity-title-row">
-                    <div class="step-activity-icon" aria-hidden="true"><span class="material-symbols-rounded">bar_chart</span></div>
+                    <div class="step-activity-icon" aria-hidden="true"><?php echo steps_icon('bar_chart'); ?></div>
                     <div class="step-activity-copy">
                         <h2><?php echo htmlspecialchars($translations['step_activity'] ?? 'Step Activity'); ?></h2>
                         <p><?php echo htmlspecialchars($translations['step_activity_hint'] ?? 'Click any bar to inspect daily metrics or scroll across history'); ?></p>
@@ -175,14 +172,14 @@ $metricButtons = [
                     </div>
                     <div class="period-nav seg-group">
                         <button type="button" class="chart-nav chart-nav-left" id="chart-nav-left" aria-label="<?php echo htmlspecialchars($translations['chart_prev'] ?? 'Previous'); ?>">
-                            <span class="material-symbols-rounded icon-sm" aria-hidden="true">chevron_left</span>
+                            <?php echo steps_icon('chevron_left', 'icon-sm'); ?>
                         </button>
                         <span class="chart-range-label" id="chart-range-label">—</span>
                         <button type="button" class="chart-nav chart-nav-right" id="chart-nav-right" aria-label="<?php echo htmlspecialchars($translations['chart_next'] ?? 'Next'); ?>">
-                            <span class="material-symbols-rounded icon-sm" aria-hidden="true">chevron_right</span>
+                            <?php echo steps_icon('chevron_right', 'icon-sm'); ?>
                         </button>
                     </div>
-                    <button type="button" class="btn-today" id="chart-today-btn"><span class="material-symbols-rounded icon-sm" aria-hidden="true">today</span> <?php echo htmlspecialchars($translations['today'] ?? 'Today'); ?></button>
+                    <button type="button" class="btn-today" id="chart-today-btn"><?php echo steps_icon('today', 'icon-sm'); ?> <?php echo htmlspecialchars($translations['today'] ?? 'Today'); ?></button>
                 </div>
             </div>
             <div class="chart-container">
@@ -194,7 +191,7 @@ $metricButtons = [
                 </div>
             </div>
             <div class="history-scrubber">
-                <label for="history-scrubber"><span class="material-symbols-rounded icon-sm" style="color:#4C9AFF" aria-hidden="true">swap_horiz</span><?php echo htmlspecialchars($translations['scroll_history'] ?? 'Scroll History'); ?></label>
+                <label for="history-scrubber"><span style="color:#4C9AFF" aria-hidden="true"><?php echo steps_icon('swap_horiz', 'icon-sm'); ?></span><?php echo htmlspecialchars($translations['scroll_history'] ?? 'Scroll History'); ?></label>
                 <input type="range" id="history-scrubber" class="md-slider" min="0" max="100" value="100" aria-label="<?php echo htmlspecialchars($translations['scroll_history'] ?? 'Scroll history'); ?>">
                 <div class="chart-legend" aria-hidden="true">
                     <span><i class="lg-goal"></i><?php echo htmlspecialchars($translations['goal_reached'] ?? 'Goal reached'); ?></span>
@@ -238,10 +235,17 @@ $metricButtons = [
                             <p id="ma-map-summary" role="status" aria-live="polite"></p>
                             <p id="ma-map-live" role="status" aria-live="polite" hidden><span class="map-live-pulse" aria-hidden="true"></span><span id="ma-map-live-text"></span></p>
                             <p id="ma-map-error" role="alert" style="display:none;"></p>
+                            <div id="ma-segment-legend" class="map-segment-legend" hidden>
+                                <div class="map-segment-legend-row"><span><?php echo htmlspecialchars($translations['map_segment_start'] ?? 'Start'); ?></span><strong id="ma-seg-start">—</strong></div>
+                                <div class="map-segment-legend-row"><span><?php echo htmlspecialchars($translations['map_segment_end'] ?? 'End'); ?></span><strong id="ma-seg-end">—</strong></div>
+                                <div class="map-segment-legend-row"><span><?php echo htmlspecialchars($translations['map_segment_duration'] ?? 'Duration'); ?></span><strong id="ma-seg-duration">—</strong></div>
+                                <div class="map-segment-legend-row"><span><?php echo htmlspecialchars($translations['map_segment_avg_speed'] ?? 'Avg speed'); ?></span><strong id="ma-seg-speed">—</strong></div>
+                            </div>
+                            <button type="button" id="ma-segment-clear" class="map-segment-clear" hidden title="<?php echo htmlspecialchars($translations['map_segment_clear'] ?? 'Clear selection'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_segment_clear'] ?? 'Clear selection'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                         </div>
                         <div class="map-vignette" aria-hidden="true"></div>
                         <button type="button" id="ma-sidebar-show" class="map-sidebar-show" title="<?php echo htmlspecialchars($translations['map_show_panel'] ?? 'Show panel'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_show_panel'] ?? 'Show panel'); ?>" hidden>
-                            <i class="fas fa-sliders" aria-hidden="true"></i>
+                            <?php echo steps_icon('sliders', 'icon-sm'); ?>
                         </button>
                     </div>
                     <div class="map-sidebar-backdrop" aria-hidden="true"></div>
@@ -371,7 +375,7 @@ $metricButtons = [
                             <div id="ma-trip-editor" class="trip-editor" hidden>
                                 <div class="trip-editor-head">
                                     <strong><?php echo htmlspecialchars($translations['map_trip_edit'] ?? 'Edit trip'); ?></strong>
-                                    <button type="button" id="ma-trip-close" class="trip-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+                                    <button type="button" id="ma-trip-close" class="trip-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><?php echo steps_icon('close'); ?></button>
                                 </div>
                                 <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_name'] ?? 'Title'); ?></span><input type="text" id="ma-trip-title" maxlength="120"></label>
                                 <div class="trip-dates">
@@ -389,7 +393,7 @@ $metricButtons = [
                         </div>
                         <div class="map-sidebar-foot">
                         <button type="button" id="ma-map-refresh" class="map-apply-btn map-refresh-btn">
-                            <span class="material-symbols-rounded icon-sm" aria-hidden="true">refresh</span> <?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?>
+                            <?php echo steps_icon('refresh', 'icon-sm'); ?> <?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?>
                         </button>
                         </div>
                     </aside>
@@ -456,6 +460,155 @@ $metricButtons = [
                     // CARTO now watermarks keyless tiles, so the web UI only offers keyless providers.
                     const keylessProviders=['esri_dark','esri_imagery','esri_street','osm','opentopomap'];
                     let map=null, layerGroup=null, providers=Object.assign({},fallbackProviders), provider='esri_dark', busy=false, lastFeatures=[], didFit=false;
+                    let tripPaths=[], segPick=null, segLayer=null, segHoldTimer=null, segHoldStart=null, segSuppressClick=false;
+                    const segLegend=document.getElementById('ma-segment-legend');
+                    const segClearBtn=document.getElementById('ma-segment-clear');
+                    const segStartEl=document.getElementById('ma-seg-start');
+                    const segEndEl=document.getElementById('ma-seg-end');
+                    const segDurEl=document.getElementById('ma-seg-duration');
+                    const segSpeedEl=document.getElementById('ma-seg-speed');
+                    const SEG_HOLD_MS=480, SEG_MOVE_PX=12, SEG_HIT_PX=28, SEG_COLOR='#fb923c';
+                    function haversineM(a,b){
+                        const R=6371000, toRad=Math.PI/180;
+                        const dLat=(b.lat-a.lat)*toRad, dLon=(b.lng-a.lng)*toRad;
+                        const lat1=a.lat*toRad, lat2=b.lat*toRad;
+                        const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+                        return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));
+                    }
+                    function pathMetrics(coords){
+                        const cum=[0];
+                        for(let i=1;i<coords.length;i++) cum.push(cum[i-1]+haversineM(coords[i-1],coords[i]));
+                        return {cum, total:cum[cum.length-1]||0};
+                    }
+                    function nearestOnPath(latlng, coords){
+                        if(!coords||coords.length<2) return null;
+                        let best=null;
+                        for(let i=0;i<coords.length-1;i++){
+                            const a=coords[i], b=coords[i+1];
+                            const ax=a.lng, ay=a.lat, bx=b.lng, by=b.lat;
+                            const dx=bx-ax, dy=by-ay;
+                            const len2=dx*dx+dy*dy || 1e-12;
+                            let t=((latlng.lng-ax)*dx+(latlng.lat-ay)*dy)/len2;
+                            t=Math.max(0,Math.min(1,t));
+                            const proj={lat:ay+t*dy,lng:ax+t*dx};
+                            const dist=haversineM(latlng, proj);
+                            if(!best||dist<best.dist) best={latlng:proj, index:t<0.5?i:i+1, edge:i, t, dist};
+                        }
+                        return best;
+                    }
+                    function slicePath(coords, i0, i1){
+                        if(i0>i1){ const t=i0; i0=i1; i1=t; }
+                        return coords.slice(i0, i1+1);
+                    }
+                    function parseSegTime(iso){
+                        if(!iso) return NaN;
+                        let t=Date.parse(iso);
+                        if(Number.isFinite(t)) return t;
+                        return Date.parse(String(iso).replace(' ','T'));
+                    }
+                    function fmtHm(iso){
+                        if(!iso) return '—';
+                        const d=new Date(parseSegTime(iso));
+                        if(Number.isNaN(d.getTime())) return '—';
+                        return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+                    }
+                    function fmtSegDur(sec){
+                        sec=Math.max(0,Math.round(sec||0));
+                        const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+                        if(h) return h+' h '+String(m).padStart(2,'0')+' m';
+                        if(m) return m+' m '+String(s).padStart(2,'0')+' s';
+                        return s+' s';
+                    }
+                    function estimateAt(path, index){
+                        const start=parseSegTime(path.started_at||''), end=parseSegTime(path.ended_at||'');
+                        if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start) return null;
+                        const m=pathMetrics(path.coords);
+                        const frac=m.total>0?(m.cum[Math.max(0,Math.min(index,m.cum.length-1))]/m.total):(index/Math.max(1,path.coords.length-1));
+                        return new Date(start+frac*(end-start)).toISOString();
+                    }
+                    function clearSegmentSelection(){
+                        segPick=null;
+                        if(segLayer&&map){ map.removeLayer(segLayer); segLayer=null; }
+                        if(segLegend) segLegend.hidden=true;
+                        if(segClearBtn) segClearBtn.hidden=true;
+                    }
+                    function paintSegmentSelection(){
+                        if(!map||!window.L) return;
+                        if(segLayer){ map.removeLayer(segLayer); segLayer=null; }
+                        if(!segPick||!segPick.a){ if(segLegend) segLegend.hidden=true; if(segClearBtn) segClearBtn.hidden=true; return; }
+                        segLayer=window.L.layerGroup().addTo(map);
+                        const mark=(pt,label)=>window.L.circleMarker(pt.latlng,{radius:8,color:'#fff',weight:2,fillColor:SEG_COLOR,fillOpacity:1,pane:'live'}).bindTooltip(label,{permanent:false,direction:'top'}).addTo(segLayer);
+                        mark(segPick.a,'A');
+                        if(segClearBtn) segClearBtn.hidden=false;
+                        if(!segPick.b){ if(segLegend) segLegend.hidden=true; return; }
+                        mark(segPick.b,'B');
+                        const path=tripPaths[segPick.pathIdx];
+                        if(!path) return;
+                        const coords=slicePath(path.coords, segPick.a.index, segPick.b.index);
+                        if(coords.length>=2){
+                            window.L.polyline(coords,{color:SEG_COLOR,weight:Math.max(5,(appearance.routeWidth||4)+2),opacity:0.95,lineCap:'round',lineJoin:'round',pane:'live'}).addTo(segLayer);
+                        }
+                        const distM=pathMetrics(coords).total;
+                        const t0=estimateAt(path, Math.min(segPick.a.index, segPick.b.index));
+                        const t1=estimateAt(path, Math.max(segPick.a.index, segPick.b.index));
+                        const startMs=parseSegTime(t0||''), endMs=parseSegTime(t1||'');
+                        const durS=Number.isFinite(startMs)&&Number.isFinite(endMs)?Math.max(1,(endMs-startMs)/1000):0;
+                        const kmh=durS>0?(distM/1000)/(durS/3600):0;
+                        if(segStartEl) segStartEl.textContent=fmtHm(t0);
+                        if(segEndEl) segEndEl.textContent=fmtHm(t1);
+                        if(segDurEl) segDurEl.textContent=fmtSegDur(durS);
+                        if(segSpeedEl) segSpeedEl.textContent=(Math.round(kmh*10)/10)+' km/h';
+                        if(segLegend) segLegend.hidden=false;
+                    }
+                    function pickSegmentPoint(latlng){
+                        if(!map||!tripPaths.length) return;
+                        const maxM=SEG_HIT_PX*map.distance(map.containerPointToLatLng([0,0]), map.containerPointToLatLng([SEG_HIT_PX,0]));
+                        let best=null;
+                        tripPaths.forEach((path, pathIdx)=>{
+                            const hit=nearestOnPath(latlng, path.coords);
+                            if(!hit||hit.dist>maxM) return;
+                            if(!best||hit.dist<best.dist) best={...hit, pathIdx};
+                        });
+                        if(!best) return;
+                        segSuppressClick=true;
+                        setTimeout(()=>{ segSuppressClick=false; }, 350);
+                        if(!segPick||segPick.pathIdx!==best.pathIdx||segPick.b){
+                            segPick={pathIdx:best.pathIdx, a:{latlng:best.latlng, index:best.index}, b:null};
+                        } else {
+                            if(best.index===segPick.a.index) return;
+                            segPick.b={latlng:best.latlng, index:best.index};
+                        }
+                        paintSegmentSelection();
+                    }
+                    function cancelSegHold(){
+                        if(segHoldTimer){ clearTimeout(segHoldTimer); segHoldTimer=null; }
+                        segHoldStart=null;
+                    }
+                    function bindSegmentGestures(){
+                        if(!map||map._segGesturesBound) return;
+                        map._segGesturesBound=true;
+                        const el=map.getContainer();
+                        el.addEventListener('pointerdown',e=>{
+                            if(areaMode||e.button>0||!e.isPrimary) return;
+                            if(e.pointerType==='mouse'&&e.buttons!==1) return;
+                            cancelSegHold();
+                            const startX=e.clientX, startY=e.clientY;
+                            const latlng=map.mouseEventToLatLng(e);
+                            segHoldStart={x:startX,y:startY,latlng,id:e.pointerId};
+                            segHoldTimer=setTimeout(()=>{
+                                segHoldTimer=null;
+                                if(!segHoldStart||segHoldStart.id!==e.pointerId) return;
+                                pickSegmentPoint(segHoldStart.latlng);
+                            }, SEG_HOLD_MS);
+                        },{passive:true});
+                        el.addEventListener('pointermove',e=>{
+                            if(!segHoldStart||segHoldStart.id!==e.pointerId) return;
+                            if(Math.hypot(e.clientX-segHoldStart.x,e.clientY-segHoldStart.y)>SEG_MOVE_PX) cancelSegHold();
+                        },{passive:true});
+                        el.addEventListener('pointerup',cancelSegHold,{passive:true});
+                        el.addEventListener('pointercancel',cancelSegHold,{passive:true});
+                        segClearBtn?.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); clearSegmentSelection(); });
+                    }
                     let mapStarted=false, mapBootPromise=null, mapConfig={prefetch:true, overlays:true};
                     let leafletPromise=null, viewportSeq=0, viewportAbort=null, lastMove=null, prefetchTimer=null;
                     const PREFETCH_KEY='stepsMapPrefetchMode';
@@ -594,10 +747,18 @@ $metricButtons = [
                         L.control.scale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);
                         try{ L.control.attribution({position:'bottomleft',prefix:false}).addTo(map); }catch(e){}
                         selectProvider(provider);
-                        map.on('contextmenu',e=>openMapMenu(e.latlng,e.originalEvent,null));
+                        bindSegmentGestures();
+                        map.on('contextmenu',e=>{
+                            if(segSuppressClick){
+                                if(e.originalEvent){ e.originalEvent.preventDefault(); e.originalEvent.stopPropagation(); }
+                                return;
+                            }
+                            openMapMenu(e.latlng,e.originalEvent,null);
+                        });
                         map.on('movestart',()=>{
                             // A new gesture makes all queued prediction stale immediately.
                             cancelPrefetch();
+                            cancelSegHold();
                             const c=map.getCenter();
                             lastMove={lat:c.lat,lon:c.lng,t:performance.now()};
                         });
@@ -859,6 +1020,7 @@ $metricButtons = [
                         const routeWidth=Math.max(1, appearance.routeWidth);
                         const heatStrength=Math.max(0.1, appearance.heat/100);
                         layerGroup.clearLayers();
+                        tripPaths=[];
                         const speedOn=lastFeatures.some(f=>f.properties&&f.properties.layer==='speed');
                         const visitCenters=lastFeatures.filter(f=>f.properties&&f.properties.layer==='visit'&&f.geometry).map(f=>L.latLng(f.geometry.coordinates[1],f.geometry.coordinates[0]));
                         const photoFeatures=[];
@@ -869,6 +1031,20 @@ $metricButtons = [
                             if(p.layer==='trip'){
                                 const isFocus=!!p.id&&focusTripId===p.id, isSel=!!p.id&&selTrips.has(p.id);
                                 if(speedOn&&!isFocus&&!isSel) return;
+                                const lineCoords=feature.geometry.type==='LineString'
+                                    ? feature.geometry.coordinates.map(c=>L.latLng(c[1],c[0]))
+                                    : (feature.geometry.type==='MultiLineString'
+                                        ? feature.geometry.coordinates.flatMap(line=>line.map(c=>L.latLng(c[1],c[0])))
+                                        : []);
+                                if(lineCoords.length>=2){
+                                    tripPaths.push({
+                                        coords:lineCoords,
+                                        started_at:p.started_at||'',
+                                        ended_at:p.ended_at||'',
+                                        distance_m:p.distance_m||0,
+                                        id:p.id||''
+                                    });
+                                }
                                 const popup=popupHtml(p.title||p.boundary_reason||'Trip',['distance: '+Math.round(p.distance_m||0)+' m']);
                                 const hl=isFocus?'#f43f5e':(isSel?'#facc15':null);
                                 if(hl) L.geoJSON(feature,{pane:'routesGlow',style:{color:hl,weight:routeWidth*6,opacity:0.38,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
@@ -877,6 +1053,7 @@ $metricButtons = [
                                 // Clicking the drawn route selects the trip, glides the camera to it
                                 // and keeps its popup so the map and the trips panel stay in sync.
                                 tripShape.on('click',()=>{
+                                    if(segSuppressClick) return;
                                     if(p.id==null) return;
                                     const center=tripShape.getBounds().getCenter();
                                     focusTripId=p.id;
@@ -939,6 +1116,10 @@ $metricButtons = [
                             }
                         });
                         clusterPhotoFeatures(photoFeatures).forEach(f=>addPhotoMarker(f, baseRadius));
+                        if(segPick){
+                            if(!tripPaths[segPick.pathIdx]) clearSegmentSelection();
+                            else paintSegmentSelection();
+                        }
                     }
                     function bboxQuery(){
                         if(!map) return '';
@@ -1706,6 +1887,7 @@ $metricButtons = [
                         areaMode=on;
                         areaBtn?.classList.toggle('active',on);
                         if(!on) areaClear();
+                        if(on){ cancelSegHold(); clearSegmentSelection(); }
                         if(!map) return;
                         if(on) map.dragging.disable(); else map.dragging.enable();
                         map.getContainer().style.cursor=on?'crosshair':'';
@@ -1743,7 +1925,9 @@ $metricButtons = [
                             areaInfo.textContent=data.count+' '+tr('points_unit','points');
                             areaInfo.hidden=false; areaDel.hidden=false; areaCancel.hidden=false;
                             areaSmooth.hidden=data.count<2; areaToleranceWrap.hidden=data.count<2;
-                            areaDel.innerHTML='<i class="fas fa-trash"></i> '+tr('points_delete','Delete');
+                            areaDel.innerHTML='<i class="fas fa-trash" aria-hidden="true"></i>';
+                            areaDel.title=tr('points_delete','Delete');
+                            areaDel.setAttribute('aria-label',tr('points_delete','Delete'));
                             areaDel.disabled=data.count===0;
                         }catch(err){ showError((err&&err.message)||t.error); }
                     }
@@ -2319,7 +2503,7 @@ $metricButtons = [
                         if(showBtn) showBtn.hidden=!hidden;
                         syncSidebarModal();
                         try{ localStorage.setItem(SIDEBAR_KEY,hidden?'1':'0'); }catch(e){}
-                        setTimeout(()=>{ if(map) map.invalidateSize({pan:false}); },260);
+                        setTimeout(()=>{ if(map) map.invalidateSize({pan:false}); },340);
                     }
                     hideBtn?.addEventListener('click',()=>setSidebar(true));
                     showBtn?.addEventListener('click',()=>setSidebar(false));
@@ -2330,6 +2514,7 @@ $metricButtons = [
                     try{ if(localStorage.getItem(SIDEBAR_KEY)==='1') setSidebar(true); }catch(e){}
                     syncSidebarModal();
                     const onRangeChanged=()=>{
+                        clearSegmentSelection();
                         didFit=false;
                         clearPrefetchQueue(true);
                         chunkCache.clear();
@@ -2897,16 +3082,16 @@ $metricButtons = [
                             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                         </div>
                         <h3><?php echo htmlspecialchars($translations['mobile_app_connect_title'] ?? 'Connect a new device'); ?></h3>
-                        <p><?php echo htmlspecialchars($translations['mobile_app_connect_desc'] ?? 'Create a connection link and open it on your phone. The app connects automatically.'); ?></p>
-                        <button type="button" id="mobile-app-connect" class="ma-primary"><?php echo htmlspecialchars($translations['mobile_app_connect_button'] ?? 'Create a pairing token'); ?></button>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_connect_desc'] ?? 'Create an API token for the mobile app or compatible scripts. Copy it once — it is shown only when created.'); ?></p>
+                        <button type="button" id="mobile-app-connect" class="ma-primary"><?php echo htmlspecialchars($translations['mobile_app_connect_button'] ?? 'Create API token'); ?></button>
 
                         <div class="ma-pair-fields" id="mobile-app-pair-fields" hidden>
                             <div class="ma-pair-row">
                                 <div class="ma-pair-field">
-                                    <label><?php echo htmlspecialchars($translations['manual_pair_link_label'] ?? 'Connection link'); ?></label>
-                                    <pre id="mobile-app-pair-link"></pre>
+                                    <label><?php echo htmlspecialchars($translations['manual_pair_token_label'] ?? 'API token'); ?></label>
+                                    <pre id="mobile-app-pair-token"></pre>
                                 </div>
-                                <button type="button" class="ma-copy-btn" data-copy-target="mobile-app-pair-link" aria-label="<?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?>">
+                                <button type="button" class="ma-copy-btn" data-copy-target="mobile-app-pair-token" aria-label="<?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?>">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                                 </button>
                             </div>
@@ -3204,8 +3389,8 @@ $metricButtons = [
                                 <label class="settings-field" data-video-only><span><?php echo htmlspecialchars($translations['render_camera'] ?? 'Camera'); ?></span>
                                     <select id="rd-camera"><option value="follow"><?php echo htmlspecialchars($translations['render_camera_follow'] ?? 'Follow route'); ?></option><option value="overview"><?php echo htmlspecialchars($translations['render_camera_overview'] ?? 'Overview'); ?></option></select></label>
                                 <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_route_color'] ?? 'Route color'); ?></span><input type="color" id="rd-route-color" value="#60a5fa"></label>
-                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_tint'] ?? 'Map tint'); ?></span><input type="color" id="rd-tint" value="#000000"></label>
-                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_tint_strength'] ?? 'Tint strength'); ?></span><input type="range" id="rd-tint-opacity" min="0" max="80" value="0"></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_tint'] ?? 'Map tint'); ?></span><input type="color" id="rd-tint" class="m3-color-input" value="#000000"></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_tint_strength'] ?? 'Tint strength'); ?></span><input type="range" id="rd-tint-opacity" class="md-slider m3-range-input" min="0" max="80" value="0"></label>
                                 <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_resolution'] ?? 'Resolution'); ?></span>
                                     <select id="rd-edge"><option value="480">480p</option><option value="640" selected>640p</option><option value="800">800p</option><option value="960">960p</option></select></label>
                                 <label class="settings-field" data-video-only><span><?php echo htmlspecialchars($translations['render_duration'] ?? 'Duration, s'); ?></span>
@@ -4364,7 +4549,7 @@ $metricButtons = [
             if (!modal) return;
             const connectBtn = document.getElementById('mobile-app-connect');
             const fields = document.getElementById('mobile-app-pair-fields');
-            const linkEl = document.getElementById('mobile-app-pair-link');
+            const tokenEl = document.getElementById('mobile-app-pair-token');
             const pairError = document.getElementById('mobile-app-pair-error');
             const devicesList = document.getElementById('mobile-app-devices-list');
             const devicesEmpty = document.getElementById('mobile-app-devices-empty');
@@ -4377,9 +4562,6 @@ $metricButtons = [
             const devicesIdleHint = document.getElementById('mobile-app-devices-idle');
             const devicesPerPage = 5;
             let devicesPage = 1;
-            // Server-computed: the browser origin, or the configured LAN host when
-            // the dashboard is opened on loopback. Never the container's address.
-            const endpoint = <?php echo json_encode($stepmonitorLanEndpoint, JSON_HEX_TAG); ?> || (window.location.origin + '/api/steps');
             const t = {
                 copy: <?php echo json_encode($translations['copy'] ?? 'Copy', JSON_HEX_TAG); ?>,
                 copied: <?php echo json_encode($translations['copied'] ?? 'Copied', JSON_HEX_TAG); ?>,
@@ -4511,9 +4693,10 @@ $metricButtons = [
                 try {
                     const data = await request('generate_mcp_token', { mcp_token_name: 'Health Connect' });
                     if (!data || !data.success || !data.token) throw new Error((data && (data.error || data.message)) || t.tokenError);
-                    linkEl.textContent = 'stepmonitor://auth?endpoint=' + encodeURIComponent(endpoint) + '&token=' + encodeURIComponent(data.token);
+                    tokenEl.textContent = data.token;
                     fields.hidden = false;
-                    await fetchDevices();
+                    devicesPage = 1;
+                    await fetchDevices(1);
                 } catch (error) {
                     showPairError(String(error && error.message ? error.message : error));
                 } finally { connectBtn.disabled = false; }

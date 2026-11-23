@@ -27,6 +27,7 @@ $mapConfig = [
     'overlays_enabled' => !$flagOff('GEO_MAP_OVERLAYS_DISABLED'),
     'bounded_chunks' => true,
 ];
+const MAP_CHUNK_CACHE_TTL_S = 5;
 
 if (!empty($_GET['settings']) || ($method === 'POST' && ($_GET['settings'] ?? '') !== '')) {
     if ($method === 'POST') {
@@ -129,7 +130,11 @@ $result = StepsGeolocationObservability::cacheGet($cacheKey);
 $cacheHit = is_array($result) && isset($result['features']) && isset($result['meta']);
 if (!$cacheHit) {
     $result = StepsGeolocationMap::features($pdo, $target, $bbox, $mapOpts);
-    StepsGeolocationObservability::cacheSet($cacheKey, $result, 20);
+    // Was cached for 20s, which made freshly-recorded points (and any viewport
+    // re-visited within that window) look like they "don't load" for up to
+    // 20s. 5s still protects the server from pan/zoom request storms while
+    // staying close to live.
+    StepsGeolocationObservability::cacheSet($cacheKey, $result, MAP_CHUNK_CACHE_TTL_S);
 }
 StepsGeolocationObservability::increment('geo_map_requests_total', 1, ['cache' => $cacheHit ? 'hit' : 'miss']);
 StepsGeolocationObservability::timing('geo_map_query_ms', (microtime(true) - $queryStarted) * 1000, ['cache' => $cacheHit ? 'hit' : 'miss']);
@@ -199,7 +204,7 @@ $chunkMeta = [
     'generation' => $scope['generation'] ?? 0,
     'smooth' => $smoothStamp,
     'smooth_paths' => $smoothPaths,
-    'ttl' => 20,
+    'ttl' => MAP_CHUNK_CACHE_TTL_S,
 ];
 $etag = '"' . substr(hash('sha256', $cacheKey . '|' . json_encode($chunkMeta)), 0, 32) . '"';
 $result['meta']['chunk'] = $chunkMeta + ['etag' => $etag];

@@ -175,7 +175,12 @@ private fun PlacesRecalculateContent(modifier: Modifier = Modifier) {
     LaunchedEffect(config?.url, fromDay, toDay, darkTheme) {
         val active = config ?: return@LaunchedEffect
         loadingMap = true
-        applyBasemap(mapView, MapStyle.NORMAL, darkTheme)
+        applyBasemap(
+            mapView,
+            MapStyle.NORMAL,
+            darkTheme,
+            MapTileScheme.fromKey(prefs.getMapTileScheme()),
+        )
         val data = loadVisitsRange(prefs, active, fromDay, toDay)
         val visits = data.points.filter { it.layer == "visit" || it.layer == "place" }
         paintVisits(visits)

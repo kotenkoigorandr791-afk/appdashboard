@@ -92,6 +92,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_LOCATION_HEARTBEAT = "location_service_heartbeat"
         private const val KEY_LOCATION_LAST_FIX_AT = "location_last_fix_at"
         private const val KEY_MAP_BASEMAP = "map_basemap"
+        private const val KEY_MAP_TILE_SCHEME = "map_tile_scheme"
         private const val KEY_MAP_LAYERS = "map_layers"
         private const val KEY_MAP_CENTER_LAT = "map_center_lat"
         private const val KEY_MAP_CENTER_LON = "map_center_lon"
@@ -959,6 +960,14 @@ class PreferencesManager(context: Context) {
 
     fun setMapBasemap(value: String) {
         prefs.edit().putString(KEY_MAP_BASEMAP, value).apply()
+    }
+
+    /** Colour scheme for the normal (non-satellite) street basemap. */
+    fun getMapTileScheme(): String =
+        prefs.getString(KEY_MAP_TILE_SCHEME, "auto")?.takeIf { it.isNotBlank() } ?: "auto"
+
+    fun setMapTileScheme(value: String) {
+        prefs.edit().putString(KEY_MAP_TILE_SCHEME, value).apply()
     }
 
     /** Enabled GeoJSON layers, stored as a comma separated key list. */

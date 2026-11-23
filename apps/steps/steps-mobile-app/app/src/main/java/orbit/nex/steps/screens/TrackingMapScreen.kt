@@ -3,6 +3,9 @@ package orbit.nex.steps.screens
 import orbit.nex.steps.ui.theme.Spacing
 import orbit.nex.steps.ui.theme.semantic
 import android.graphics.Canvas
+import android.graphics.ColorFilter
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.location.Location
 import android.graphics.Color as AndroidColor
 import android.location.LocationManager
@@ -11,6 +14,11 @@ import android.graphics.Path
 import android.graphics.Point
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -32,6 +40,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Explore
@@ -79,6 +88,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -136,12 +147,46 @@ internal enum class MapStyle(val key: String, val titleRes: Int) {
     }
 }
 
+/**
+ * Street-map colour schemes (ignored while the satellite basemap is selected).
+ * Each entry picks a free tile source and an optional colour filter, plus the
+ * soft preview colours drawn in the layers sheet.
+ */
+internal enum class MapTileScheme(
+    val key: String,
+    val titleRes: Int,
+    val land: Long,
+    val water: Long,
+    val road: Long,
+    val accent: Long,
+) {
+    AUTO("auto", R.string.map_tile_scheme_auto, 0xFFE8EDF2, 0xFFBFD7EA, 0xFF94A3B8, 0xFF3B82F6),
+    STREETS("streets", R.string.map_tile_scheme_streets, 0xFFF4F1E8, 0xFFA8C8E0, 0xFF6B7280, 0xFF2563EB),
+    DARK("dark", R.string.map_tile_scheme_dark, 0xFF1A1F24, 0xFF0F172A, 0xFF64748B, 0xFF38BDF8),
+    MUTED("muted", R.string.map_tile_scheme_muted, 0xFF2A2E33, 0xFF1C2128, 0xFF7A8088, 0xFF94A3B8),
+    PAPER("paper", R.string.map_tile_scheme_paper, 0xFFF7F7F5, 0xFFD9E2EC, 0xFF9AA3AD, 0xFF64748B),
+    TERRAIN("terrain", R.string.map_tile_scheme_terrain, 0xFFD8E8C8, 0xFF9EC6E8, 0xFF8B7355, 0xFF2F6B3A),
+    NIGHT("night", R.string.map_tile_scheme_night, 0xFF0B1220, 0xFF06101F, 0xFF3B82F6, 0xFF60A5FA),
+    WARM("warm", R.string.map_tile_scheme_warm, 0xFFF3E6D4, 0xFFC9D7E2, 0xFFA67C52, 0xFFC2410C),
+    CONTRAST("contrast", R.string.map_tile_scheme_contrast, 0xFFFFFFFF, 0xFF93C5FD, 0xFF111827, 0xFFEF4444),
+    OCEAN("ocean", R.string.map_tile_scheme_ocean, 0xFFCDE6F0, 0xFF1E6091, 0xFF2F6B7A, 0xFF0E7490),
+    PHYSICAL("physical", R.string.map_tile_scheme_physical, 0xFFDDD2A8, 0xFF9EC6E8, 0xFF7A8B5C, 0xFF6B8E23),
+    ;
+
+    companion object {
+        fun fromKey(key: String): MapTileScheme =
+            entries.firstOrNull { it.key == key } ?: AUTO
+    }
+}
+
 private object TrackingMapCache {
     private val data = mutableMapOf<String, Pair<Long, GeoMapData>>()
     fun clear() = data.clear()
 
+    // Mirrors the server's own chunk cache TTL (geolocation_map.php) so this
+    // client cache never looks "stuck" longer than the server data actually is.
     fun get(configUrl: String?, day: LocalDate): GeoMapData? = data["${configUrl.orEmpty()}:${day}"]
-        ?.takeIf { android.os.SystemClock.elapsedRealtime() - it.first < 20_000L }?.second
+        ?.takeIf { android.os.SystemClock.elapsedRealtime() - it.first < 5_000L }?.second
 
     fun put(configUrl: String?, day: LocalDate, value: GeoMapData) {
         if (value.error == null) data["${configUrl.orEmpty()}:${day}"] = android.os.SystemClock.elapsedRealtime() to value
@@ -187,6 +232,73 @@ internal object EsriLight : OnlineTileSourceBase(
             MapTileIndex.getX(pMapTileIndex) + "/" + MapTileIndex.getY(pMapTileIndex) + ".png"
 }
 
+internal object EsriDarkGray : OnlineTileSourceBase(
+    "EsriDarkGrayCanvas", 0, 16, 256, ".png",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/"),
+    "Tiles © Esri",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
+
+internal object EsriLightGray : OnlineTileSourceBase(
+    "EsriLightGrayCanvas", 0, 16, 256, ".png",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/"),
+    "Tiles © Esri",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
+
+/** Vintage parchment look, like Dawarich's "Nat Geo" style — a real tile source, not a colour filter. */
+internal object EsriNatGeo : OnlineTileSourceBase(
+    "EsriNatGeoWorldMap", 0, 16, 256, ".png",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/"),
+    "National Geographic, Esri, DeLorme, HERE, UNEP-WCMC",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
+
+/** Nautical chart colours — blue ocean, light land, depth contours. */
+internal object EsriOcean : OnlineTileSourceBase(
+    "EsriOceanBase", 0, 16, 256, ".png",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/"),
+    "Esri, GEBCO, NOAA, National Geographic, Garmin, HERE",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
+
+/** Natural-earth greens/browns, no roads or labels — a physical relief basemap. */
+internal object EsriPhysical : OnlineTileSourceBase(
+    "EsriPhysicalMap", 0, 8, 256, ".png",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/"),
+    "US National Park Service, Esri",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
+
+internal object OpenTopoMap : OnlineTileSourceBase(
+    "OpenTopoMap", 0, 17, 256, ".png",
+    arrayOf(
+        "https://a.tile.opentopomap.org/",
+        "https://b.tile.opentopomap.org/",
+        "https://c.tile.opentopomap.org/",
+    ),
+    "© OpenStreetMap contributors, SRTM | © OpenTopoMap",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getX(pMapTileIndex) + "/" + MapTileIndex.getY(pMapTileIndex) + ".png"
+}
+
 /** Esri imagery uses z/y/x order instead of the usual z/x/y. */
 internal object EsriSatellite : OnlineTileSourceBase(
     "EsriWorldImagery", 0, 19, 256, ".jpg",
@@ -216,6 +328,91 @@ private object EsriTransportation : OnlineTileSourceBase(
     override fun getTileURLString(pMapTileIndex: Long): String =
         baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
             MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
+
+private fun matrixFilter(values: FloatArray): ColorMatrixColorFilter =
+    ColorMatrixColorFilter(ColorMatrix(values))
+
+/**
+ * One 4x5 colour matrix per scheme that needs a filter, shared by the live map
+ * (as an [android.graphics.ColorMatrixColorFilter]) and the picker preview (as
+ * a Compose [androidx.compose.ui.graphics.ColorFilter]) so both always match.
+ */
+private fun schemeColorMatrix(scheme: MapTileScheme): FloatArray? = when (scheme) {
+    MapTileScheme.DARK -> floatArrayOf(
+        -1f, 0f, 0f, 0f, 255f,
+        0f, -1f, 0f, 0f, 255f,
+        0f, 0f, -1f, 0f, 255f,
+        0f, 0f, 0f, 1f, 0f,
+    )
+    MapTileScheme.NIGHT -> {
+        val invert = ColorMatrix(
+            floatArrayOf(
+                -1f, 0f, 0f, 0f, 255f,
+                0f, -1f, 0f, 0f, 255f,
+                0f, 0f, -1f, 0f, 255f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
+        val cool = ColorMatrix(
+            floatArrayOf(
+                0.55f, 0f, 0.05f, 0f, 8f,
+                0.05f, 0.65f, 0.15f, 0f, 18f,
+                0.1f, 0.15f, 1.15f, 0f, 36f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
+        invert.postConcat(cool)
+        invert.array
+    }
+    MapTileScheme.WARM -> floatArrayOf(
+        1.05f, 0.08f, 0.02f, 0f, 12f,
+        0.04f, 0.95f, 0.04f, 0f, 6f,
+        0.02f, 0.06f, 0.82f, 0f, -6f,
+        0f, 0f, 0f, 1f, 0f,
+    )
+    MapTileScheme.CONTRAST -> {
+        val matrix = ColorMatrix()
+        matrix.setSaturation(1.35f)
+        val contrast = ColorMatrix(
+            floatArrayOf(
+                1.25f, 0f, 0f, 0f, -20f,
+                0f, 1.25f, 0f, 0f, -20f,
+                0f, 0f, 1.25f, 0f, -20f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
+        matrix.postConcat(contrast)
+        matrix.array
+    }
+    else -> null
+}
+
+internal data class ResolvedBasemap(
+    val source: OnlineTileSourceBase,
+    val filter: ColorFilter?,
+    val background: Int,
+    val attributionOsm: Boolean,
+)
+
+internal fun resolveStreetBasemap(scheme: MapTileScheme, darkTheme: Boolean): ResolvedBasemap {
+    val resolved = when (scheme) {
+        MapTileScheme.AUTO -> if (darkTheme) MapTileScheme.DARK else MapTileScheme.STREETS
+        else -> scheme
+    }
+    val filter = schemeColorMatrix(resolved)?.let { matrixFilter(it) }
+    return when (resolved) {
+        MapTileScheme.AUTO, MapTileScheme.STREETS -> ResolvedBasemap(EsriLight, null, AndroidColor.rgb(232, 237, 242), true)
+        MapTileScheme.DARK -> ResolvedBasemap(EsriStreet, filter, AndroidColor.rgb(18, 24, 28), false)
+        MapTileScheme.MUTED -> ResolvedBasemap(EsriDarkGray, null, AndroidColor.rgb(28, 32, 36), false)
+        MapTileScheme.PAPER -> ResolvedBasemap(EsriLightGray, null, AndroidColor.rgb(242, 244, 246), false)
+        MapTileScheme.TERRAIN -> ResolvedBasemap(OpenTopoMap, null, AndroidColor.rgb(214, 228, 198), true)
+        MapTileScheme.NIGHT -> ResolvedBasemap(EsriStreet, filter, AndroidColor.rgb(8, 14, 28), false)
+        MapTileScheme.WARM -> ResolvedBasemap(EsriNatGeo, null, AndroidColor.rgb(243, 230, 212), false)
+        MapTileScheme.CONTRAST -> ResolvedBasemap(EsriStreet, filter, AndroidColor.rgb(245, 247, 250), false)
+        MapTileScheme.OCEAN -> ResolvedBasemap(EsriOcean, null, AndroidColor.rgb(14, 56, 70), false)
+        MapTileScheme.PHYSICAL -> ResolvedBasemap(EsriPhysical, null, AndroidColor.rgb(214, 222, 198), false)
+    }
 }
 
 /**
@@ -421,6 +618,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
     val data = remember(remoteData, localEvents) { remoteData.withLocalEvents(localEvents) }
     var loading by remember { mutableStateOf(false) }
     var mapStyle by remember { mutableStateOf(MapStyle.fromKey(prefs.getMapBasemap())) }
+    var tileScheme by remember { mutableStateOf(MapTileScheme.fromKey(prefs.getMapTileScheme())) }
     var layers by remember { mutableStateOf(prefs.getMapLayers()) }
     var showLayers by remember { mutableStateOf(false) }
     // Live puck state: position, accuracy and heading. It is intentionally
@@ -435,12 +633,17 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
     var showPanels by remember { mutableStateOf(false) }
     var fittedDay by remember { mutableStateOf<LocalDate?>(null) }
     var restoringCamera by remember { mutableStateOf(prefs.getMapCamera() != null) }
+    var segmentSelection by remember { mutableStateOf<TrackSegmentSelection?>(null) }
+    val segmentOverlay = remember {
+        TrackSegmentOverlay { next -> segmentSelection = next }
+    }
 
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val resolvedStyle = mapStyle
+    val streetBasemap = remember(tileScheme, darkTheme) { resolveStreetBasemap(tileScheme, darkTheme) }
     val mapBackground = when (resolvedStyle) {
         MapStyle.SATELLITE -> Color(0xFF083744)
-        MapStyle.NORMAL -> if (darkTheme) Color(0xFF12181C) else Color(0xFFE8EDF2)
+        MapStyle.NORMAL -> Color(0xFF000000L or (streetBasemap.background.toLong() and 0xFFFFFFL))
     }
 
     // Server state is polled so the switch and sync box track the service.
@@ -537,6 +740,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
         MapView(context).apply {
             setMultiTouchControls(true)
             overlays.add(MapRotationOverlay(this))
+            overlays.add(segmentOverlay)
             if (!darkTheme) setTilesScaledToDpi(false)
             zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
             setHorizontalMapRepetitionEnabled(false)
@@ -577,24 +781,17 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
         onDispose { if (isVisible) mapView.onPause() }
     }
 
-    LaunchedEffect(resolvedStyle, darkTheme) {
-        mapView.setTileSource(
-            when (resolvedStyle) {
-                MapStyle.SATELLITE -> EsriSatellite
-                MapStyle.NORMAL -> if (darkTheme) EsriStreet else EsriLight
-            }
-        )
-        // Same street tiles in both themes; dark mode inverts them the way the
-        // OSM basemap used to be inverted.
-        mapView.overlayManager.tilesOverlay.setColorFilter(
-            if (resolvedStyle == MapStyle.NORMAL && darkTheme) TilesOverlay.INVERT_COLORS else null
-        )
-        mapView.setBackgroundColor(
-            when (resolvedStyle) {
-                MapStyle.SATELLITE -> AndroidColor.rgb(8, 55, 68)
-                MapStyle.NORMAL -> if (darkTheme) AndroidColor.rgb(18, 24, 28) else AndroidColor.rgb(232, 237, 242)
-            }
-        )
+    LaunchedEffect(resolvedStyle, tileScheme, darkTheme) {
+        if (resolvedStyle == MapStyle.SATELLITE) {
+            mapView.setTileSource(EsriSatellite)
+            mapView.overlayManager.tilesOverlay.setColorFilter(null)
+            mapView.setBackgroundColor(AndroidColor.rgb(8, 55, 68))
+        } else {
+            val basemap = resolveStreetBasemap(tileScheme, darkTheme)
+            mapView.setTileSource(basemap.source)
+            mapView.overlayManager.tilesOverlay.setColorFilter(basemap.filter)
+            mapView.setBackgroundColor(basemap.background)
+        }
         mapView.invalidate()
     }
 
@@ -634,11 +831,30 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
         mapView.overlays.remove(roadsOverlay)
         mapView.overlays.remove(labelsOverlay)
         if (resolvedStyle == MapStyle.SATELLITE) mapView.overlays.add(0, roadsOverlay)
+        segmentOverlay.trips = data.trips.filter { it.kind == "trip" && it.path.size >= 2 }
+        if (segmentSelection != null && segmentOverlay.trips.getOrNull(segmentSelection!!.tripIndex) == null) {
+            segmentOverlay.clear()
+            segmentSelection = null
+        } else {
+            segmentOverlay.selection = segmentSelection
+        }
+        mapView.overlays.remove(segmentOverlay)
+        mapView.overlays.add(segmentOverlay)
         val box = data.bbox
-        if (fit && !restoringCamera && !followState.value && !data.isEmpty && box != null && fittedDay != selectedDay) {
+        // Follow-current-location only makes sense while looking at today; on a
+        // past day it used to block the fit forever (until the user touched the
+        // map), leaving the camera stuck on the live GPS fix with the actual
+        // route for that day off-screen.
+        val followBlocksFit = followState.value && selectedDay == LocalDate.now()
+        if (fit && !restoringCamera && !followBlocksFit && !data.isEmpty && box != null && fittedDay != selectedDay) {
             fittedDay = selectedDay
             fitBoundingBox(mapView, box)
         }
+        mapView.invalidate()
+    }
+    LaunchedEffect(selectedDay) {
+        segmentOverlay.clear()
+        segmentSelection = null
     }
     LaunchedEffect(data, layers, resolvedStyle, darkTheme, config?.url) {
         paintOverlays(fit = true)
@@ -760,7 +976,16 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
         val controlIconSize = (22.dp * uiScale).coerceAtLeast(15.dp)
 
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
-        Text(if (resolvedStyle == MapStyle.NORMAL && !darkTheme) "© OpenStreetMap contributors" else "© Esri, HERE, Garmin, © OpenStreetMap contributors", modifier = Modifier.align(Alignment.BottomStart).padding(start = 4.dp, bottom = 2.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(horizontal = 3.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            when {
+                resolvedStyle == MapStyle.SATELLITE -> "© Esri, Maxar, Earthstar Geographics"
+                streetBasemap.attributionOsm -> "© OpenStreetMap contributors"
+                else -> "© Esri, HERE, Garmin, © OpenStreetMap contributors"
+            },
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = 4.dp, bottom = 2.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(horizontal = 3.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
 
         // Floating header: what is recording and which day is shown. Both pills
         // always share one row and split the available width, so they fit even
@@ -863,6 +1088,29 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
                 iconSize = controlIconSize,
                 onClick = { showLayers = true },
             )
+            if (segmentSelection != null) {
+                MapControlButton(
+                    icon = Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.map_segment_clear),
+                    size = controlSize,
+                    iconSize = controlIconSize,
+                    onClick = {
+                        segmentOverlay.clear()
+                        segmentSelection = null
+                        mapView.invalidate()
+                    },
+                )
+            }
+        }
+
+        segmentSelection?.takeIf { it.bIndex != null }?.let { sel ->
+            SegmentLegendCard(
+                selection = sel,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = edge, top = edge + 56.dp)
+                    .fillMaxWidth(0.72f),
+            )
         }
 
         if (data.isEmpty && !loading && data.error == null && hintVisible) {
@@ -943,6 +1191,21 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
                             }
                         }
                     }
+                }
+                if (mapStyle == MapStyle.NORMAL) {
+                    Text(stringResource(R.string.map_tile_scheme_title), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.map_tile_scheme_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    MapTileSchemePicker(
+                        selected = tileScheme,
+                        onSelect = { scheme ->
+                            tileScheme = scheme
+                            prefs.setMapTileScheme(scheme.key)
+                        },
+                    )
                 }
                 Text(stringResource(R.string.map_layers_title), style = MaterialTheme.typography.titleMedium)
                 GeoLayer.entries.forEach { layer ->
@@ -1356,6 +1619,248 @@ internal fun styleMarker(marker: Marker, mapView: MapView, dark: Boolean, coords
     marker.setInfoWindow(StyledInfoWindow(mapView, dark))
 }
 
+internal data class TrackSegmentSelection(
+    val tripIndex: Int,
+    val path: List<GeoLatLon>,
+    val startedAt: String?,
+    val endedAt: String?,
+    val aIndex: Int,
+    val bIndex: Int? = null,
+)
+
+/**
+ * Long-press on a trip polyline picks point A, then B. Pan/pinch cancel the press via
+ * osmdroid's gesture detector, so this does not fight MapPriorityTapOverlay or rotation.
+ */
+internal class TrackSegmentOverlay(
+    private val onChanged: (TrackSegmentSelection?) -> Unit,
+) : Overlay(), KeepOverlay {
+    var trips: List<GeoTrip> = emptyList()
+    var selection: TrackSegmentSelection? = null
+        set(value) {
+            field = value
+        }
+    private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        color = AndroidColor.rgb(251, 146, 60)
+    }
+    private val pointPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = AndroidColor.rgb(251, 146, 60)
+    }
+    private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = AndroidColor.WHITE
+        strokeWidth = 3f
+    }
+
+    fun clear() {
+        selection = null
+        onChanged(null)
+    }
+
+    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
+        if (shadow) return
+        val sel = selection ?: return
+        val density = mapView.resources.displayMetrics.density
+        linePaint.strokeWidth = 6f * density
+        val pixel = Point()
+        fun drawPoint(index: Int) {
+            val pt = sel.path.getOrNull(index) ?: return
+            mapView.projection.toPixels(GeoPoint(pt.lat, pt.lon), pixel)
+            canvas.drawCircle(pixel.x.toFloat(), pixel.y.toFloat(), 9f * density, pointPaint)
+            canvas.drawCircle(pixel.x.toFloat(), pixel.y.toFloat(), 9f * density, ringPaint)
+        }
+        val b = sel.bIndex
+        if (b != null) {
+            val from = minOf(sel.aIndex, b)
+            val to = maxOf(sel.aIndex, b)
+            if (to > from) {
+                val path = Path()
+                var started = false
+                for (i in from..to) {
+                    val pt = sel.path[i]
+                    mapView.projection.toPixels(GeoPoint(pt.lat, pt.lon), pixel)
+                    if (!started) {
+                        path.moveTo(pixel.x.toFloat(), pixel.y.toFloat())
+                        started = true
+                    } else {
+                        path.lineTo(pixel.x.toFloat(), pixel.y.toFloat())
+                    }
+                }
+                canvas.drawPath(path, linePaint)
+            }
+        }
+        drawPoint(sel.aIndex)
+        if (b != null) drawPoint(b)
+    }
+
+    /** Finds the closest point on any trip to the tap, within [maxPx] screen pixels. */
+    private fun hitTest(x: Float, y: Float, mapView: MapView, maxPx: Float): Pair<Int, Int>? {
+        if (trips.isEmpty()) return null
+        val tap = Point()
+        mapView.projection.unrotateAndScalePoint(x.toInt(), y.toInt(), tap)
+        val tapGeo = mapView.projection.fromPixels(tap.x, tap.y)
+        val maxM = maxPx * metersPerPixel(mapView)
+        var bestTrip = -1
+        var bestIndex = -1
+        var bestDist = maxM
+        trips.forEachIndexed { tripIndex, trip ->
+            val hit = nearestOnPath(tapGeo.latitude, tapGeo.longitude, trip.path) ?: return@forEachIndexed
+            if (hit.second < bestDist) {
+                bestDist = hit.second
+                bestTrip = tripIndex
+                bestIndex = hit.first
+            }
+        }
+        return if (bestTrip < 0) null else bestTrip to bestIndex
+    }
+
+    /** First tap/long-press picks point A on a trip; the next one on the same trip picks B. */
+    private fun pickPoint(tripIndex: Int, index: Int, mapView: MapView) {
+        val trip = trips[tripIndex]
+        val current = selection
+        val next = if (current == null || current.tripIndex != tripIndex || current.bIndex != null) {
+            TrackSegmentSelection(tripIndex, trip.path, trip.startedAt, trip.endedAt, index)
+        } else if (index == current.aIndex) {
+            current
+        } else {
+            current.copy(bIndex = index)
+        }
+        selection = next
+        onChanged(next)
+        mapView.invalidate()
+    }
+
+    /**
+     * A plain tap on the track selects point A, then point B — the long-press
+     * fallback below stays for users who tap slightly off the line first.
+     */
+    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+        val density = mapView.resources.displayMetrics.density
+        val hit = hitTest(e.x, e.y, mapView, 28f * density) ?: return false
+        pickPoint(hit.first, hit.second, mapView)
+        return true
+    }
+
+    override fun onLongPress(e: MotionEvent, mapView: MapView): Boolean {
+        if (e.pointerCount > 1) return false
+        val density = mapView.resources.displayMetrics.density
+        val hit = hitTest(e.x, e.y, mapView, 28f * density) ?: return false
+        pickPoint(hit.first, hit.second, mapView)
+        return true
+    }
+}
+
+private fun metersPerPixel(mapView: MapView): Double {
+    val center = mapView.mapCenter
+    val a = mapView.projection.toPixels(GeoPoint(center.latitude, center.longitude), Point())
+    val bGeo = mapView.projection.fromPixels(a.x + 1, a.y)
+    val results = FloatArray(1)
+    Location.distanceBetween(center.latitude, center.longitude, bGeo.latitude, bGeo.longitude, results)
+    return results[0].toDouble().coerceAtLeast(0.05)
+}
+
+private fun nearestOnPath(lat: Double, lon: Double, path: List<GeoLatLon>): Pair<Int, Double>? {
+    if (path.size < 2) return null
+    var bestIndex = 0
+    var bestDist = Double.MAX_VALUE
+    val results = FloatArray(1)
+    for (i in 0 until path.lastIndex) {
+        val a = path[i]
+        val b = path[i + 1]
+        val dx = b.lon - a.lon
+        val dy = b.lat - a.lat
+        val len2 = dx * dx + dy * dy
+        val t = if (len2 < 1e-18) 0.0 else (((lon - a.lon) * dx + (lat - a.lat) * dy) / len2).coerceIn(0.0, 1.0)
+        val plat = a.lat + t * dy
+        val plon = a.lon + t * dx
+        Location.distanceBetween(lat, lon, plat, plon, results)
+        val dist = results[0].toDouble()
+        if (dist < bestDist) {
+            bestDist = dist
+            bestIndex = if (t < 0.5) i else i + 1
+        }
+    }
+    return bestIndex to bestDist
+}
+
+private fun segmentStats(sel: TrackSegmentSelection): Triple<String, String, Pair<String, Double>>? {
+    val b = sel.bIndex ?: return null
+    val from = minOf(sel.aIndex, b)
+    val to = maxOf(sel.aIndex, b)
+    val startMs = parseInstantMs(sel.startedAt) ?: return null
+    val endMs = parseInstantMs(sel.endedAt) ?: return null
+    if (endMs <= startMs) return null
+    val results = FloatArray(1)
+    val cum = DoubleArray(sel.path.size)
+    for (i in 1 until sel.path.size) {
+        Location.distanceBetween(sel.path[i - 1].lat, sel.path[i - 1].lon, sel.path[i].lat, sel.path[i].lon, results)
+        cum[i] = cum[i - 1] + results[0]
+    }
+    val total = cum.last().coerceAtLeast(1.0)
+    val t0 = startMs + ((cum[from] / total) * (endMs - startMs)).toLong()
+    val t1 = startMs + ((cum[to] / total) * (endMs - startMs)).toLong()
+    val dist = cum[to] - cum[from]
+    val durS = ((t1 - t0) / 1000.0).coerceAtLeast(1.0)
+    val kmh = (dist / 1000.0) / (durS / 3600.0)
+    return Triple(formatHm(t0), formatHm(t1), formatDuration(durS.toLong()) to kmh)
+}
+
+private fun parseInstantMs(value: String?): Long? {
+    if (value.isNullOrBlank()) return null
+    return runCatching { java.time.Instant.parse(value).toEpochMilli() }.getOrNull()
+        ?: runCatching { java.time.OffsetDateTime.parse(value.replace(' ', 'T')).toInstant().toEpochMilli() }.getOrNull()
+}
+
+private fun formatHm(epochMs: Long): String {
+    val z = java.time.Instant.ofEpochMilli(epochMs).atZone(java.time.ZoneId.systemDefault())
+    return String.format(Locale.getDefault(), "%02d:%02d", z.hour, z.minute)
+}
+
+private fun formatDuration(sec: Long): String {
+    val h = sec / 3600
+    val m = (sec % 3600) / 60
+    val s = sec % 60
+    return when {
+        h > 0 -> String.format(Locale.getDefault(), "%d h %02d m", h, m)
+        m > 0 -> String.format(Locale.getDefault(), "%d m %02d s", m, s)
+        else -> String.format(Locale.getDefault(), "%d s", s)
+    }
+}
+
+@Composable
+private fun SegmentLegendCard(selection: TrackSegmentSelection, modifier: Modifier = Modifier) {
+    val stats = remember(selection) { segmentStats(selection) } ?: return
+    val start = stats.first
+    val end = stats.second
+    val duration = stats.third.first
+    val kmh = stats.third.second
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        shadowElevation = 8.dp,
+        modifier = modifier,
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            SegmentLegendRow(stringResource(R.string.map_segment_start), start)
+            SegmentLegendRow(stringResource(R.string.map_segment_end), end)
+            SegmentLegendRow(stringResource(R.string.map_segment_duration), duration)
+            SegmentLegendRow(stringResource(R.string.map_segment_avg_speed), stringResource(R.string.map_segment_speed_value, kmh))
+        }
+    }
+}
+
+@Composable
+private fun SegmentLegendRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+    }
+}
+
 /** Photos beat visits beat raw points. Handles the tap before rotation/markers steal it. */
 internal class MapPriorityTapOverlay : Overlay(), KeepOverlay {
     var photos: List<Marker> = emptyList()
@@ -1444,7 +1949,11 @@ internal class MapPriorityTapOverlay : Overlay(), KeepOverlay {
         return openHit(e.x, e.y, mapView)
     }
 
-    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean = true
+    // Only claim the tap when it actually hit a marker; an unconditional `true`
+    // here used to swallow every single tap on the map, so taps meant to pick
+    // a point on the track (TrackSegmentOverlay) never reached it.
+    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean =
+        hitMarker(e.x, e.y, mapView) != null
 }
 
 internal fun configureOsm(context: android.content.Context) {
@@ -1466,19 +1975,144 @@ private class BasemapRoads(context: android.content.Context) : TilesOverlay(
     MapTileProviderBasic(context).apply { setTileSource(EsriTransportation) }, context
 ), KeepOverlay
 
-internal fun applyBasemap(mapView: MapView, style: MapStyle, darkTheme: Boolean) {
+internal fun applyBasemap(
+    mapView: MapView,
+    style: MapStyle,
+    darkTheme: Boolean,
+    scheme: MapTileScheme = MapTileScheme.AUTO,
+) {
     mapView.overlays.removeAll { it is BasemapRoads || it is BasemapLabels }
-    mapView.setTileSource(if (style == MapStyle.SATELLITE) EsriSatellite else if (darkTheme) EsriStreet else EsriLight)
-    mapView.overlayManager.tilesOverlay.setColorFilter(
-        if (style == MapStyle.NORMAL && darkTheme) TilesOverlay.INVERT_COLORS else null
-    )
-    mapView.setBackgroundColor(
-        when (style) {
-            MapStyle.SATELLITE -> AndroidColor.rgb(8, 55, 68)
-            MapStyle.NORMAL -> if (darkTheme) AndroidColor.rgb(18, 24, 28) else AndroidColor.rgb(232, 237, 242)
-        }
-    )
+    if (style == MapStyle.SATELLITE) {
+        mapView.setTileSource(EsriSatellite)
+        mapView.overlayManager.tilesOverlay.setColorFilter(null)
+        mapView.setBackgroundColor(AndroidColor.rgb(8, 55, 68))
+    } else {
+        val basemap = resolveStreetBasemap(scheme, darkTheme)
+        mapView.setTileSource(basemap.source)
+        mapView.overlayManager.tilesOverlay.setColorFilter(basemap.filter)
+        mapView.setBackgroundColor(basemap.background)
+    }
     mapView.invalidate()
+}
+
+@Composable
+private fun MapTileSchemePicker(
+    selected: MapTileScheme,
+    onSelect: (MapTileScheme) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val rows = remember { MapTileScheme.entries.chunked(3) }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        rows.forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { scheme ->
+                    MapTileSchemeCard(
+                        scheme = scheme,
+                        selected = scheme == selected,
+                        onClick = { onSelect(scheme) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapTileSchemeCard(
+    scheme: MapTileScheme,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(14.dp)
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+    Column(
+        modifier
+            .clip(shape)
+            .border(if (selected) 2.dp else 1.dp, borderColor, shape)
+            .clickable(onClick = onClick)
+            .padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        MapTileSchemePreview(
+            scheme = scheme,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.25f)
+                .clip(RoundedCornerShape(10.dp)),
+        )
+        Text(
+            stringResource(scheme.titleRes),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/** Fixed tile over central Europe: a mix of coastline, rivers and a city, so every scheme's preview actually looks like a map. */
+private const val PREVIEW_ZOOM = 7
+private const val PREVIEW_X = 68
+private const val PREVIEW_Y = 43
+
+/** One shared client + in-memory cache so every preview card fetches its tile once. */
+private val previewTileCache = mutableMapOf<String, android.graphics.Bitmap>()
+private val previewTileClient by lazy { okhttp3.OkHttpClient() }
+
+/**
+ * Real map tile, not an abstract drawing: it loads the same tile source and
+ * applies the same colour filter [resolveStreetBasemap] uses on the live map,
+ * so the preview always matches what the user will actually see.
+ *
+ * Fetched with OkHttp directly (not Coil's default loader) so the request
+ * carries the same User-Agent osmdroid uses; tile.openstreetmap.org's usage
+ * policy returns a "blocked" placeholder tile to requests without one.
+ */
+@Composable
+private fun MapTileSchemePreview(scheme: MapTileScheme, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val basemap = remember(scheme, isDark) { resolveStreetBasemap(scheme, isDark) }
+    val tileUrl = remember(basemap.source) {
+        basemap.source.getTileURLString(MapTileIndex.getTileIndex(PREVIEW_ZOOM, PREVIEW_X, PREVIEW_Y))
+    }
+    val composeFilter = remember(scheme) {
+        schemeColorMatrix(if (scheme == MapTileScheme.AUTO) (if (isDark) MapTileScheme.DARK else MapTileScheme.STREETS) else scheme)
+            ?.let { androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix(it)) }
+    }
+    var bitmap by remember(tileUrl) { mutableStateOf(previewTileCache[tileUrl]) }
+    LaunchedEffect(tileUrl) {
+        if (previewTileCache.containsKey(tileUrl)) return@LaunchedEffect
+        val loaded = withContext(Dispatchers.IO) {
+            runCatching {
+                val request = okhttp3.Request.Builder()
+                    .url(tileUrl)
+                    .header("User-Agent", "${context.packageName}/${BuildConfig.VERSION_NAME} (NexSteps)")
+                    .build()
+                previewTileClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@use null
+                    response.body?.bytes()?.let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) }
+                }
+            }.getOrNull()
+        }
+        if (loaded != null) previewTileCache[tileUrl] = loaded
+        bitmap = loaded
+    }
+    Box(modifier.background(Color(basemap.background))) {
+        bitmap?.let {
+            androidx.compose.foundation.Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                colorFilter = composeFilter,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
 }
 
 internal fun rebuildOverlays(
@@ -1504,20 +2138,49 @@ internal fun rebuildOverlays(
     val speedOn = GeoLayer.SPEED.key in layers && data.speed.isNotEmpty()
 
     fun addPolyline(path: List<GeoLatLon>, color: Int, widthDp: Float, dashed: Boolean = false) {
-        val line = Polyline(mapView)
-        path.forEach { line.addPoint(GeoPoint(it.lat, it.lon)) }
+        if (path.size < 2) return
+        // Construct with usePath=true: the default LineDrawer draws each
+        // segment as a separate canvas.drawLine, which ignores strokeJoin and
+        // produces the jagged "butt-jointed" look. Path mode uses a continuous
+        // Android Path so ROUND joins actually round every bend.
+        val line = Polyline(mapView, true)
+        smoothPath(path, iterations = 2).forEach { line.addPoint(GeoPoint(it.lat, it.lon)) }
         line.outlinePaint.color = color
         line.outlinePaint.strokeWidth = widthDp * density
+        line.outlinePaint.isAntiAlias = true
         line.outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
         line.outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
         if (dashed) line.outlinePaint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(14f * density, 10f * density), 0f)
-        // Keep lines drawable; do not consume taps so photos/visits win via MapPriorityTapOverlay.
         line.setOnClickListener { _, _, _ -> false }
         mapView.overlays.add(line)
     }
 
     if (GeoLayer.TRIPS.key in layers) {
-        data.trips.filter { !it.pending && it.kind == "trip" }.forEach { trip -> addPolyline(trip.path, tripColor, 5f) }
+        val trips = data.trips.filter { !it.pending && it.kind == "trip" && it.path.size >= 2 }
+            .mapNotNull { trip ->
+                val start = trip.startedAt?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
+                val end = trip.endedAt?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
+                Triple(trip, start, end)
+            }
+            .sortedBy { it.second ?: java.time.Instant.EPOCH }
+        // Merge consecutive trips that are only a short GPS dropout apart into
+        // one continuous polyline so the join between them is also rounded
+        // (separate 2-point bridge lines would still show a hard butt join).
+        val chains = mutableListOf<MutableList<GeoLatLon>>()
+        trips.forEachIndexed { index, (trip, start, _) ->
+            val prev = trips.getOrNull(index - 1)
+            val canBridge = if (prev != null && prev.third != null && start != null) {
+                val gapSeconds = java.time.Duration.between(prev.third, start).seconds
+                val distance = FloatArray(1)
+                val last = prev.first.path.last()
+                val first = trip.path.first()
+                android.location.Location.distanceBetween(last.lat, last.lon, first.lat, first.lon, distance)
+                gapSeconds in 0..120 && distance[0] <= 250f
+            } else false
+            if (canBridge && chains.isNotEmpty()) chains.last() += trip.path
+            else chains += trip.path.toMutableList()
+        }
+        chains.forEach { addPolyline(it, tripColor, 5f) }
     }
     data.trips.filter { it.kind == "smooth" }.forEach { trip -> addPolyline(trip.path, AndroidColor.rgb(52, 211, 153), 4f) }
     data.trips.filter { it.kind == "matched" }.forEach { trip -> addPolyline(trip.path, AndroidColor.rgb(167, 139, 250), 4f, dashed = true) }
@@ -1707,10 +2370,14 @@ internal fun GeoMapData.withLocalEvents(events: List<StoredLocationEvent>): GeoM
     val localSpeed = mutableListOf<GeoSpeedSegment>()
     var runPending: Boolean? = null
     val runPath = mutableListOf<GeoLatLon>()
+    var runStart: java.time.Instant? = null
+    var runEnd: java.time.Instant? = null
     fun flushRun() {
-        if (runPath.size >= 2) localTrips += GeoTrip("local", "", runPath.toList(), 0.0, runPending == true)
+        if (runPath.size >= 2) localTrips += GeoTrip("local", "", runPath.toList(), 0.0, runPending == true, "trip", runStart?.toString(), runEnd?.toString())
         runPath.clear()
         runPending = null
+        runStart = null
+        runEnd = null
     }
     val heatPaths = mutableListOf<Pair<Pair<Int, Int>, List<GeoLatLon>>>()
     local.zipWithNext().forEach { (previous, current) ->
@@ -1724,7 +2391,10 @@ internal fun GeoMapData.withLocalEvents(events: List<StoredLocationEvent>): GeoM
             flushRun()
             runPending = current.point.pending
             runPath += a
+            runStart = previous.timestamp
         }
+        if (runStart == null) runStart = previous.timestamp
+        runEnd = current.timestamp
         runPath += b
         if (current.point.pending || previous.point.pending || speed.isEmpty() || heat.isEmpty()) {
             val distance = FloatArray(1)
@@ -1751,14 +2421,50 @@ internal fun GeoMapData.withLocalEvents(events: List<StoredLocationEvent>): GeoM
     return copy(points = coordinates, trips = trips + localTrips, speed = speed + localSpeed, heat = heat + localHeat, bbox = merged)
 }
 
+/**
+ * Softens sharp GPS zig-zags with one Chaikin corner-cutting pass so the
+ * drawn polyline reads as a continuous rounded stroke rather than a
+ * polyline of hard angles. Endpoints stay fixed so the route still ends
+ * exactly where the raw track does.
+ */
+private fun smoothPath(path: List<GeoLatLon>, iterations: Int = 1): List<GeoLatLon> {
+    if (path.size < 3) return path
+    var current = path
+    repeat(iterations) {
+        if (current.size < 3) return@repeat
+        val next = ArrayList<GeoLatLon>(current.size * 2)
+        next += current.first()
+        for (i in 0 until current.lastIndex) {
+            val a = current[i]
+            val b = current[i + 1]
+            next += GeoLatLon(0.75 * a.lat + 0.25 * b.lat, 0.75 * a.lon + 0.25 * b.lon)
+            next += GeoLatLon(0.25 * a.lat + 0.75 * b.lat, 0.25 * a.lon + 0.75 * b.lon)
+        }
+        next += current.last()
+        current = next
+    }
+    return current
+}
+
 private fun fitBoundingBox(mapView: MapView, bbox: GeoBoundingBox) {
     if (bbox.north == bbox.south && bbox.east == bbox.west) {
         mapView.controller.setZoom(17.0)
         mapView.controller.animateTo(GeoPoint(bbox.north, bbox.east))
         return
     }
-    runCatching {
-        val box = org.osmdroid.util.BoundingBox(bbox.north + 0.00001, bbox.east + 0.00001, bbox.south - 0.00001, bbox.west - 0.00001)
-        mapView.zoomToBoundingBox(box, true, (48 * mapView.resources.displayMetrics.density).toInt())
-    }
+    val centerLat = (bbox.north + bbox.south) / 2.0
+    val centerLon = (bbox.east + bbox.west) / 2.0
+    val latSpan = (bbox.north - bbox.south).coerceAtLeast(0.0005)
+    val lonSpan = (bbox.east - bbox.west).coerceAtLeast(0.0005)
+    // zoomToBoundingBox silently no-ops or under-zooms depending on the exact
+    // view-layout timing it is called from (a known osmdroid/Compose issue),
+    // so the zoom level is computed by hand from the span in degrees instead.
+    val padding = 1.6
+    val widthPx = mapView.width.coerceAtLeast(320).toDouble()
+    val heightPx = mapView.height.coerceAtLeast(320).toDouble()
+    val zoomForLon = kotlin.math.log2(widthPx * 360.0 / (256.0 * lonSpan * padding))
+    val zoomForLat = kotlin.math.log2(heightPx * 180.0 / (256.0 * latSpan * padding))
+    val zoom = minOf(zoomForLon, zoomForLat).coerceIn(2.0, 19.0)
+    mapView.controller.setZoom(zoom)
+    mapView.controller.setCenter(GeoPoint(centerLat, centerLon))
 }

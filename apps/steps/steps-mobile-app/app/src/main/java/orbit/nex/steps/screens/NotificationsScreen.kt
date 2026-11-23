@@ -86,7 +86,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(Spacing.lg)
             ) {
-                items(notificationConfigs) { config ->
+                items(notificationConfigs, key = { it.id }) { config ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(Spacing.lg)) {
                             Row(
@@ -142,7 +142,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                     val sortedProviders = listOf(NotificationProviderType.LOCAL_PUSH) +
                         NotificationProviderType.values().filter { it != NotificationProviderType.LOCAL_PUSH }
                     LazyColumn {
-                        items(sortedProviders) { provider ->
+                        items(sortedProviders, key = { it.name }) { provider ->
                             ListItem(
                                 headlineContent = { Text(provider.displayName) },
                                 supportingContent = { Text(provider.description) },
