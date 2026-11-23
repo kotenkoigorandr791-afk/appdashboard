@@ -80,10 +80,10 @@ $metricButtons = [
                     <button id="add-steps-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>" aria-label="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                         <?php echo steps_icon('add'); ?>
                     </button>
-                    <button id="stepmonitor-apk-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><?php echo steps_icon('smartphone'); ?></button>
+                    <button id="stepmonitor-apk-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><?php echo steps_icon('download'); ?></button>
                     <?php if (!empty($stepsData)): ?>
                     <button id="stats-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Activity & Movement'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Activity & Movement'); ?>">
-                        <?php echo steps_icon('pie_chart'); ?>
+                        <?php echo steps_icon('bar_chart'); ?>
                     </button>
                     <?php endif; ?>
                     <button id="settings-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>" aria-label="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>">
@@ -126,7 +126,7 @@ $metricButtons = [
             <div class="kpi-card">
                 <div class="kpi-card-top">
                     <span class="kpi-label"><?php echo htmlspecialchars($translations['calories'] ?? 'Calories'); ?></span>
-                    <span class="kpi-icon-badge kpi-icon-badge--amber" aria-hidden="true"><?php echo steps_icon('fire'); ?></span>
+                    <span class="kpi-icon-badge kpi-icon-badge--amber" aria-hidden="true"><?php echo steps_icon('calories'); ?></span>
                 </div>
                 <div class="kpi-metric-row">
                     <span class="kpi-value" id="kpi-calories-val">0</span>
@@ -190,7 +190,7 @@ $metricButtons = [
                     </div>
                 </div>
             </div>
-            <div class="history-scrubber">
+            <div class="history-scrubber" style="display:none">
                 <label for="history-scrubber"><span style="color:#4C9AFF" aria-hidden="true"><?php echo steps_icon('swap_horiz', 'icon-sm'); ?></span><?php echo htmlspecialchars($translations['scroll_history'] ?? 'Scroll History'); ?></label>
                 <input type="range" id="history-scrubber" class="md-slider" min="0" max="100" value="100" aria-label="<?php echo htmlspecialchars($translations['scroll_history'] ?? 'Scroll history'); ?>">
                 <div class="chart-legend" aria-hidden="true">
@@ -372,23 +372,6 @@ $metricButtons = [
                             <div id="ma-trips-list" class="trip-list">
                                 <span class="trip-empty"><?php echo htmlspecialchars($translations['map_trip_loading'] ?? 'Loading trips…'); ?></span>
                             </div>
-                            <div id="ma-trip-editor" class="trip-editor" hidden>
-                                <div class="trip-editor-head">
-                                    <strong><?php echo htmlspecialchars($translations['map_trip_edit'] ?? 'Edit trip'); ?></strong>
-                                    <button type="button" id="ma-trip-close" class="trip-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><?php echo steps_icon('close'); ?></button>
-                                </div>
-                                <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_name'] ?? 'Title'); ?></span><input type="text" id="ma-trip-title" maxlength="120"></label>
-                                <div class="trip-dates">
-                                    <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_start'] ?? 'Start'); ?></span><input type="datetime-local" id="ma-trip-start"></label>
-                                    <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_end'] ?? 'End'); ?></span><input type="datetime-local" id="ma-trip-end"></label>
-                                </div>
-                                <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_notes'] ?? 'Notes'); ?></span><textarea id="ma-trip-notes" rows="2" maxlength="4000"></textarea></label>
-                                <label class="trip-visible"><input type="checkbox" id="ma-trip-visible"> <span><?php echo htmlspecialchars($translations['map_trip_visible'] ?? 'Show route line on map'); ?></span></label>
-                                <div class="trip-editor-actions">
-                                    <button type="button" id="ma-trip-recalc" class="trip-btn"><i class="fas fa-rotate" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_trip_recalculate'] ?? 'Recalculate'); ?></button>
-                                    <button type="button" id="ma-trip-save" class="trip-btn trip-btn-primary"><?php echo htmlspecialchars($translations['map_trip_save'] ?? 'Save'); ?></button>
-                                </div>
-                            </div>
                         </div>
                         </div>
                         <div class="map-sidebar-foot">
@@ -426,7 +409,6 @@ $metricButtons = [
                     const refresh=document.getElementById('ma-map-refresh');
                     const resetBtn=document.getElementById('ma-map-reset');
                     const tripsList=document.getElementById('ma-trips-list');
-                    const tripEditor=document.getElementById('ma-trip-editor');
                     const tripMergeBtn=document.getElementById('ma-trip-merge');
                     let tripsCache=[], editingTripId=null, tripsLoadSeq=0, focusTripId=null;
                     const selTrips=new Set();
@@ -682,6 +664,79 @@ $metricButtons = [
                         });
                         return leafletPromise;
                     }
+                    function addHeatmap(features, strength){
+                        if(!features.length) return;
+                        const HeatLayer=window.L.Layer.extend({
+                            onAdd(map){
+                                this.map=map;
+                                this.canvas=window.L.DomUtil.create('canvas','map-heat-canvas leaflet-zoom-animated');
+                                this.canvas.style.pointerEvents='none';
+                                map.getPane('mapBackdrop').appendChild(this.canvas);
+                                map.on('moveend resize',this.draw,this);
+                                map.on('zoomanim',this.animateZoom,this);
+                                this.draw();
+                            },
+                            onRemove(map){
+                                map.off('moveend resize',this.draw,this);
+                                map.off('zoomanim',this.animateZoom,this);
+                                this.canvas.remove();
+                            },
+                            animateZoom(event){
+                                const scale=this.map.getZoomScale(event.zoom, this.zoom);
+                                const offset=this.map._latLngToNewLayerPoint(this.topLeft,event.zoom,event.center);
+                                window.L.DomUtil.setTransform(this.canvas,offset,scale);
+                            },
+                            draw(){
+                                const map=this.map, size=map.getSize(), canvas=this.canvas, scale=0.5;
+                                this.zoom=map.getZoom();
+                                this.topLeft=map.containerPointToLatLng([0,0]);
+                                const width=Math.max(1,Math.ceil(size.x*scale)), height=Math.max(1,Math.ceil(size.y*scale));
+                                canvas.width=width; canvas.height=height;
+                                canvas.style.width=size.x+'px'; canvas.style.height=size.y+'px';
+                                window.L.DomUtil.setPosition(canvas,map.containerPointToLayerPoint([0,0]));
+                                const mask=document.createElement('canvas'); mask.width=width; mask.height=height;
+                                const maskCtx=mask.getContext('2d');
+                                maskCtx.lineCap='round'; maskCtx.lineJoin='round'; maskCtx.strokeStyle='#000'; maskCtx.lineWidth=4;
+                                const buckets=Array.from({length:8},()=>[]);
+                                features.forEach(feature=>{
+                                    const geometry=feature.geometry, p=feature.properties||{};
+                                    const lines=geometry.type==='LineString'?[geometry.coordinates]:geometry.type==='MultiLineString'?geometry.coordinates:[];
+                                    const bucket=Math.min(7,Math.max(0,Math.floor((Number(p.intensity)||0)*8)));
+                                    lines.forEach(line=>buckets[bucket].push(line));
+                                });
+                                buckets.forEach((lines,bucket)=>{
+                                    if(!lines.length) return;
+                                    maskCtx.globalAlpha=0.12+0.55*(bucket+1)/8;
+                                    maskCtx.beginPath();
+                                    lines.forEach(line=>{
+                                        if(line.length<2) return;
+                                        line.forEach((coord,i)=>{
+                                            const point=map.latLngToContainerPoint([coord[1],coord[0]]);
+                                            if(i) maskCtx.lineTo(point.x*scale,point.y*scale); else maskCtx.moveTo(point.x*scale,point.y*scale);
+                                        });
+                                    });
+                                    maskCtx.stroke();
+                                });
+                                const ctx=canvas.getContext('2d',{willReadFrequently:true});
+                                ctx.filter='blur(2.5px)'; ctx.drawImage(mask,0,0); ctx.filter='none';
+                                const image=ctx.getImageData(0,0,width,height), pixels=image.data;
+                                const palette=document.createElement('canvas'); palette.width=256; palette.height=1;
+                                const pc=palette.getContext('2d'), gradient=pc.createLinearGradient(0,0,256,0);
+                                [[0,'#4945ed'],[0.25,'#165cf4'],[0.45,'#00c9ed'],[0.65,'#68e858'],[0.8,'#ffe437'],[1,'#f04436']].forEach(stop=>gradient.addColorStop(stop[0],stop[1]));
+                                pc.fillStyle=gradient; pc.fillRect(0,0,256,1);
+                                const colors=pc.getImageData(0,0,256,1).data;
+                                for(let i=0;i<pixels.length;i+=4){
+                                    const alpha=pixels[i+3];
+                                    if(!alpha) continue;
+                                    const color=Math.min(255,Math.round(alpha*1.8))*4;
+                                    pixels[i]=colors[color]; pixels[i+1]=colors[color+1]; pixels[i+2]=colors[color+2];
+                                    pixels[i+3]=Math.min(220,Math.round(alpha*2.2*strength));
+                                }
+                                ctx.putImageData(image,0,0);
+                            }
+                        });
+                        new HeatLayer().addTo(layerGroup);
+                    }
                     function renderProviders(){
                         const keys=Object.keys(providers).filter(key=>keylessProviders.includes(key));
                         const list=keys.length?keys:Object.keys(providers);
@@ -690,6 +745,7 @@ $metricButtons = [
                         list.forEach(key=>{
                             const opt=document.createElement('option');
                             opt.value=key; opt.textContent=providers[key].name;
+                            opt.dataset.preview=String(providers[key].url||'').replace('{s}','a').replace('{z}','10').replace('{x}','550').replace('{y}','341');
                             if (key===provider) opt.selected=true;
                             providerSel.appendChild(opt);
                         });
@@ -1023,7 +1079,7 @@ $metricButtons = [
                         tripPaths=[];
                         const speedOn=lastFeatures.some(f=>f.properties&&f.properties.layer==='speed');
                         const visitCenters=lastFeatures.filter(f=>f.properties&&f.properties.layer==='visit'&&f.geometry).map(f=>L.latLng(f.geometry.coordinates[1],f.geometry.coordinates[0]));
-                        const photoFeatures=[];
+                        const photoFeatures=[], heatFeatures=[];
                         lastFeatures.forEach(feature=>{
                             const p=feature.properties||{};
                             if(!feature.geometry||!feature.geometry.coordinates) return;
@@ -1102,19 +1158,12 @@ $metricButtons = [
                                 const flagged=p.quality_state==='flagged';
                                 addPoint(feature,{radius:Math.max(2,baseRadius-2),color:flagged?'#ef4444':'#0ea5e9',fillColor:flagged?'#ef4444':'#0ea5e9',fillOpacity:pointOpacity},p.source_at||'',[p.accuracy_m?'±'+p.accuracy_m+' m':'']);
                             } else if(p.layer==='heatmap'){
-                                const intensity=Math.max(0,Math.min(1,(p.intensity||0)*heatStrength));
-                                if(/LineString/.test(feature.geometry.type)){
-                                    const color=intensity>0.72?'#ef4444':(intensity>0.42?'#f97316':(intensity>0.18?'#facc15':'#38bdf8'));
-                                    L.geoJSON(feature,{pane:'routesGlow',style:{color:color,weight:Math.max(4,routeWidth*4),opacity:0.10+0.16*intensity,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
-                                    L.geoJSON(feature,{pane:'routes',style:{color:color,weight:Math.max(1.5,routeWidth*0.85),opacity:0.52+0.44*intensity,lineCap:'round',lineJoin:'round'}}).bindPopup(popupHtml((p.weight||1)+'×',[tr('map_heat_repeats','Repeated route')])).addTo(layerGroup);
-                                } else {
-                                    const pointIntensity=(p.intensity||0)*heatStrength;
-                                    addPoint(feature,{pane:'mapBackdrop',radius:Math.max(8,baseRadius*2.4),stroke:false,fillColor: p.quality_state==='flagged'?'#ef4444':'#f97316',fillOpacity:Math.min(0.85,0.10+0.7*pointIntensity)},String(p.weight||0),[]);
-                                }
+                                heatFeatures.push(feature);
                             } else if(p.layer==='explored'){
                                 addPoint(feature,{pane:'mapBackdrop',radius:Math.max(6,baseRadius*1.8),stroke:false,fillColor:'#10b981',fillOpacity:Math.min(0.6,0.12+0.35*heatStrength)},String(p.visits||0),[]);
                             }
                         });
+                        addHeatmap(heatFeatures,heatStrength);
                         clusterPhotoFeatures(photoFeatures).forEach(f=>addPhotoMarker(f, baseRadius));
                         if(segPick){
                             if(!tripPaths[segPick.pathIdx]) clearSegmentSelection();
@@ -1141,6 +1190,18 @@ $metricButtons = [
                                   pop=field.querySelector('.dp-popover');
                             if(!native||!trigger||!pop) return;
                             let view=parseYMD(native.value)||new Date();
+                            let dataDays=new Set();
+                            let requestId=0;
+                            const isMapDate=native===fromInput||native===toInput;
+                            const loadDays=()=>{
+                                if(!isMapDate) return;
+                                const month=toYMD(new Date(view.getFullYear(),view.getMonth(),1)).slice(0,7), id=++requestId;
+                                dataDays=new Set();
+                                fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_points&calendar_month='+month,{credentials:'same-origin',cache:'no-store'})
+                                    .then(response=>response.ok?response.json():Promise.reject())
+                                    .then(data=>{ if(id===requestId&&!pop.hidden){ dataDays=new Set(data.days||[]); render(); } })
+                                    .catch(()=>{});
+                            };
                             const syncValue=()=>{
                                 const d=parseYMD(native.value);
                                 valueEl.textContent=d?d.toLocaleDateString(dateLocale(),{day:'numeric',month:'short',year:'numeric'}):'—';
@@ -1156,7 +1217,7 @@ $metricButtons = [
                                 for(let i=0;i<offset;i++) html+='<span class="dp-empty"></span>';
                                 for(let day=1;day<=days;day++){
                                     const dateStr=toYMD(new Date(year,month,day));
-                                    html+=`<button type="button" class="dp-day${dateStr===selected?' is-selected':''}${dateStr===today?' is-today':''}" data-dp-date="${dateStr}">${day}</button>`;
+                                    html+=`<button type="button" class="dp-day${dateStr===selected?' is-selected':''}${dateStr===today?' is-today':''}${dataDays.has(dateStr)?' has-data':''}" data-dp-date="${dateStr}">${day}</button>`;
                                 }
                                 html+='</div><div class="dp-foot"><button type="button" class="dp-today" data-dp-today>'+todayLabel+'</button></div>';
                                 pop.innerHTML=html;
@@ -1177,6 +1238,8 @@ $metricButtons = [
                                 render();
                                 document.body.appendChild(pop);
                                 pop.hidden=false;
+                                loadDays();
+                                render();
                                 trigger.setAttribute('aria-expanded','true');
                                 const rect=trigger.getBoundingClientRect(),
                                       width=Math.min(300, window.innerWidth-16),
@@ -1200,7 +1263,7 @@ $metricButtons = [
                                 // made the outside-click check close the calendar.
                                 event.stopPropagation();
                                 const nav=event.target.closest('[data-dp-nav]');
-                                if(nav){ view.setMonth(view.getMonth()+Number(nav.getAttribute('data-dp-nav'))); render(); return; }
+                                if(nav){ view.setMonth(view.getMonth()+Number(nav.getAttribute('data-dp-nav'))); loadDays(); render(); return; }
                                 const day=event.target.closest('[data-dp-date]');
                                 if(day){
                                     native.value=day.getAttribute('data-dp-date');
@@ -1323,7 +1386,6 @@ $metricButtons = [
                                 tripsList.querySelectorAll('.trip-item').forEach(el=>el.classList.toggle('is-focused',el.dataset.tripId===focusTripId));
                                 render(lastFeatures);
                                 if(focusTripId) flyToTrip(trip.id);
-                                openTripEditor(trip);
                             });
                             const actions=document.createElement('div'); actions.className='trip-actions';
                             const tripAction=(icon,label,handler)=>{
@@ -1335,8 +1397,8 @@ $metricButtons = [
                                 return button;
                             };
                             actions.append(
+                                tripAction('fa-pen-to-square',tr('map_trip_edit','Edit'),()=>openTripEditor(trip)),
                                 tripAction('fa-scissors',tr('map_trip_split','Split'),()=>splitTrip(trip)),
-                                tripAction('fa-box-archive',tr('map_trip_archive','Archive'),()=>archiveTrip(trip,false)),
                                 tripAction('fa-trash-can',tr('map_trip_delete','Delete'),()=>archiveTrip(trip,true))
                             );
                             item.append(pick,open,actions);
@@ -1389,19 +1451,38 @@ $metricButtons = [
                     function openTripEditor(trip){
                         if(!trip) return;
                         editingTripId=trip.id;
-                        tripEditor.dataset.id=trip.id;
-                        document.getElementById('ma-trip-title').value=trip.title||'';
-                        document.getElementById('ma-trip-notes').value=trip.notes||'';
-                        document.getElementById('ma-trip-start').value=isoToInput(trip.started_at);
-                        document.getElementById('ma-trip-end').value=isoToInput(trip.ended_at);
-                        document.getElementById('ma-trip-visible').checked=trip.geometry_visible!==false;
-                        tripEditor.hidden=false;
+                        const modal = document.getElementById('trip-editor-modal');
+                        if(!modal) return;
+                        modal.dataset.id = trip.id;
+                        document.getElementById('ma-trip-title').value = trip.title || '';
+                        document.getElementById('ma-trip-notes').value = trip.notes || '';
+                        document.getElementById('ma-trip-start').value = isoToInput(trip.started_at);
+                        document.getElementById('ma-trip-end').value = isoToInput(trip.ended_at);
+                        document.getElementById('ma-trip-visible').checked = trip.geometry_visible !== false;
+                        modal.classList.add('modal', 'is-open');
+                        modal.setAttribute('role', 'dialog');
+                        modal.setAttribute('aria-modal', 'true');
+                        modal.style.setProperty('display', 'flex', 'important');
+                        document.body.classList.add('modal-open');
                         renderTrips();
-                        if(window.innerWidth<=820) tripEditor.scrollIntoView({block:'nearest',behavior:'smooth'});
                     }
                     function closeTripEditor(){
                         editingTripId=null;
-                        tripEditor.hidden=true;
+                        const modal = document.getElementById('trip-editor-modal');
+                        if(!modal) return;
+                        modal.classList.remove('is-open', 'modal');
+                        modal.removeAttribute('aria-modal');
+                        modal.style.setProperty('display', 'none', 'important');
+                        document.body.classList.remove('modal-open');
+                        document.querySelectorAll('.dp-popover').forEach(pop => {
+                            pop.hidden = true;
+                            pop.style.left = '';
+                            pop.style.top = '';
+                            pop.style.width = '';
+                            pop.style.zIndex = '';
+                            const host = pop.closest('.dp-field');
+                            if (host && pop.parentElement !== host) host.appendChild(pop);
+                        });
                         renderTrips();
                     }
                     async function saveTrip(){
@@ -1480,9 +1561,11 @@ $metricButtons = [
                     function initTripManager(){
                         document.getElementById('ma-trip-new')?.addEventListener('click',createTripFromRange);
                         document.getElementById('ma-trip-merge')?.addEventListener('click',mergeSelectedTrips);
-                        document.getElementById('ma-trip-close')?.addEventListener('click',closeTripEditor);
+                        document.getElementById('trip-editor-close')?.addEventListener('click',closeTripEditor);
                         document.getElementById('ma-trip-save')?.addEventListener('click',saveTrip);
                         document.getElementById('ma-trip-recalc')?.addEventListener('click',recalculateTrip);
+                        document.getElementById('ma-trip-archive')?.addEventListener('click',()=>{ if(editingTripId) archiveTrip(tripsCache.find(t=>t.id===editingTripId), false); });
+                        document.getElementById('ma-trip-delete')?.addEventListener('click',()=>{ if(editingTripId) archiveTrip(tripsCache.find(t=>t.id===editingTripId), true); });
                         updateMergeButton();
                     }
                     function chunkKey(params){
@@ -1517,7 +1600,7 @@ $metricButtons = [
                         return c;
                     }
                     function applyViewportData(data){
-                        providers=data.providers||providers;
+                        providers=Object.assign({},fallbackProviders,data.providers||{});
                         if(!provider) provider=(data.settings&&data.settings.provider)||(providers.esri_dark?'esri_dark':'osm');
                         if(!providerSel.options.length) renderProviders();
                         render(data.geojson.features);
@@ -1723,7 +1806,7 @@ $metricButtons = [
                             const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&settings=1',{credentials:'same-origin'});
                             const data=await res.json();
                             if(data.ok){
-                                providers=data.providers||{};
+                                providers=Object.assign({},fallbackProviders,data.providers||{});
                                 provider=(data.settings&&data.settings.provider)||(providers.esri_dark?'esri_dark':'osm');
                                 if(!keylessProviders.includes(provider)) provider=providers.esri_dark?'esri_dark':'osm';
                                 if(data.config){
@@ -2783,6 +2866,8 @@ $metricButtons = [
                     if(navigator.connection&&navigator.connection.addEventListener){
                         navigator.connection.addEventListener('change',()=>{ if(!prefetchAllowed()) cancelPrefetch(); });
                     }
+                    renderProviders();
+                    loadSettings();
                     if(mapStarted) startMapWorkspace();
                     }
                     if(document.readyState==='loading'){
@@ -3190,7 +3275,7 @@ $metricButtons = [
                         ['render', 'fa-film', $translations['map_render_title'] ?? 'Poster and video', false],
                         ['points', 'fa-location-crosshairs', $translations['points_title'] ?? 'Location points', false],
                         ['location', 'fa-earth-europe', $translations['location_data_title'] ?? 'Location data', false],
-                        ['family', 'fa-people-roof', $translations['family_title'] ?? 'Family', false],
+                        ['family', 'fa-users', $translations['family_title'] ?? 'Family', false],
                         ['achievements', 'fa-trophy', $translations['achievement_title'] ?? 'Achievements', false],
                         ['backups', 'fa-database', $translations['manage_backups'] ?? 'Manage Backups', false],
                     ];
@@ -4751,5 +4836,34 @@ $metricButtons = [
             }
         })();
         </script>
+
+        <div id="trip-editor-modal" class="md3-modal" style="display:none;" role="dialog" aria-modal="true">
+            <div class="trip-editor-content">
+                <div class="md3-modal-head">
+                    <div class="md3-modal-head-main">
+                        <div class="md3-modal-icon" aria-hidden="true"><?php echo steps_icon('edit', 'icon-sm'); ?></div>
+                        <div>
+                            <h2><?php echo htmlspecialchars($translations['map_trip_edit'] ?? 'Edit trip'); ?></h2>
+                        </div>
+                    </div>
+                    <button type="button" id="trip-editor-close" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+                </div>
+                <div class="md3-modal-body">
+                    <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_name'] ?? 'Title'); ?></span><input type="text" id="ma-trip-title" maxlength="120"></label>
+                    <div class="trip-dates">
+                        <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_start'] ?? 'Start'); ?></span><input type="datetime-local" id="ma-trip-start"></label>
+                        <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_end'] ?? 'End'); ?></span><input type="datetime-local" id="ma-trip-end"></label>
+                    </div>
+                    <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_notes'] ?? 'Notes'); ?></span><textarea id="ma-trip-notes" rows="2" maxlength="4000"></textarea></label>
+                    <label class="trip-visible"><input type="checkbox" id="ma-trip-visible"> <span><?php echo htmlspecialchars($translations['map_trip_visible'] ?? 'Show route line on map'); ?></span></label>
+                </div>
+                <div class="md3-modal-foot">
+                    <button type="button" id="ma-trip-archive" class="trip-btn trip-btn-danger"><i class="fas fa-box-archive" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_trip_archive'] ?? 'Archive'); ?></button>
+                    <button type="button" id="ma-trip-delete" class="trip-btn trip-btn-danger" style="margin-left:auto;"><i class="fas fa-trash-can" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_trip_delete'] ?? 'Delete'); ?></button>
+                    <button type="button" id="ma-trip-recalc" class="trip-btn"><i class="fas fa-rotate" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_trip_recalculate'] ?? 'Recalculate'); ?></button>
+                    <button type="button" id="ma-trip-save" class="trip-btn trip-btn-primary"><?php echo htmlspecialchars($translations['map_trip_save'] ?? 'Save'); ?></button>
+                </div>
+            </div>
+        </div>
     </div>
     

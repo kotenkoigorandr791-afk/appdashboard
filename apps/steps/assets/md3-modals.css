@@ -11,13 +11,23 @@ body.md3-steps #alert-modal,
 body.md3-steps #video-crop-modal,
 body.md3-steps #video-confirm-modal,
 body.md3-steps #video-confirm-gaps-modal,
-body.md3-steps #stepmonitor-conflict-modal {
+body.md3-steps #stepmonitor-conflict-modal,
+body.md3-steps #trip-editor-modal {
   align-items: center !important;
   justify-content: center !important;
   padding: 16px !important;
   background: rgba(10, 11, 12, 0.78) !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
+}
+body.md3-steps #trip-editor-modal.is-open {
+  display: flex !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 11000 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 body.md3-steps #stats-modal .stats-content,
@@ -30,10 +40,11 @@ body.md3-steps #guide-expand-modal .guide-expand-content,
 body.md3-steps #alert-modal .alert-content,
 body.md3-steps #video-crop-modal .video-crop-content,
 body.md3-steps #video-confirm-modal .video-confirm-content,
-body.md3-steps #video-confirm-gaps-modal .video-confirm-content {
-  width: min(1080px, 94vw) !important;
-  max-width: min(1080px, 94vw) !important;
-  height: min(82vh, 900px) !important;
+body.md3-steps #video-confirm-gaps-modal .video-confirm-content,
+body.md3-steps #trip-editor-modal .trip-editor-content {
+  width: min(600px, 94vw) !important;
+  max-width: min(600px, 94vw) !important;
+  height: auto !important;
   max-height: 84vh !important;
   margin: 0 auto !important;
   border-radius: 24px !important;

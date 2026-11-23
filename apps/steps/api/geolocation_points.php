@@ -52,6 +52,15 @@ if ($method === 'GET') {
         header('Cache-Control: no-store');
         public_api_json(['ok' => true, 'revision' => (string)($stmt->fetchColumn() ?: '')]);
     }
+    if (isset($_GET['calendar_month'])) {
+        $month = (string)$_GET['calendar_month'];
+        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) public_api_json(['ok' => false, 'error' => 'invalid_month'], 400);
+        $start = new DateTimeImmutable($month . '-01', new DateTimeZone('UTC'));
+        $stmt = $pdo->prepare("SELECT DISTINCT to_char(source_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day FROM geo_location_points WHERE user_email = :owner AND source_at >= :start AND source_at < :end AND quality_state NOT IN ('rejected','excluded_by_user','private_redacted') ORDER BY day");
+        $stmt->execute([':owner' => $owner, ':start' => $start->format('c'), ':end' => $start->modify('+1 month')->format('c')]);
+        header('Cache-Control: no-store');
+        public_api_json(['ok' => true, 'days' => $stmt->fetchAll(PDO::FETCH_COLUMN)]);
+    }
     [$where, $params] = geo_points_filter($_GET, $owner);
     $limit = max(1, min(200, (int)($_GET['limit'] ?? 50)));
     $offset = max(0, (int)($_GET['offset'] ?? 0));

@@ -432,6 +432,7 @@
             renderChartPreviews();
         }
         async function renderChartPreviews() {
+            syncHistoryScrubber();
             try { await window.ensureStepsCharts(); } catch (e) { return; }
             if (!window.Chart) return;
             const canvasBar = document.getElementById('settings-chart-preview-bar');
@@ -584,7 +585,7 @@
         }
 
         function refreshBodyModalLock() {
-            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','day-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal','global-image-viewer'];
+            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','day-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal','global-image-viewer','trip-editor-modal'];
             const any = ids.some(id => {
                 const m = document.getElementById(id);
                 if (!m) return false;
@@ -1553,6 +1554,9 @@
         function updateCalendar(lang = currentLocale) {
             const yearSelector = document.getElementById('year-selector');
             const monthSelector = document.getElementById('month-selector');
+            // The map view can be initialized without the activity calendar.
+            // Do not let an absent calendar control abort the whole app boot.
+            if (!yearSelector || !monthSelector) return;
             const years = getAvailableYears();
             yearSelector.innerHTML = years
                 .map(y => `<option value="${y}" ${y === currentDate.getFullYear() ? 'selected' : ''}>${y}</option>`)
@@ -1564,6 +1568,7 @@
 
         function populateMonthSelectorForYear(year, lang = currentLocale, selectMonth = null) {
             const monthSelector = document.getElementById('month-selector');
+            if (!monthSelector) return;
             const months = getAvailableMonthsForYear(year, lang);
             if (!months.length) {
                 monthSelector.innerHTML = '<option value="-">—</option>';
@@ -1580,17 +1585,21 @@
 
         function syncCalendarSelectors() {
             const yearSelector = document.getElementById('year-selector');
+            const monthSelector = document.getElementById('month-selector');
+            if (!yearSelector || !monthSelector) return;
             const currentYear = currentDate.getFullYear();
             if (yearSelector.value !== String(currentYear)) {
                 yearSelector.value = String(currentYear);
                 populateMonthSelectorForYear(currentYear, currentLocale, currentDate.getMonth() + 1);
             } else {
-                document.getElementById('month-selector').value = `${currentYear}-${currentDate.getMonth() + 1}`;
+                monthSelector.value = `${currentYear}-${currentDate.getMonth() + 1}`;
             }
             refreshCustomSelects();
         }
 
         function renderCalendar(date, lang = currentLocale) {
+            const calendarEl = document.getElementById('calendar');
+            if (!calendarEl) return;
             const year = date.getFullYear(),
                   month = date.getMonth(),
                   firstDay = new Date(year, month, 1),
@@ -1619,7 +1628,7 @@
             }
             calendarHTML += '</table>';
 
-            document.getElementById('calendar').innerHTML = calendarHTML;
+            calendarEl.innerHTML = calendarHTML;
 
             const monthSteps = stepsData.filter(entry =>
                 localDateFromYMD(entry.date).getFullYear() === year &&
@@ -1721,7 +1730,7 @@
                 valueEl.textContent = selected ? selected.textContent.trim() : '—';
                 trigger.disabled = native.disabled || !options.length;
                 menu.innerHTML = `<div class="custom-select-header">${escapeHtml(title)}</div><div class="custom-select-grid">` +
-                    options.map(opt => `<button type="button" class="custom-select-option${opt.selected ? ' active' : ''}" data-value="${escapeHtml(opt.value)}" role="option" aria-selected="${opt.selected ? 'true' : 'false'}">${escapeHtml(opt.textContent.trim())}</button>`).join('') +
+                    options.map(opt => `<button type="button" class="custom-select-option${opt.selected ? ' active' : ''}" data-value="${escapeHtml(opt.value)}" role="option" aria-selected="${opt.selected ? 'true' : 'false'}">${opt.dataset.preview ? `<img src="${escapeHtml(opt.dataset.preview)}" alt="" loading="lazy" style="width:100%;height:64px;object-fit:cover;border-radius:6px;display:block;margin-bottom:6px">` : ''}${escapeHtml(opt.textContent.trim())}</button>`).join('') +
                     '</div>';
             };
             const placeMenu = () => {
@@ -3855,9 +3864,12 @@
             });
 
             // Handlers for info button
-            document.getElementById('info-button').addEventListener('click', () => {
-                openModal('info-modal');
-            });
+            const infoButton = document.getElementById('info-button');
+            if (infoButton) {
+                infoButton.addEventListener('click', () => {
+                    openModal('info-modal');
+                });
+            }
 
             // Handlers for view buttons
             document.querySelectorAll('.view-btn').forEach(btn => {
@@ -5437,14 +5449,35 @@
                     renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
                 });
             }
+            function historyDates() {
+                const periods = new Map();
+                stepsData.forEach(entry => {
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.date || '')) return;
+                    const date = localDateFromYMD(entry.date);
+                    if (currentView === 'year') date.setMonth(0, 1);
+                    else if (currentView === 'month') date.setDate(1);
+                    else date.setDate(date.getDate() - (date.getDay() + 6) % 7);
+                    periods.set(date.getTime(), date);
+                });
+                return [...periods.values()].sort((a, b) => a - b);
+            }
+            function syncHistoryScrubber() {
+                const input = document.getElementById('history-scrubber');
+                if (!input) return;
+                const dates = historyDates();
+                input.closest('.history-scrubber').style.display = dates.length > 1 ? '' : 'none';
+                input.max = Math.max(0, dates.length - 1);
+                let index = dates.findIndex(date => date > currentDate) - 1;
+                if (index < 0) index = dates[0] > currentDate ? 0 : dates.length - 1;
+                input.value = Math.max(0, index);
+            }
             const scrubber = document.getElementById('history-scrubber');
             if (scrubber) {
+                syncHistoryScrubber();
                 scrubber.addEventListener('input', () => {
-                    const years = [...new Set(stepsData.map(e => localDateFromYMD(e.date).getFullYear()))].sort((a, b) => a - b);
-                    if (!years.length) return;
-                    const idx = Math.round((Number(scrubber.value) / 100) * (years.length - 1));
-                    const year = years[Math.max(0, Math.min(years.length - 1, idx))];
-                    currentDate = new Date(year, currentDate.getMonth(), Math.min(currentDate.getDate(), 28));
+                    const dates = historyDates();
+                    if (!dates.length) return;
+                    currentDate = new Date(dates[Number(scrubber.value)]);
                     syncCalendarSelectors();
                     renderCalendar(currentDate, currentLocale);
                     renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
@@ -5452,7 +5485,7 @@
             }
 
             // Chart navigation
-            document.getElementById('chart-nav-left').addEventListener('click', () => {
+            document.getElementById('chart-nav-left')?.addEventListener('click', () => {
                 if (!canNavigateBackward()) return;
                 const prevYear = currentDate.getFullYear();
                 const prevMonth = currentDate.getMonth();
@@ -5471,7 +5504,7 @@
                 }
             });
 
-            document.getElementById('chart-nav-right').addEventListener('click', () => {
+            document.getElementById('chart-nav-right')?.addEventListener('click', () => {
                 if (!canNavigateForward()) return;
                 const prevYear = currentDate.getFullYear();
                 const prevMonth = currentDate.getMonth();
@@ -5491,7 +5524,7 @@
             });
 
             // Year selection
-            document.getElementById('year-selector').addEventListener('change', () => {
+            document.getElementById('year-selector')?.addEventListener('change', () => {
                 const year = parseInt(document.getElementById('year-selector').value);
                 currentDate.setFullYear(year);
                 populateMonthSelectorForYear(year, currentLocale);
@@ -5501,7 +5534,7 @@
             });
 
             // Month selection
-            document.getElementById('month-selector').addEventListener('change', () => {
+            document.getElementById('month-selector')?.addEventListener('change', () => {
                 const val = document.getElementById('month-selector').value;
                 if (val === '-') return;
                 const [year, month] = val.split('-');
@@ -5511,12 +5544,12 @@
             });
 
             // Settings button
-            document.getElementById('settings-button').addEventListener('click', () => {
+            document.getElementById('settings-button')?.addEventListener('click', () => {
                 openModal('settings-modal');
             });
 
             // Add steps button
-            document.getElementById('add-steps-button').addEventListener('click', () => {
+            document.getElementById('add-steps-button')?.addEventListener('click', () => {
                 const today = formatLocalYMD(new Date());
                 applyManualDate(today, currentLocale);
                 openModal('add-steps-modal');
@@ -5944,13 +5977,13 @@
             stepsInpEl.addEventListener('focus', function() { this.value = parseStepsRaw(this.value); });
             stepsInpEl.addEventListener('blur', function() { const t = this.value.replace(/\D/g, ''); this.value = t ? formatNumber(parseInt(t, 10) || 0) : ''; autoSaveManualSteps(); });
             stepsInpEl.addEventListener('keypress', e => { if (e.key === 'Enter') saveSteps(); });
-            document.getElementById('selected-date-input').addEventListener('change', function() { applyManualDate(this.value, currentLocale); });
+            document.getElementById('selected-date-input')?.addEventListener('change', function() { applyManualDate(this.value, currentLocale); });
 
             // Date scroll
-            document.getElementById('selected-date-input').addEventListener('wheel', handleDateWheelScroll);
+            document.getElementById('selected-date-input')?.addEventListener('wheel', handleDateWheelScroll);
 
             // Calendar click
-            document.getElementById('calendar').addEventListener('click', e => {
+            document.getElementById('calendar')?.addEventListener('click', e => {
                 const cell = e.target.closest('td[data-date]');
                 if (cell) openDayStepsEditor(cell.getAttribute('data-date'));
             });

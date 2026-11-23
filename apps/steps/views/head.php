@@ -4018,6 +4018,9 @@ body[data-theme="light"] .map-segment-clear {
     background: color-mix(in srgb, var(--primary-color) 12%, transparent);
 }
 .map-panel { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-color); }
+/* The area/date controls form one uninterrupted control block. */
+.map-tab-panel[data-tab-panel="layers"] > .map-panel:nth-child(1),
+.map-tab-panel[data-tab-panel="layers"] > .map-panel:nth-child(2) { border-top: none; }
 .map-panel-title { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-text); }
 .map-date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .map-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 11px; font-weight: 600; color: var(--muted-text); }
@@ -4572,6 +4575,7 @@ body.map-sidebar-open { overflow: hidden !important; }
     font-weight: 600;
     cursor: pointer;
 }
+.dp-day.has-data { background: color-mix(in srgb, var(--primary-color) 14%, transparent); }
 .dp-day:hover { background: color-mix(in srgb, var(--primary-color) 16%, transparent); }
 .dp-day.is-today { border-color: color-mix(in srgb, var(--primary-color) 55%, transparent); }
 .dp-day.is-selected { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
@@ -4619,7 +4623,7 @@ body.map-sidebar-open { overflow: hidden !important; }
 }
 .data-type-btn:hover .data-type-icon,
 .data-type-btn.active .data-type-icon { transform: scale(1.08); }
-.trip-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; padding-right: 2px; }
+.trip-list { display: flex; flex-direction: column; gap: 6px; overflow: auto; padding-right: 2px; }
 .trip-empty { padding: 6px 2px; font-size: 12px; color: var(--muted-text); }
 .trip-item {
     display: grid;
@@ -4698,13 +4702,29 @@ body.map-sidebar-open { overflow: hidden !important; }
 .trip-field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
     min-width: 0;
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--muted-text);
+}
+.trip-editor-content .md3-modal-body {
+    gap: 14px;
+}
+.trip-editor-content .trip-dates {
+    gap: 12px;
+    padding-top: 6px;
+}
+.trip-editor-content .md3-modal-body > .trip-field + .trip-field {
+    padding-top: 6px;
+}
+.trip-editor-content .md3-modal-body > .trip-field:nth-of-type(2) {
+    padding-top: 6px;
+}
+.trip-editor-content .trip-visible {
+    margin-top: 6px;
 }
 .trip-field input,
 .trip-field textarea {
@@ -4773,6 +4793,8 @@ body.map-sidebar-open { overflow: hidden !important; }
 .trip-btn:hover { color: var(--primary-color); border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color)); }
 .trip-btn-primary { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
 .trip-btn-primary:hover { color: #fff; filter: brightness(1.06); }
+.trip-btn-danger { background: var(--error-color, #ef4444); border-color: var(--error-color, #ef4444); color: #fff; }
+.trip-btn-danger:hover { color: #fff; filter: brightness(1.06); }
 
 select.custom-select-native,
 #settings-modal select:not(.custom-select-native), #share-location-modal select:not(.custom-select-native) {
@@ -5015,8 +5037,41 @@ iframe.render-preview-media { height: 60vh; }
         .picker-x { border: 0; background: transparent; color: inherit; font-size: 18px; cursor: pointer; }
         .picker-map { height: min(64vh, 560px); width: 100%; }
         .picker-tip { background: rgba(0,0,0,.7); border: 0; color: #fff; font-size: 11px; box-shadow: none; }
-        .dp-time { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; }
-        .dp-time input { width: 56px !important; height: 32px; text-align: center; padding: 0 !important; }
+        /* Consistent custom time controls for every date picker. */
+        .dp-time { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
+        .dp-time > span { color: var(--muted-text); font-size: 16px; font-weight: 800; line-height: 1; }
+        .dp-time input.dp-h,
+        .dp-time input.dp-i {
+            width: 58px !important;
+            height: 36px !important;
+            box-sizing: border-box;
+            padding: 0 6px !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 9px !important;
+            background: var(--surface-solid) !important;
+            color: var(--text-color) !important;
+            font: inherit;
+            font-size: 14px !important;
+            font-weight: 700;
+            line-height: 36px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            appearance: textfield;
+            -moz-appearance: textfield;
+            transition: border-color .15s, box-shadow .15s, background-color .15s;
+        }
+        .dp-time input.dp-h:hover,
+        .dp-time input.dp-i:hover { border-color: color-mix(in srgb, var(--primary-color) 55%, var(--border-color)) !important; }
+        .dp-time input.dp-h:focus,
+        .dp-time input.dp-i:focus {
+            outline: none;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+        }
+        .dp-time input.dp-h::-webkit-inner-spin-button,
+        .dp-time input.dp-h::-webkit-outer-spin-button,
+        .dp-time input.dp-i::-webkit-inner-spin-button,
+        .dp-time input.dp-i::-webkit-outer-spin-button { margin: 0; appearance: none; }
         .trip-item.is-focused { border-color: #f43f5e; background: color-mix(in srgb, #f43f5e 12%, transparent); }
         .trip-item:has(.trip-pick:checked):not(.is-focused) { border-color: #facc15; }        .speed-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 10px; font-size: 12px; opacity: .9; }
         .speed-legend[hidden] { display: none; }

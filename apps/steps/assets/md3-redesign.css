@@ -727,9 +727,34 @@ body.md3-steps,
 .app-steps.md3 .map-sidebar[data-tab="trips"] .map-tab-panel:not([data-tab-panel="trips"]) {
   display: none !important;
 }
+.app-steps.md3 .map-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.app-steps.md3 .map-sidebar[data-tab="trips"] .map-tab-panel[data-tab-panel="trips"] {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.app-steps.md3 .map-sidebar[data-tab="trips"] .map-tab-panel[data-tab-panel="trips"] > .map-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.app-steps.md3 .map-sidebar[data-tab="trips"] #ma-trips-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
 .app-steps.md3 .map-sidebar-foot {
   position: sticky;
   bottom: 0;
+  flex-shrink: 0;
   padding: 12px;
   background: linear-gradient(180deg, transparent, var(--md-surface) 28%);
   border-top: 1px solid var(--md-border-subtle);
