@@ -29,7 +29,11 @@
     <string name="nav_search">Поиск</string>
     <string name="this_period">Этот период</string>
     <string name="spent">Потрачено</string>
+    <string name="spent_month">Расходы за месяц</string>
     <string name="cash_in">Поступило</string>
+    <string name="cash_in_month">Доходы за месяц</string>
+    <string name="net_position_month">Капитал за месяц</string>
+    <string name="expense_mom_format">%+d%%</string>
     <string name="of_budget">%1$s из %2$s</string>
     <string name="activity">Активность</string>
     <string name="ledger_empty_title">Тихий журнал</string>

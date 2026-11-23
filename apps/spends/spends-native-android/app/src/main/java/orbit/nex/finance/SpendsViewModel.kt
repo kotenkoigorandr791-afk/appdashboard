@@ -32,6 +32,21 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import java.time.LocalDate
 
+private data class AuxSlice(
+    val busy: Boolean,
+    val message: String?,
+    val rates: Rates,
+    val backups: List<BackupFile>,
+    val localBackups: List<BackupFile>,
+)
+
+private data class UiFlags(
+    val sessionReady: Boolean,
+    val savedTick: Long,
+    val scan: ScanResult?,
+    val scanBusy: Boolean,
+)
+
 data class AppState(
     val session: Session = Session(),
     val snapshot: Snapshot = Snapshot(),
@@ -82,17 +97,38 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
     private val scanBusy = MutableStateFlow(false)
     private var auxRefreshAt = 0L
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; prettyPrint = false }
-    val state: StateFlow<AppState> = combine(store.session, store.snapshot, store.extras, loading, error) { session, snapshot, extras, busy, message ->
-        AppState(session = session, snapshot = snapshot.withOutbox(extras.outbox), extras = extras, loading = busy, error = message, rates = rates.value, backups = backups.value)
+    val homeExpenses: StateFlow<List<Expense>> = store.recentExpenses(500)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val ledgerState = combine(store.session, store.snapshot, store.extras) { session, snapshot, extras ->
+        Triple(session, snapshot.withOutbox(extras.outbox), extras)
     }
-        .combine(rates) { s, r -> s.copy(rates = r) }
-        .combine(backups) { s, b -> s.copy(backups = b) }
-        .combine(localBackups) { s, b -> s.copy(localBackups = b) }
-        .combine(sessionReady) { s, r -> s.copy(sessionReady = r) }
-        .combine(savedTick) { s, tick -> s.copy(savedTick = tick) }
-        .combine(scan) { s, r -> s.copy(scan = r) }
-        .combine(scanBusy) { s, b -> s.copy(scanBusy = b) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppState())
+
+    private val auxState = combine(loading, error, rates, backups, localBackups) { busy, message, r, b, lb ->
+        AuxSlice(busy, message, r, b, lb)
+    }
+
+    private val uiFlags = combine(sessionReady, savedTick, scan, scanBusy) { ready, tick, sc, scBusy ->
+        UiFlags(ready, tick, sc, scBusy)
+    }
+
+    val state: StateFlow<AppState> = combine(ledgerState, auxState, uiFlags) { ledger, aux, ui ->
+        val (session, snapshot, extras) = ledger
+        AppState(
+            session = session,
+            snapshot = snapshot,
+            extras = extras,
+            loading = aux.busy,
+            error = aux.message,
+            rates = aux.rates,
+            backups = aux.backups,
+            localBackups = aux.localBackups,
+            sessionReady = ui.sessionReady,
+            savedTick = ui.savedTick,
+            scan = ui.scan,
+            scanBusy = ui.scanBusy,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppState())
 
     init {
         localBackups.value = store.localBackups()

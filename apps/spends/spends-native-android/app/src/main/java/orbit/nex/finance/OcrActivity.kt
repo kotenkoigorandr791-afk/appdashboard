@@ -1,4 +1,5 @@
 package orbit.nex.finance
+import orbit.nex.finance.ui.AppIcons
 
 import android.content.Context
 import android.net.Uri
@@ -30,10 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -208,7 +205,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                     Box(
                         Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Outlined.ReceiptLong, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) }
+                    ) { Icon(AppIcons.ReceiptLong, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(stringResource(R.string.ocr_intro_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                         Text(
@@ -239,7 +236,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                                     .clip(CircleShape).background(Color.Black.copy(alpha = 0.55f))
                                     .clickable { files = files.toMutableList().also { it.removeAt(index) } },
                                 contentAlignment = Alignment.Center,
-                            ) { Icon(Icons.Outlined.Close, stringResource(R.string.ocr_remove), tint = Color.White, modifier = Modifier.size(14.dp)) }
+                            ) { Icon(AppIcons.Close, stringResource(R.string.ocr_remove), tint = Color.White, modifier = Modifier.size(14.dp)) }
                         }
                     }
                 }
@@ -290,8 +287,8 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                             ) {
                                 when {
                                     state == "queued" || state == "processing" -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                                    state == "done" -> Icon(Icons.Outlined.CheckCircle, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(22.dp))
-                                    else -> Icon(Icons.Outlined.ErrorOutline, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(22.dp))
+                                    state == "done" -> Icon(AppIcons.CheckCircle, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(22.dp))
+                                    else -> Icon(AppIcons.ErrorOutline, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(22.dp))
                                 }
                             }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

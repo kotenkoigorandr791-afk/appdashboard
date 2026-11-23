@@ -1,4 +1,6 @@
 package orbit.nex.finance.ui
+import orbit.nex.finance.ui.AppIcons
+import kotlin.math.roundToInt
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -33,44 +35,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Autorenew
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.WifiOff
-import androidx.compose.material.icons.outlined.Backup
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Category
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material.icons.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Sort
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Insights
-import androidx.compose.material.icons.outlined.Label
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.PieChart
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Smartphone
-import androidx.compose.material.icons.outlined.ShowChart
-import androidx.compose.material.icons.outlined.Storefront
-import androidx.compose.material.icons.outlined.TrendingDown
-import androidx.compose.material.icons.outlined.TrendingUp
-import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.Wallet
-import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -98,6 +62,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -172,11 +137,13 @@ fun PageHeading(res: Int) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(state: AppState, model: SpendsViewModel, onOpen: (Expense) -> Unit) {
-    val groups = remember(state.snapshot.expenses) { state.snapshot.expenses.sortedByDescending { it.date }.groupBy { it.date } }
+    val feed by model.homeExpenses.collectAsStateWithLifecycle()
+    val groups = rememberExpensesByDate(feed)
+    val storePhotos = rememberStorePhotoIndex(state.snapshot.stores)
     PullToRefreshBox(state.loading, model::refresh, Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { Spacer(Modifier.height(12.dp)); Greeting(); Spacer(Modifier.height(4.dp)); HeroCard(state) }
-            item { SectionLabel(Icons.Outlined.History, stringResource(R.string.activity)) }
+            item { SectionLabel(AppIcons.History, stringResource(R.string.activity)) }
             if (groups.isEmpty()) item { EmptyCard(stringResource(R.string.ledger_empty_title), stringResource(R.string.ledger_empty_body)) }
             groups.forEach { (date, rows) ->
                 item {
@@ -187,9 +154,13 @@ fun HomeScreen(state: AppState, model: SpendsViewModel, onOpen: (Expense) -> Uni
                         modifier = Modifier.padding(top = 8.dp, start = 4.dp),
                     )
                 }
-                items(rows, key = { "${it.date}-${it.store}-${it.amount}-${it.signature}" }) { row ->
+                items(
+                    rows,
+                    key = { "${it.date}-${it.store}-${it.amount}-${it.signature}" },
+                    contentType = { "expense" },
+                ) { row ->
                     Box(Modifier.animateItem()) {
-                        ExpenseRow(row, state.snapshot.currency, state.snapshot.stores.firstOrNull { it.name == row.store }?.photoUrl.orEmpty()) { onOpen(row) }
+                        ExpenseRow(row, state.snapshot.currency, storePhotos[row.store].orEmpty()) { onOpen(row) }
                     }
                 }
             }
@@ -210,18 +181,16 @@ fun Greeting() {
 
 @Composable
 fun HeroCard(state: AppState) {
-    // Capital is cumulative; the in/out tiles and the budget are for the current month only.
-    val allSpent = state.snapshot.expenses.sumOf { it.amount }
-    val allEarned = state.snapshot.incomes.sumOf { it.amount }
-    val net = allEarned - allSpent
-    val month = LocalDate.now().toString().take(7)
-    val spent = state.snapshot.expenses.filter { it.date.startsWith(month) }.sumOf { it.amount }
-    val earned = state.snapshot.incomes.filter { it.date.startsWith(month) }.sumOf { it.amount }
+    val hero = rememberHeroTotals(state.snapshot.expenses, state.snapshot.incomes)
+    val net = hero.net
+    val spent = hero.monthSpent
+    val earned = hero.monthEarned
+    val mom = hero.expenseMomPercent
     val budget = state.snapshot.budget
     val ink = MaterialTheme.colorScheme.onPrimary
     Box(Modifier.fillMaxWidth().background(heroBrush(), RoundedCornerShape(28.dp)).padding(22.dp)) {
         Column {
-            Text(stringResource(R.string.net_position), color = ink.copy(alpha = 0.75f), style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.net_position_month), color = ink.copy(alpha = 0.75f), style = MaterialTheme.typography.labelLarge)
             Text(money(net, state.snapshot.currency), color = ink, style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -229,14 +198,17 @@ fun HeroCard(state: AppState) {
                     Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
                         .background(HeroExpense).padding(12.dp),
                 ) {
-                    Text(stringResource(R.string.spent), color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
-                    Text(money(spent, state.snapshot.currency), color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.spent_month), color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(money(spent, state.snapshot.currency), color = Color.White, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f, fill = false))
+                        if (mom != null) ExpenseMomChip(mom)
+                    }
                 }
                 Column(
                     Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
                         .background(HeroIncome).padding(12.dp),
                 ) {
-                    Text(stringResource(R.string.cash_in), color = Color.White.copy(alpha = 0.88f), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.cash_in_month), color = Color.White.copy(alpha = 0.88f), style = MaterialTheme.typography.labelLarge)
                     Text(money(earned, state.snapshot.currency), color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
@@ -267,6 +239,27 @@ fun HeroCard(state: AppState) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ExpenseMomChip(percent: Double) {
+    val rounded = percent.roundToInt()
+    val up = rounded > 0
+    val down = rounded < 0
+    val bg = when {
+        up -> Color(0xFF7F1D1D).copy(alpha = 0.45f)
+        down -> Color(0xFF14532D).copy(alpha = 0.55f)
+        else -> Color.White.copy(alpha = 0.18f)
+    }
+    Surface(color = bg, shape = RoundedCornerShape(99.dp)) {
+        Text(
+            stringResource(R.string.expense_mom_format, rounded),
+            Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+        )
     }
 }
 
@@ -306,22 +299,27 @@ fun EmptyCard(title: String, body: String) = Card(shape = RoundedCornerShape(24.
 fun StatsHub(state: AppState, go: (Dest) -> Unit) {
     var heatmap by remember { mutableStateOf(false) }
     var ratesOpen by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text(stringResource(R.string.statistics), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        YearExpenseChart(state)
-        SectionLabel(Icons.Outlined.PieChart, stringResource(R.string.section_breakdown))
-        CategoryBars(state)
-        SectionLabel(Icons.Outlined.CalendarMonth, stringResource(R.string.section_calendar))
-        ActionCard(Icons.Outlined.CalendarMonth, stringResource(R.string.calendar), stringResource(R.string.calendar_sub)) { heatmap = true }
-        SectionLabel(Icons.Outlined.Insights, stringResource(R.string.section_more))
-        NavRow(stringResource(R.string.cash_flow), stringResource(R.string.cash_flow_sub), Icons.Outlined.ShowChart, Dest.CashFlow, go)
-        NavRow(stringResource(R.string.categories), stringResource(R.string.categories_sub), Icons.Outlined.Category, Dest.Categories, go)
-        NavRow(stringResource(R.string.insights), stringResource(R.string.insights_sub), Icons.Outlined.Insights, Dest.Insights, go)
-        NavRow(stringResource(R.string.net_position), stringResource(R.string.net_position_sub), Icons.Outlined.TrendingUp, Dest.NetWorth, go)
-        NavRow(stringResource(R.string.year_in_review), stringResource(R.string.year_in_review_sub), Icons.Outlined.WorkspacePremium, Dest.Wrapped, go)
-        SectionLabel(Icons.Outlined.ShowChart, stringResource(R.string.section_rates, state.rates.base.ifBlank { state.snapshot.currency }))
-        ActionCard(Icons.Outlined.ShowChart, stringResource(R.string.rates_title), stringResource(R.string.rates_open)) { ratesOpen = true }
-        Spacer(Modifier.height(24.dp))
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp, top = 4.dp),
+    ) {
+        item { Text(stringResource(R.string.statistics), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground) }
+        item { YearExpenseChart(state) }
+        item { SectionLabel(AppIcons.PieChart, stringResource(R.string.section_breakdown)) }
+        item { CategoryBars(state) }
+        item { SectionLabel(AppIcons.CalendarMonth, stringResource(R.string.section_calendar)) }
+        item { ActionCard(AppIcons.CalendarMonth, stringResource(R.string.calendar), stringResource(R.string.calendar_sub)) { heatmap = true } }
+        item { SectionLabel(AppIcons.Insights, stringResource(R.string.section_more)) }
+        item { NavRow(stringResource(R.string.cash_flow), stringResource(R.string.cash_flow_sub), AppIcons.ShowChart, Dest.CashFlow, go) }
+        item { NavRow(stringResource(R.string.categories), stringResource(R.string.categories_sub), AppIcons.Category, Dest.Categories, go) }
+        item { NavRow(stringResource(R.string.insights), stringResource(R.string.insights_sub), AppIcons.Insights, Dest.Insights, go) }
+        item { NavRow(stringResource(R.string.net_position), stringResource(R.string.net_position_sub), AppIcons.TrendingUp, Dest.NetWorth, go) }
+        item { NavRow(stringResource(R.string.year_in_review), stringResource(R.string.year_in_review_sub), AppIcons.WorkspacePremium, Dest.Wrapped, go) }
+        item {
+            SectionLabel(AppIcons.ShowChart, stringResource(R.string.section_rates, state.rates.base.ifBlank { state.snapshot.currency }))
+        }
+        item { ActionCard(AppIcons.ShowChart, stringResource(R.string.rates_title), stringResource(R.string.rates_open)) { ratesOpen = true } }
     }
     if (heatmap) HeatmapModal(state) { heatmap = false }
     if (ratesOpen) RatesDialog(state) { ratesOpen = false }
@@ -359,7 +357,7 @@ fun ActionCard(icon: ImageVector, title: String, subtitle: String, onClick: () -
                 Text(title, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(AppIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -375,7 +373,7 @@ fun HeatmapModal(state: AppState, onDismiss: () -> Unit) {
         Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.CalendarMonth, null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(AppIcons.CalendarMonth, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.heatmap_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
                 }
@@ -460,7 +458,7 @@ fun AppDatePickerDialog(
                 )
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     IconButton({ month = month.minusMonths(1) }) {
-                        Icon(Icons.Outlined.ChevronRight, stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(180f))
+                        Icon(AppIcons.ChevronRight, stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(180f))
                     }
                     Text(
                         monthLabel.replaceFirstChar { it.titlecase(Locale.getDefault()) },
@@ -470,7 +468,7 @@ fun AppDatePickerDialog(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     IconButton({ month = month.plusMonths(1) }) {
-                        Icon(Icons.Outlined.ChevronRight, stringResource(R.string.next_month), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(AppIcons.ChevronRight, stringResource(R.string.next_month), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Row(Modifier.fillMaxWidth()) {
@@ -581,7 +579,7 @@ fun CategoriesScreen(state: AppState) {
             EmptyCard(stringResource(R.string.no_category_spend), stringResource(R.string.ledger_empty_body))
             return@Column
         }
-        SectionLabel(Icons.Outlined.PieChart, stringResource(R.string.categories_top))
+        SectionLabel(AppIcons.PieChart, stringResource(R.string.categories_top))
         Card(Modifier.fillMaxWidth(), RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(0.dp)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 rows.take(6).forEachIndexed { index, row ->
@@ -603,7 +601,7 @@ fun CategoriesScreen(state: AppState) {
                 }
             }
         }
-        SectionLabel(Icons.Outlined.Category, stringResource(R.string.categories))
+        SectionLabel(AppIcons.Category, stringResource(R.string.categories))
         rows.forEachIndexed { index, row ->
             CategoryCard(row, total, state.snapshot.currency, CategoryPalette[index % CategoryPalette.size])
         }
@@ -763,7 +761,7 @@ fun NetWorthScreen(state: AppState) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton({ month = month.minusMonths(1) }) {
-                    Icon(Icons.Outlined.ChevronRight, stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(180f))
+                    Icon(AppIcons.ChevronRight, stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(180f))
                 }
                 Text(
                     monthLabel,
@@ -773,7 +771,7 @@ fun NetWorthScreen(state: AppState) {
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 IconButton({ month = month.plusMonths(1) }, enabled = month < thisMonth) {
-                    Icon(Icons.Outlined.ChevronRight, stringResource(R.string.next_month), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(AppIcons.ChevronRight, stringResource(R.string.next_month), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -855,8 +853,6 @@ fun TableCard(title: String, rows: List<Pair<String, String>>) {
     }
 }
 
-private enum class StoreSort { DEFAULT, NAME_ASC, NAME_DESC, SPEND_DESC, SPEND_ASC }
-
 @Composable
 private fun storeSortLabel(sort: StoreSort): String = stringResource(
     when (sort) {
@@ -875,19 +871,8 @@ fun StoresScreen(state: AppState, model: SpendsViewModel, onStore: (Store) -> Un
     var query by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf(StoreSort.DEFAULT) }
     var sortOpen by remember { mutableStateOf(false) }
-    val totals = remember(state.snapshot.expenses) {
-        state.snapshot.expenses.groupBy { it.store }.mapValues { entry -> entry.value.sumOf { it.amount } }
-    }
-    val stores = remember(state.snapshot.stores, query, sort, totals) {
-        val filtered = state.snapshot.stores.filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) }
-        when (sort) {
-            StoreSort.DEFAULT -> filtered
-            StoreSort.NAME_ASC -> filtered.sortedBy { it.name.lowercase() }
-            StoreSort.NAME_DESC -> filtered.sortedByDescending { it.name.lowercase() }
-            StoreSort.SPEND_DESC -> filtered.sortedByDescending { totals[it.name] ?: 0.0 }
-            StoreSort.SPEND_ASC -> filtered.sortedBy { totals[it.name] ?: 0.0 }
-        }
-    }
+    val totals = rememberStoreSpendTotals(state.snapshot.expenses)
+    val stores = rememberSortedStores(state.snapshot.stores, query, sort, totals)
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp),
@@ -899,12 +884,12 @@ fun StoresScreen(state: AppState, model: SpendsViewModel, onStore: (Store) -> Un
                 { query = it },
                 Modifier.weight(1f),
                 placeholder = { Text(stringResource(R.string.search_hint)) },
-                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                leadingIcon = { Icon(AppIcons.Search, null) },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
             )
             IconButton({ sortOpen = true }) {
-                Icon(Icons.Outlined.Sort, stringResource(R.string.sort), tint = MaterialTheme.colorScheme.primary)
+                Icon(AppIcons.Sort, stringResource(R.string.sort), tint = MaterialTheme.colorScheme.primary)
             }
         }
         Box(Modifier.fillMaxSize()) {
@@ -943,7 +928,7 @@ fun StoresScreen(state: AppState, model: SpendsViewModel, onStore: (Store) -> Un
                 shape = RoundedCornerShape(18.dp),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) { Icon(Icons.Outlined.Add, stringResource(R.string.add_store)) }
+            ) { Icon(AppIcons.Add, stringResource(R.string.add_store)) }
         }
     }
     if (add) {
@@ -966,7 +951,7 @@ fun StoresScreen(state: AppState, model: SpendsViewModel, onStore: (Store) -> Un
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(storeSortLabel(option), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
-                            if (option == sort) Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            if (option == sort) Icon(AppIcons.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -1013,7 +998,7 @@ private fun AddStoreSheet(state: AppState, onDismiss: () -> Unit, onSave: (Strin
                         Text(stringResource(R.string.category), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(categoryLabel(category), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     }
-                    Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(AppIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Card(
@@ -1032,7 +1017,7 @@ private fun AddStoreSheet(state: AppState, onDismiss: () -> Unit, onSave: (Strin
                                     contentScale = ContentScale.Crop,
                                 )
                             } else {
-                                Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(AppIcons.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         Column(Modifier.weight(1f)) {
@@ -1226,7 +1211,7 @@ private fun ProfileCard(state: AppState) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(AppIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
     if (open) {
@@ -1258,7 +1243,12 @@ private fun ProfileCard(state: AppState) {
 
 @Composable
 fun SettingsHub(state: AppState, go: (Dest) -> Unit, logout: () -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp, top = 4.dp),
+    ) {
+        item {
         Card(Modifier.fillMaxWidth(), RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.primaryContainer)) {
             Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Image(
@@ -1272,6 +1262,8 @@ fun SettingsHub(state: AppState, go: (Dest) -> Unit, logout: () -> Unit) {
                 }
             }
         }
+        }
+        item {
         Card(
             modifier = Modifier.fillMaxWidth().clickable { go(Dest.Updates) },
             shape = RoundedCornerShape(20.dp),
@@ -1282,41 +1274,44 @@ fun SettingsHub(state: AppState, go: (Dest) -> Unit, logout: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Icon(Icons.Outlined.Autorenew, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+                Icon(AppIcons.Autorenew, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(stringResource(R.string.update_settings_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Text(stringResource(R.string.update_settings_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(AppIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        ProfileCard(state)
-        SectionLabel(Icons.Outlined.Insights, stringResource(R.string.overview))
-        NavRow(stringResource(R.string.notifications_title), stringResource(R.string.notifications_sub), Icons.Outlined.Notifications, Dest.Pending, go)
-        NavRow(stringResource(R.string.insights), stringResource(R.string.insights_sub), Icons.Outlined.Insights, Dest.Insights, go)
-        NavRow(stringResource(R.string.stores_title), stringResource(R.string.categories_sub), Icons.Outlined.Storefront, Dest.Stores, go)
-        SectionLabel(Icons.Outlined.Flag, stringResource(R.string.planning))
-        NavRow(stringResource(R.string.goals), stringResource(R.string.goals_sub), Icons.Outlined.Flag, Dest.Goals, go)
-        NavRow(stringResource(R.string.subscriptions_title), stringResource(R.string.subscriptions_sub), Icons.Outlined.Autorenew, Dest.Subscriptions, go)
-        NavRow(stringResource(R.string.pending), stringResource(R.string.pending_sub), Icons.Outlined.History, Dest.Pending, go)
-        SectionLabel(Icons.Outlined.Category, stringResource(R.string.organization))
-        NavRow(stringResource(R.string.categories), stringResource(R.string.categories_sub), Icons.Outlined.Category, Dest.Categories, go)
-        NavRow(stringResource(R.string.tags), stringResource(R.string.tags_sub), Icons.Outlined.Label, Dest.Tags, go)
-        NavRow(stringResource(R.string.trash), stringResource(R.string.trash_sub), Icons.Outlined.Delete, Dest.Trash, go)
-        SectionLabel(Icons.Outlined.Tune, stringResource(R.string.system))
-        NavRow(stringResource(R.string.server_sync), stringResource(R.string.server_sync_sub), Icons.Outlined.Cloud, Dest.Sync, go)
-        NavRow(stringResource(R.string.appearance), stringResource(R.string.appearance_sub), Icons.Outlined.Palette, Dest.Appearance, go)
-        NavRow(stringResource(R.string.preferences), stringResource(R.string.preferences_sub), Icons.Outlined.Tune, Dest.Prefs, go)
-        NavRow(stringResource(R.string.data_management), stringResource(R.string.data_management_sub), Icons.Outlined.Backup, Dest.Data, go)
-        NavRow(stringResource(R.string.about), stringResource(R.string.about_sub), Icons.Outlined.Info, Dest.About, go)
-        Spacer(Modifier.height(8.dp))
+        }
+        item { Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground) }
+        item { ProfileCard(state) }
+        item { SectionLabel(AppIcons.Insights, stringResource(R.string.overview)) }
+        item { NavRow(stringResource(R.string.notifications_title), stringResource(R.string.notifications_sub), AppIcons.Notifications, Dest.Pending, go) }
+        item { NavRow(stringResource(R.string.insights), stringResource(R.string.insights_sub), AppIcons.Insights, Dest.Insights, go) }
+        item { NavRow(stringResource(R.string.stores_title), stringResource(R.string.categories_sub), AppIcons.Storefront, Dest.Stores, go) }
+        item { SectionLabel(AppIcons.Flag, stringResource(R.string.planning)) }
+        item { NavRow(stringResource(R.string.goals), stringResource(R.string.goals_sub), AppIcons.Flag, Dest.Goals, go) }
+        item { NavRow(stringResource(R.string.subscriptions_title), stringResource(R.string.subscriptions_sub), AppIcons.Autorenew, Dest.Subscriptions, go) }
+        item { NavRow(stringResource(R.string.pending), stringResource(R.string.pending_sub), AppIcons.History, Dest.Pending, go) }
+        item { SectionLabel(AppIcons.Category, stringResource(R.string.organization)) }
+        item { NavRow(stringResource(R.string.categories), stringResource(R.string.categories_sub), AppIcons.Category, Dest.Categories, go) }
+        item { NavRow(stringResource(R.string.tags), stringResource(R.string.tags_sub), AppIcons.Label, Dest.Tags, go) }
+        item { NavRow(stringResource(R.string.trash), stringResource(R.string.trash_sub), AppIcons.Delete, Dest.Trash, go) }
+        item { SectionLabel(AppIcons.Tune, stringResource(R.string.system)) }
+        item { NavRow(stringResource(R.string.server_sync), stringResource(R.string.server_sync_sub), AppIcons.Cloud, Dest.Sync, go) }
+        item { NavRow(stringResource(R.string.appearance), stringResource(R.string.appearance_sub), AppIcons.Palette, Dest.Appearance, go) }
+        item { NavRow(stringResource(R.string.preferences), stringResource(R.string.preferences_sub), AppIcons.Tune, Dest.Prefs, go) }
+        item { NavRow(stringResource(R.string.data_management), stringResource(R.string.data_management_sub), AppIcons.Backup, Dest.Data, go) }
+        item { NavRow(stringResource(R.string.about), stringResource(R.string.about_sub), AppIcons.Info, Dest.About, go) }
+        item {
         Button(
             logout,
             Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.onError),
         ) { Text(stringResource(R.string.disconnect)) }
+        }
+        item {
         Text(
             stringResource(R.string.footer_made, BuildConfig.VERSION_NAME),
             style = MaterialTheme.typography.bodySmall,
@@ -1324,6 +1319,7 @@ fun SettingsHub(state: AppState, go: (Dest) -> Unit, logout: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
+        }
     }
 }
 
@@ -1339,7 +1335,7 @@ fun AboutScreen(state: AppState) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Wallet, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Icon(AppIcons.Wallet, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -1546,7 +1542,7 @@ fun GoalsScreen(state: AppState, model: SpendsViewModel) {
             ) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(storeName.ifBlank { stringResource(R.string.choose_store) }, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                    Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(AppIcons.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -1560,7 +1556,7 @@ fun GoalsScreen(state: AppState, model: SpendsViewModel) {
                     Text(stringResource(R.string.goal_period), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(longDateLabel(targetDate), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
-                Icon(Icons.Outlined.CalendarMonth, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(AppIcons.CalendarMonth, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Button(
@@ -1683,10 +1679,10 @@ fun TagsScreen(state: AppState, model: SpendsViewModel) {
                     }
                     // Icon actions keep the row on one line even on narrow screens.
                     IconButton({ tagBeingAssigned = t }) {
-                        Icon(Icons.Outlined.Label, stringResource(R.string.tags_assign), tint = MaterialTheme.colorScheme.primary)
+                        Icon(AppIcons.Label, stringResource(R.string.tags_assign), tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton({ model.deleteTag(t.id) }) {
-                        Icon(Icons.Outlined.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error)
+                        Icon(AppIcons.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -1740,7 +1736,7 @@ fun PaymentPickerDialog(state: AppState, title: String, onDismiss: () -> Unit, o
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                    IconButton({ filtersOpen = !filtersOpen }) { Icon(Icons.Outlined.Tune, stringResource(R.string.tags_filters)) }
+                    IconButton({ filtersOpen = !filtersOpen }) { Icon(AppIcons.Tune, stringResource(R.string.tags_filters)) }
                 }
                 if (filtersOpen) {
                     OutlinedTextField(
@@ -1794,7 +1790,7 @@ fun ExpenseTagsSection(state: AppState, expense: Expense, model: SpendsViewModel
     Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Label, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                Icon(AppIcons.Label, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.tags_title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
                 TextButton({ open = true }) { Text(stringResource(R.string.tags_assign)) }
@@ -1864,7 +1860,7 @@ fun PaymentTagDialog(state: AppState, expense: Expense, model: SpendsViewModel, 
                     ) {
                         Box(Modifier.size(10.dp).clip(CircleShape).background(tagColor(tag.color)))
                         Text(tag.name, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
-                        if (checked) Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        if (checked) Icon(AppIcons.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     }
                 }
                 Button(onDismiss, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.ok)) }
@@ -1895,7 +1891,7 @@ fun SubscriptionsScreen(state: AppState, model: SpendsViewModel) {
         PageHeading(R.string.subscriptions_title)
         Text(stringResource(R.string.subscriptions_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Button({ adding = !adding }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-            Icon(Icons.Outlined.Add, null, modifier = Modifier.size(18.dp))
+            Icon(AppIcons.Add, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.subscriptions_new))
         }
@@ -1909,7 +1905,7 @@ fun SubscriptionsScreen(state: AppState, model: SpendsViewModel) {
                     ) {
                         Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text(store.ifBlank { stringResource(R.string.choose_store) }, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(AppIcons.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     OutlinedTextField(amount, { amount = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.amount_label)) }, shape = RoundedCornerShape(14.dp), singleLine = true)
@@ -2036,7 +2032,7 @@ private fun NotificationAccessCard(state: AppState, model: SpendsViewModel) {
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Notifications, null, tint = MaterialTheme.colorScheme.primary)
+                Icon(AppIcons.Notifications, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.notifications_title), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
@@ -2118,7 +2114,7 @@ fun PrefsScreen(state: AppState, model: SpendsViewModel) {
                     Text(stringResource(R.string.currency), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(currency.ifBlank { "—" }, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
-                Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(AppIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         SwitchRow(stringResource(R.string.show_incomes), incomes) { incomes = it }
@@ -2149,7 +2145,7 @@ fun PrefsScreen(state: AppState, model: SpendsViewModel) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(code, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                                if (active) Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                if (active) Icon(AppIcons.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -2177,7 +2173,7 @@ fun DataScreen(state: AppState, model: SpendsViewModel) {
         PageHeading(R.string.data_title)
         OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.backup_name)) }, shape = RoundedCornerShape(16.dp))
         Button({ model.saveBackup(name) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-            Icon(Icons.Outlined.Backup, null)
+            Icon(AppIcons.Backup, null)
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.save_backup))
         }
@@ -2207,7 +2203,7 @@ private fun BackupCard(entry: BackupEntry, onClick: () -> Unit) {
         Box(Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Backup, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Icon(AppIcons.Backup, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
                 Column(Modifier.weight(1f)) {
                     Text(entry.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
@@ -2221,9 +2217,9 @@ private fun BackupCard(entry: BackupEntry, onClick: () -> Unit) {
             // Storage badge in the top-right corner: local, server or both.
             Icon(
                 imageVector = when {
-                    entry.local && entry.server -> Icons.Filled.CloudDone
-                    entry.server -> Icons.Outlined.Cloud
-                    else -> Icons.Outlined.Smartphone
+                    entry.local && entry.server -> AppIcons.CloudDone
+                    entry.server -> AppIcons.Cloud
+                    else -> AppIcons.Smartphone
                 },
                 contentDescription = stringResource(
                     when {
@@ -2250,7 +2246,7 @@ private fun BackupDetailsDialog(entry: BackupEntry, onRestore: () -> Unit, onDel
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Backup, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Icon(AppIcons.Backup, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.backup_details), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -2336,7 +2332,7 @@ private fun LastSyncCard(timestamp: Long) {
             ) {
                 IconButton({ detailed = !detailed }) {
                     Icon(
-                        Icons.Outlined.Schedule,
+                        AppIcons.Schedule,
                         contentDescription = stringResource(R.string.last_sync_title),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
@@ -2415,7 +2411,7 @@ fun TransactionSheet(
                 ) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(merchant.ifBlank { stringResource(R.string.choose_store) }, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                        Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(AppIcons.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -2434,15 +2430,8 @@ fun TransactionSheet(
 @Composable
 fun SearchSheet(state: AppState, onDismiss: () -> Unit, onOpen: (Expense) -> Unit) {
     var query by remember { mutableStateOf("") }
-    val results = remember(query, state.snapshot.expenses) {
-        val needle = query.trim()
-        if (needle.isBlank()) emptyList()
-        else state.snapshot.expenses.filter { expense ->
-            expense.store.contains(needle, ignoreCase = true) ||
-                expense.date.contains(needle) ||
-                expense.amount.toString().contains(needle)
-        }.sortedByDescending { it.date }.take(60)
-    }
+    val results = rememberExpenseSearchResults(query, state.snapshot.expenses)
+    val storePhotos = rememberStorePhotoIndex(state.snapshot.stores)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.search_title), style = MaterialTheme.typography.headlineMedium)
@@ -2450,7 +2439,7 @@ fun SearchSheet(state: AppState, onDismiss: () -> Unit, onOpen: (Expense) -> Uni
                 query,
                 { query = it },
                 Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                leadingIcon = { Icon(AppIcons.Search, null) },
                 placeholder = { Text(stringResource(R.string.search_hint)) },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -2459,8 +2448,8 @@ fun SearchSheet(state: AppState, onDismiss: () -> Unit, onOpen: (Expense) -> Uni
                 Text(stringResource(R.string.search_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             LazyColumn(Modifier.fillMaxWidth().height(360.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(results, key = { "${it.date}-${it.store}-${it.amount}-${it.signature}" }) { expense ->
-                    ExpenseRow(expense, state.snapshot.currency, state.snapshot.stores.firstOrNull { it.name == expense.store }?.photoUrl.orEmpty()) {
+                items(results, key = { "${it.date}-${it.store}-${it.amount}-${it.signature}" }, contentType = { "expense" }) { expense ->
+                    ExpenseRow(expense, state.snapshot.currency, storePhotos[expense.store].orEmpty()) {
                         onOpen(expense)
                     }
                 }
@@ -2500,7 +2489,7 @@ fun DetailScreen(
                 textAlign = TextAlign.End,
             )
             if (onEdit != null) {
-                IconButton(onEdit) { Icon(Icons.Outlined.Edit, stringResource(R.string.edit), tint = MaterialTheme.colorScheme.primary) }
+                IconButton(onEdit) { Icon(AppIcons.Edit, stringResource(R.string.edit), tint = MaterialTheme.colorScheme.primary) }
             }
         }
         // Content headings would repeat the toolbar title, so screens hide theirs here.
@@ -2524,7 +2513,7 @@ private fun DateSelectorField(value: String, onValueChange: (String) -> Unit) {
         singleLine = true,
         readOnly = true,
         trailingIcon = {
-            IconButton({ open = true }) { Icon(Icons.Outlined.CalendarMonth, stringResource(R.string.date_label)) }
+            IconButton({ open = true }) { Icon(AppIcons.CalendarMonth, stringResource(R.string.date_label)) }
         },
     )
     if (open) {
@@ -2543,9 +2532,9 @@ private fun DateSelectorField(value: String, onValueChange: (String) -> Unit) {
 @Composable
 fun SpeedDial(onPick: (String) -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        MiniFab(stringResource(R.string.new_income), Icons.Outlined.TrendingUp, SpendsColors.income()) { onPick("income") }
-        MiniFab(stringResource(R.string.new_expense), Icons.Outlined.TrendingDown, SpendsColors.expense()) { onPick("expense") }
-        MiniFab("OCR", Icons.Outlined.CameraAlt, MaterialTheme.colorScheme.primary) { onPick("ocr") }
+        MiniFab(stringResource(R.string.new_income), AppIcons.TrendingUp, SpendsColors.income()) { onPick("income") }
+        MiniFab(stringResource(R.string.new_expense), AppIcons.TrendingDown, SpendsColors.expense()) { onPick("expense") }
+        MiniFab("OCR", AppIcons.CameraAlt, MaterialTheme.colorScheme.primary) { onPick("ocr") }
     }
 }
 
@@ -2603,8 +2592,8 @@ fun SpendsNavBar(tab: Int, onTab: (Int) -> Unit, onAdd: () -> Unit) {
             Modifier.fillMaxWidth().navigationBarsPadding().height(80.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            NavSlot(stringResource(R.string.nav_home), Icons.Outlined.Wallet, tab == 0, Modifier.weight(1f)) { onTab(0) }
-            NavSlot(stringResource(R.string.nav_stats), Icons.Outlined.Insights, tab == 1, Modifier.weight(1f)) { onTab(1) }
+            NavSlot(stringResource(R.string.nav_home), AppIcons.Wallet, tab == 0, Modifier.weight(1f)) { onTab(0) }
+            NavSlot(stringResource(R.string.nav_stats), AppIcons.Insights, tab == 1, Modifier.weight(1f)) { onTab(1) }
             Box(Modifier.weight(1.05f), contentAlignment = Alignment.Center) {
                 // Square, floating add button that breaks out of the bar.
                 Box(
@@ -2616,11 +2605,11 @@ fun SpendsNavBar(tab: Int, onTab: (Int) -> Unit, onAdd: () -> Unit) {
                         .clickable(onClick = onAdd),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Outlined.Add, stringResource(R.string.nav_add), tint = MaterialTheme.colorScheme.onPrimary)
+                    Icon(AppIcons.Add, stringResource(R.string.nav_add), tint = MaterialTheme.colorScheme.onPrimary)
                 }
             }
-            NavSlot(stringResource(R.string.nav_stores), Icons.Outlined.Storefront, tab == 3, Modifier.weight(1f)) { onTab(3) }
-            NavSlot(stringResource(R.string.nav_settings), Icons.Outlined.Settings, tab == 2, Modifier.weight(1f)) { onTab(2) }
+            NavSlot(stringResource(R.string.nav_stores), AppIcons.Storefront, tab == 3, Modifier.weight(1f)) { onTab(3) }
+            NavSlot(stringResource(R.string.nav_settings), AppIcons.Settings, tab == 2, Modifier.weight(1f)) { onTab(2) }
         }
     }
 }
@@ -2634,7 +2623,7 @@ fun SavedToast(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Outlined.CheckCircle, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+            Icon(AppIcons.CheckCircle, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
             Text(stringResource(R.string.saved_changes), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.SemiBold)
         }
     }
@@ -2672,7 +2661,7 @@ fun EditExpenseDialog(state: AppState, expense: Expense, model: SpendsViewModel,
                 ) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(store.ifBlank { stringResource(R.string.choose_store) }, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                        Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(AppIcons.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 OutlinedTextField(
@@ -2707,9 +2696,9 @@ fun AddActionSheet(onDismiss: () -> Unit, onPick: (String) -> Unit) {
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stringResource(R.string.add_action_title), style = MaterialTheme.typography.headlineMedium)
-            AddActionRow(Icons.Outlined.TrendingDown, stringResource(R.string.new_expense), stringResource(R.string.amount_label), SpendsColors.expense()) { onPick("expense") }
-            AddActionRow(Icons.Outlined.TrendingUp, stringResource(R.string.new_income), stringResource(R.string.incomes), SpendsColors.income()) { onPick("income") }
-            AddActionRow(Icons.Outlined.CameraAlt, stringResource(R.string.add_receipt), "OCR", MaterialTheme.colorScheme.primary) { onPick("ocr") }
+            AddActionRow(AppIcons.TrendingDown, stringResource(R.string.new_expense), stringResource(R.string.amount_label), SpendsColors.expense()) { onPick("expense") }
+            AddActionRow(AppIcons.TrendingUp, stringResource(R.string.new_income), stringResource(R.string.incomes), SpendsColors.income()) { onPick("income") }
+            AddActionRow(AppIcons.CameraAlt, stringResource(R.string.add_receipt), "OCR", MaterialTheme.colorScheme.primary) { onPick("ocr") }
         }
     }
 }
@@ -2729,7 +2718,7 @@ private fun AddActionRow(icon: ImageVector, title: String, subtitle: String, col
                 Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(AppIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -2782,7 +2771,7 @@ fun ErrorToast(message: String?, dismiss: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Icon(
-                    if (network) Icons.Filled.WifiOff else Icons.Outlined.Info,
+                    if (network) AppIcons.WifiOff else AppIcons.Info,
                     contentDescription = null,
                     modifier = Modifier.size(22.dp),
                     tint = if (network) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2801,7 +2790,7 @@ fun ErrorToast(message: String?, dismiss: () -> Unit) {
                     )
                 }
                 IconButton(dismiss) {
-                    Icon(Icons.Outlined.Close, stringResource(R.string.ok), modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(AppIcons.Close, stringResource(R.string.ok), modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -2880,12 +2869,12 @@ private fun SourceBadgeCard(raw: String) {
 }
 
 private fun sourceIcon(raw: String): ImageVector = when (raw.trim().lowercase(Locale.ROOT)) {
-    "ocr" -> Icons.Outlined.ReceiptLong
-    "notification" -> Icons.Outlined.Notifications
-    "wallet" -> Icons.Outlined.Notifications
-    "subscription" -> Icons.Outlined.Autorenew
-    "other" -> Icons.Outlined.HelpOutline
-    else -> Icons.Outlined.Edit
+    "ocr" -> AppIcons.ReceiptLong
+    "notification" -> AppIcons.Notifications
+    "wallet" -> AppIcons.Notifications
+    "subscription" -> AppIcons.Autorenew
+    "other" -> AppIcons.HelpOutline
+    else -> AppIcons.Edit
 }
 
 /** Locally translated label for an expense source (manual, ocr, wallet…). */

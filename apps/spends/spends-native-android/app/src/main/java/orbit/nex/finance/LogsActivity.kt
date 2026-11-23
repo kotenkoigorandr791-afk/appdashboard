@@ -1,5 +1,6 @@
 package orbit.nex.finance
 
+import orbit.nex.finance.ui.AppIcons
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -19,14 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -116,12 +110,12 @@ private fun LogsScreen(app: SpendsApplication, onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.sync_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                IconButton({ newestFirst = !newestFirst }) { Icon(if (newestFirst) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward, null) }
+                IconButton({ newestFirst = !newestFirst }) { Icon(if (newestFirst) AppIcons.ArrowDownward else AppIcons.ArrowUpward, null) }
                 IconButton({ statusFilter = (statusFilter + 1) % 3 }) {
-                    Icon(when (statusFilter) { 1 -> Icons.Filled.CheckCircle; 2 -> Icons.Filled.Error; else -> Icons.Filled.FilterList }, null)
+                    Icon(when (statusFilter) { 1 -> AppIcons.CheckCircle; 2 -> AppIcons.Error; else -> AppIcons.FilterList }, null)
                 }
             }
-            OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text(stringResource(R.string.search)) }, singleLine = true, shape = RoundedCornerShape(28.dp))
+            OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(AppIcons.Search, null) }, placeholder = { Text(stringResource(R.string.search)) }, singleLine = true, shape = RoundedCornerShape(28.dp))
             if (logs.isEmpty()) {
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     Text(stringResource(if (allLogs.isEmpty()) R.string.logs_empty else R.string.logs_no_matches), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
@@ -134,7 +128,7 @@ private fun LogsScreen(app: SpendsApplication, onBack: () -> Unit) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text("${log.method} · ${log.statusCode ?: if (log.success) "OK" else "ERR"}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                                    IconButton({ expandedId = if (expanded) null else log.id }) { Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null) }
+                                    IconButton({ expandedId = if (expanded) null else log.id }) { Icon(if (expanded) AppIcons.ExpandLess else AppIcons.ExpandMore, null) }
                                 }
                                 Text(log.url, style = MaterialTheme.typography.bodyMedium)
                                 Text(SimpleDateFormat("MMM dd, yyyy HH:mm:ss", Locale.getDefault()).format(Date(log.timestamp)), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -146,7 +140,7 @@ private fun LogsScreen(app: SpendsApplication, onBack: () -> Unit) {
                                         }
                                         IconButton({
                                             (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Spends", copy))
-                                        }) { Icon(Icons.Filled.ContentCopy, null) }
+                                        }) { Icon(AppIcons.ContentCopy, null) }
                                     }
                                 }
                             }

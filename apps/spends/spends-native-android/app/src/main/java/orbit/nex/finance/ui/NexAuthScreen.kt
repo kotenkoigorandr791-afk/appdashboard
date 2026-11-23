@@ -1,4 +1,5 @@
 package orbit.nex.finance.ui
+import orbit.nex.finance.ui.AppIcons
 
 import android.content.Intent
 import android.net.Uri
@@ -24,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -89,7 +89,7 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var page by remember { mutableIntStateOf(0) }
     val features = listOf(stringResource(R.string.nex_auth_feature_1), stringResource(R.string.nex_auth_feature_2), stringResource(R.string.nex_auth_feature_3), stringResource(R.string.nex_auth_feature_4))
-    val icons = listOf(Icons.Default.AccountBalanceWallet, Icons.Default.Savings, Icons.Default.Insights, Icons.Default.CloudSync)
+    val icons = listOf(AppIcons.AccountBalanceWallet, AppIcons.Savings, AppIcons.Insights, AppIcons.CloudSync)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(20.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Card(Modifier.fillMaxWidth().animateContentSize(tween(300)), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -117,7 +117,7 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
                             Box(Modifier.height(8.dp).width(width).clip(CircleShape).background(dot).clickable { page = i })
                         }
                     }
-                    OutlinedTextField(domain, { domain = it; domainPreferences.edit().putString("domain", it).apply(); error = null }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Language, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_server)) }, placeholder = { Text("nxorbit.top") }, singleLine = true)
+                    OutlinedTextField(domain, { domain = it; domainPreferences.edit().putString("domain", it).apply(); error = null }, Modifier.fillMaxWidth(), leadingIcon = { Icon(AppIcons.Language, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_server)) }, placeholder = { Text("nxorbit.top") }, singleLine = true)
                     Button(onClick = { val result = authOrigin(domain); if (result == null) error = context.getString(R.string.nex_auth_invalid_domain) else { origin = result; error = null } }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nex_auth_continue)) }
                 } else {
                     Text(origin, style = MaterialTheme.typography.bodySmall)
@@ -145,8 +145,8 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
                     OutlinedButton(onClick = { showPassword = !showPassword }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nex_auth_password_login)) }
                     AnimatedVisibility(visible = showPassword) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Email, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_email)) }, singleLine = true)
-                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Lock, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
+                        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(AppIcons.Email, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_email)) }, singleLine = true)
+                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(AppIcons.Lock, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
                         Button(onClick = {
                             busy = true; error = null
                             authJob = scope.launch {

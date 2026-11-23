@@ -59,7 +59,9 @@ data class UpdateCheck(
  * from the same dashboard release files.
  */
 class AppUpdateChecker(private val context: Context) {
-    private val deviceId by lazy { orbit.nex.finance.data.SessionStore(context).deviceId() }
+    private val deviceId by lazy {
+        (context.applicationContext as? orbit.nex.finance.SpendsApplication)?.store?.deviceId().orEmpty()
+    }
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)

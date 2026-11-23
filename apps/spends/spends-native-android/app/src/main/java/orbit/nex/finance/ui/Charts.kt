@@ -1,4 +1,5 @@
 package orbit.nex.finance.ui
+import orbit.nex.finance.ui.AppIcons
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -26,9 +27,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChevronLeft
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -147,15 +145,15 @@ fun YearExpenseChart(state: AppState) {
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.ShowChart, null, tint = MaterialTheme.colorScheme.primary)
+            Icon(AppIcons.ShowChart, null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.year_chart), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             IconButton({ if (years.any { it == year - 1 }) year-- }, enabled = years.any { it == year - 1 }) {
-                Icon(Icons.Outlined.ChevronLeft, stringResource(R.string.prev_year))
+                Icon(AppIcons.ChevronLeft, stringResource(R.string.prev_year))
             }
             Text("$year", style = MaterialTheme.typography.titleMedium)
             IconButton({ if (years.any { it == year + 1 }) year++ }, enabled = years.any { it == year + 1 }) {
-                Icon(Icons.Outlined.ChevronRight, stringResource(R.string.next_year))
+                Icon(AppIcons.ChevronRight, stringResource(R.string.next_year))
             }
         }
         // Compact chips share the width equally so they always stay on one line.
@@ -258,7 +256,7 @@ private fun ChartLegendDialog(series: List<ChartSeries>, onDismiss: () -> Unit) 
                     Modifier.fillMaxWidth().heightIn(max = 360.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(filtered) { item ->
+                    items(filtered, key = { it.label }, contentType = { "legend" }) { item ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Box(Modifier.size(10.dp).clip(CircleShape).background(item.color))
                             Text(item.label, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
@@ -453,7 +451,7 @@ fun RatesDialog(state: AppState, onDismiss: () -> Unit) {
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.ShowChart, null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(AppIcons.ShowChart, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.rates_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                 }

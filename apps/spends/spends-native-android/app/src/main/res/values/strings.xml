@@ -29,7 +29,11 @@
     <string name="nav_search">Search</string>
     <string name="this_period">This period</string>
     <string name="spent">Spent</string>
+    <string name="spent_month">Spent this month</string>
     <string name="cash_in">In</string>
+    <string name="cash_in_month">Income this month</string>
+    <string name="net_position_month">Capital this month</string>
+    <string name="expense_mom_format">%+d%%</string>
     <string name="of_budget">%1$s of %2$s</string>
     <string name="activity">Activity</string>
     <string name="ledger_empty_title">A quiet ledger</string>

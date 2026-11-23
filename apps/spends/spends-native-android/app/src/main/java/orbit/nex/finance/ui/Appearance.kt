@@ -1,4 +1,5 @@
 package orbit.nex.finance.ui
+import orbit.nex.finance.ui.AppIcons
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
@@ -17,11 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Brightness4
-import androidx.compose.material.icons.filled.Brightness7
-import androidx.compose.material.icons.filled.Contrast
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -81,9 +77,9 @@ fun AppearanceScreen(appearance: Appearance, store: SessionStore) {
                         SegmentedButton(selected = appearance.theme == value, onClick = { save(appearance.copy(theme = value)) }, shape = SegmentedButtonDefaults.itemShape(index, 3)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 val icon = when (value) {
-                                    "auto" -> Icons.Filled.Contrast
-                                    "light" -> Icons.Filled.Brightness7
-                                    else -> Icons.Filled.Brightness4
+                                    "auto" -> AppIcons.Contrast
+                                    "light" -> AppIcons.Brightness7
+                                    else -> AppIcons.Brightness4
                                 }
                                 Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Text(label)
@@ -104,7 +100,7 @@ fun AppearanceScreen(appearance: Appearance, store: SessionStore) {
                         Spacer(Modifier.size(10.dp))
                         Text(accentLabel(appearance.accent))
                         Spacer(Modifier.weight(1f))
-                        Icon(if (accentOpen) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null)
+                        Icon(if (accentOpen) AppIcons.ExpandLess else AppIcons.ExpandMore, null)
                     }
                     DropdownMenu(accentOpen, { accentOpen = false }) {
                         listOf("blue", "teal", "orange", "pink", "purple", "gray").forEach { value ->

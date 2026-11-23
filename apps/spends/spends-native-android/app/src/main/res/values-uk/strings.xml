@@ -29,7 +29,11 @@
     <string name="nav_search">Пошук</string>
     <string name="this_period">Цей період</string>
     <string name="spent">Витрачено</string>
+    <string name="spent_month">Витрати за місяць</string>
     <string name="cash_in">Надійшло</string>
+    <string name="cash_in_month">Доходи за місяць</string>
+    <string name="net_position_month">Капітал за місяць</string>
+    <string name="expense_mom_format">%+d%%</string>
     <string name="of_budget">%1$s з %2$s</string>
     <string name="activity">Активність</string>
     <string name="ledger_empty_title">Тихий журнал</string>

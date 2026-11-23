@@ -7,3 +7,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "AppDashboardSpends"
 include(":app")
+include(":benchmark")

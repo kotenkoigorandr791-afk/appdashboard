@@ -9,7 +9,11 @@
     <string name="nav_search">Hledat</string>
     <string name="this_period">Toto období</string>
     <string name="spent">Utráceno</string>
+    <string name="spent_month">Výdaje tento měsíc</string>
     <string name="cash_in">Příjmy</string>
+    <string name="cash_in_month">Příjmy tento měsíc</string>
+    <string name="net_position_month">Kapitál tento měsíc</string>
+    <string name="expense_mom_format">%+d%%</string>
     <string name="of_budget">%1$s z %2$s</string>
     <string name="activity">Aktivita</string>
     <string name="ledger_empty_title">Tichý deník</string>

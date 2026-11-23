@@ -1,4 +1,5 @@
 package orbit.nex.finance.ui
+import orbit.nex.finance.ui.AppIcons
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
@@ -13,12 +14,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.filled.PersonOff
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -64,7 +59,7 @@ fun ConnectionCard(state: AppState, model: SpendsViewModel) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (state.session.imageUrl.isNotBlank()) RemotePhoto(state.session.imageUrl, state.session.name.take(1), round = true, size = 56.dp, person = true)
-                else Icon(Icons.Filled.PersonOff, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                else Icon(AppIcons.PersonOff, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Column(Modifier.weight(1f)) {
                     Text(state.session.name.ifBlank { "Spends" }, style = MaterialTheme.typography.titleMedium)
                     Text(state.session.email.ifBlank { state.session.endpoint }, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -73,7 +68,7 @@ fun ConnectionCard(state: AppState, model: SpendsViewModel) {
                     if (testing) CircularProgressIndicator(Modifier.size(24.dp))
                     else {
                         Icon(
-                            if (ok == false) Icons.Filled.LinkOff else Icons.Filled.CloudDone,
+                            if (ok == false) AppIcons.LinkOff else AppIcons.CloudDone,
                             null,
                             tint = when (ok) {
                                 true -> MaterialTheme.colorScheme.primary
@@ -105,7 +100,7 @@ fun ConnectionCard(state: AppState, model: SpendsViewModel) {
                     modifier = Modifier.weight(1f),
                     enabled = !testing,
                 ) {
-                    Icon(Icons.Filled.Refresh, null, Modifier.padding(end = 8.dp))
+                    Icon(AppIcons.Refresh, null, Modifier.padding(end = 8.dp))
                     Text(stringResource(R.string.pair_test))
                 }
                 Button(
@@ -141,7 +136,7 @@ fun OfflineBanner(pending: Int, onRetry: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(
-                Icons.Filled.WifiOff,
+                AppIcons.WifiOff,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.size(22.dp),
@@ -206,7 +201,7 @@ fun OfflineState(
                     tonalElevation = 4.dp,
                 ) {
                     Icon(
-                        Icons.Filled.WifiOff,
+                        AppIcons.WifiOff,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize().padding(22.dp),
                         tint = MaterialTheme.colorScheme.onErrorContainer,
@@ -232,7 +227,7 @@ fun OfflineState(
                     }
                     if (showRetry && onRetry != null) {
                         OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Filled.Refresh, null, Modifier.padding(end = 8.dp))
+                            Icon(AppIcons.Refresh, null, Modifier.padding(end = 8.dp))
                             Text(stringResource(R.string.offline_retry))
                         }
                     }

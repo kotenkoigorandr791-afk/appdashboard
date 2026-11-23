@@ -1,4 +1,5 @@
 package orbit.nex.finance
+import orbit.nex.finance.ui.AppIcons
 
 import android.app.Activity
 import android.content.Context
@@ -27,9 +28,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Storefront
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -154,7 +152,7 @@ private fun DisputeScreen(
             Card(Modifier.fillMaxWidth().clickable { pickFilterDate = true }, RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant)) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(filterDate ?: stringResource(R.string.disputes_all_dates), color = MaterialTheme.colorScheme.onSurface)
-                    Icon(Icons.Outlined.CalendarMonth, stringResource(R.string.date_label))
+                    Icon(AppIcons.CalendarMonth, stringResource(R.string.date_label))
                 }
             }
             val visibleDisputes = disputes.filter { filterDate == null || it.date == filterDate }
@@ -178,7 +176,7 @@ private fun DisputeScreen(
                                     RoundedCornerShape(12.dp),
                                 ),
                                 contentAlignment = Alignment.Center,
-                            ) { Icon(Icons.Outlined.WarningAmber, null, tint = Color(0xFF8D6E00)) }
+                            ) { Icon(AppIcons.WarningAmber, null, tint = Color(0xFF8D6E00)) }
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(
@@ -238,7 +236,7 @@ private fun DisputeScreen(
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
-                                Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(AppIcons.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         OutlinedTextField(
