@@ -1467,7 +1467,7 @@ function editUptimeCheckById(id) {
 
 async function saveUptimeCheck(event) {
     event.preventDefault();
-    const form = event.currentTarget;
+    const form = event.target;
     const payload = Object.fromEntries(new FormData(form).entries());
     payload.enabled = form.elements.enabled.checked ? 1 : 0;
     const url = new URL(serverMonitorUrl.href);
@@ -2492,6 +2492,7 @@ function perfBindUiClicks() {
                 }
                 return;
             }
+            if (actionEl.tagName === 'FORM') return;
             if (!actionEl.closest('#perf-app, #uptimeCheckModal, #cleanupTimePeriodModal, #graphModal, #appConfirmModal')) return;
             e.preventDefault();
             e.stopPropagation();
