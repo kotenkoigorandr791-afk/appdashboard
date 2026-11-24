@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Dark theme - default -->
+    <style name="AppTheme" parent="Theme.Material3Expressive.Dark.NoActionBar">
+        <item name="android:navigationBarColor">@color/nex_dark_bg_primary</item>
+        <item name="android:statusBarColor">@color/nex_dark_bg_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="colorAccent">@color/nex_dark_highlight_blue</item>
+        <item name="android:textColorSecondary">@color/nex_dark_text_secondary</item>
+        <item name="android:textColorPrimary">@color/nex_dark_text_primary</item>
+        <item name="colorPrimary">@color/nex_dark_primary_blue</item>
+        <item name="colorOnPrimary">@color/nex_orbit_white</item>
+        <item name="colorPrimaryContainer">@color/nex_dark_tinted_container</item>
+        <item name="colorOnPrimaryContainer">@color/nex_dark_highlight_blue</item>
+        <item name="colorSecondary">@color/nex_dark_text_secondary</item>
+        <item name="colorOnSecondary">@color/nex_dark_bg_primary</item>
+        <item name="colorOnSurfaceVariant">@color/nex_dark_text_secondary</item>
+        <item name="colorSecondaryContainer">@color/nex_dark_surface_card</item>
+        <item name="materialCardBackgroundColor">@color/nex_dark_surface_card</item>
+
+        <item name="navigationBarColor">@color/nex_dark_bg_primary</item>
+        <item name="diffAddedColor">@color/diffAddedColor</item>
+        <item name="diffRemovedColor">@color/diffRemovedColor</item>
+        <item name="diffSelectedColor">@color/diffSelectedColor</item>
+        <item name="primaryTextColor">@color/nex_dark_text_primary</item>
+        <item name="primaryBackgroundColor">@color/nex_dark_bg_primary</item>
+        <item name="inputBackgroundColor">@color/nex_dark_surface_input</item>
+        <item name="inputSelectedColor">@color/inputSelected</item>
+        <item name="inputTextColor">@color/nex_dark_text_primary</item>
+        <item name="checkboxStyle">@style/AppThemeCheckBoxStyle</item>
+        <item name="selectedTextColor">@color/nex_dark_primary_blue</item>
+        <item name="alertDialogTheme">@style/AppThemeConfirmDialog</item>
+        <item name="popupMenuStyle">@style/AppThemePopupMenuStyle</item>
+        <item name="android:homeAsUpIndicator">@drawable/ic_arrow_back</item>
+        <item name="autoCompleteTextViewStyle">@style/AppThemeDarkSearchAutoCompleteTextView</item>
+        <item name="hintColor">@color/nex_dark_text_secondary</item>
+        <item name="colorControlActivated">@color/nex_dark_primary_blue</item>
+        <item name="dividerColor">@color/nex_dark_divider</item>
+        <item name="searchViewStyle">@style/AppSearchViewStyle</item>
+        <item name="progressIndicatorColor">@color/nex_dark_primary_blue</item>
+        <item name="fabColor">@color/nex_dark_primary_blue</item>
+        <item name="iconsColor">@color/nex_dark_primary_blue</item>
+        <item name="pagerTabIndicatorColor">@color/nex_dark_primary_blue</item>
+        <item name="android:actionOverflowButtonStyle">@style/customOverflowButtonStyle</item>
+        <item name="actionOverflowMenuStyle">@style/customOverflowMenuStyle</item>
+        <item name="colorSurface">@color/nex_dark_surface_card</item>
+        <item name="colorSurfaceVariant">@color/nex_dark_surface_input</item>
+        <item name="colorOutline">@color/nex_dark_border_blue</item>
+        <item name="colorOutlineVariant">@color/nex_dark_divider</item>
+        <item name="colorError">@color/nex_dark_error</item>
+        <item name="shapeAppearanceSmallComponent">@style/inputsMaterialComponentCorner</item>
+        <item name="android:windowAnimationStyle">@style/CustomActivityAnimation</item>
+        <item name="motionEasingEmphasizedInterpolator">@android:interpolator/fast_out_slow_in</item>
+        <item name="materialSwitchStyle">@style/m3SwitchStyle</item>
+        <item name="chipStyle">@style/CustomChipFilter</item>
+        <item name="isDark">1</item>
+        <item name="colorSurfaceContainerLowest">#FF08101E</item>
+        <item name="colorSurfaceContainerLow">#FF0E1A30</item>
+        <item name="colorSurfaceContainer">#FF101D33</item>
+        <item name="colorSurfaceContainerHigh">#FF14223D</item>
+        <item name="colorSurfaceContainerHighest">#FF1A2B4A</item>
+        <item name="colorSurfaceDim">#FF070D18</item>
+        <item name="colorSurfaceBright">#FF1C2E4D</item>
+        <item name="colorOnBackground">#FFF1F5F9</item>
+        <item name="colorOnSurface">#FFF1F5F9</item>
+        <item name="bottomSheetDialogTheme">@style/Custom.BottomSheet</item>
+        <item name="android:windowBackground">@color/nex_dark_bg_primary</item>
+    </style>
+    <!-- Dark theme - default -->
+
+    <!-- Light theme -->
+    <style name="AppThemeLight" parent="Theme.Material3Expressive.Light.NoActionBar">
+        <item name="android:navigationBarColor">@color/nex_light_surface_card</item>
+        <item name="android:statusBarColor">@color/nex_light_bg_primary</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="colorAccent">@color/nex_light_primary_blue</item>
+        <item name="android:textColorSecondary">@color/nex_light_text_secondary</item>
+        <item name="android:textColorPrimary">@color/nex_light_text_primary</item>
+        <item name="colorPrimary">@color/nex_light_primary_blue</item>
+        <item name="colorOnPrimary">@color/nex_orbit_white</item>
+        <item name="colorPrimaryContainer">@color/nex_light_surface_tinted</item>
+        <item name="colorOnPrimaryContainer">@color/nex_light_primary_pressed</item>
+        <item name="colorSecondary">@color/nex_light_text_secondary</item>
+        <item name="colorOnSecondary">@color/nex_orbit_white</item>
+        <item name="colorOnSurfaceVariant">@color/nex_light_text_secondary</item>
+        <item name="colorSecondaryContainer">@color/nex_light_surface_tinted</item>
+        <item name="materialCardBackgroundColor">@color/nex_light_surface_card</item>
+
+        <item name="navigationBarColor">@color/nex_light_surface_card</item>
+        <item name="diffAddedColor">@color/lightThemeDiffAddedColor</item>
+        <item name="diffRemovedColor">@color/lightThemeDiffRemovedColor</item>
+        <item name="diffSelectedColor">@color/lightThemeDiffSelectedColor</item>
+        <item name="primaryTextColor">@color/nex_light_text_primary</item>
+        <item name="primaryBackgroundColor">@color/nex_light_bg_primary</item>
+        <item name="inputBackgroundColor">@color/nex_light_surface_tinted</item>
+        <item name="inputSelectedColor">@color/lightThemInputSelected</item>
+        <item name="inputTextColor">@color/nex_light_text_primary</item>
+        <item name="checkboxStyle">@style/AppThemeLightCheckBoxStyle</item>
+        <item name="selectedTextColor">@color/nex_light_primary_blue</item>
+        <item name="alertDialogTheme">@style/AppThemeLightConfirmDialog</item>
+        <item name="popupMenuStyle">@style/AppThemeLightPopupMenuStyle</item>
+        <item name="android:homeAsUpIndicator">@drawable/ic_arrow_back</item>
+        <item name="autoCompleteTextViewStyle">@style/AppThemeLightSearchAutoCompleteTextView</item>
+        <item name="hintColor">@color/nex_light_text_secondary</item>
+        <item name="colorControlActivated">@color/nex_light_primary_blue</item>
+        <item name="dividerColor">@color/nex_light_border_subtle</item>
+        <item name="searchViewStyle">@style/AppSearchViewStyle</item>
+        <item name="progressIndicatorColor">@color/nex_light_primary_blue</item>
+        <item name="fabColor">@color/nex_light_primary_blue</item>
+        <item name="iconsColor">@color/nex_light_primary_blue</item>
+        <item name="pagerTabIndicatorColor">@color/nex_light_primary_blue</item>
+        <item name="android:actionOverflowButtonStyle">@style/customOverflowButtonStyle</item>
+        <item name="actionOverflowMenuStyle">@style/customOverflowMenuStyle</item>
+        <item name="colorSurface">@color/nex_light_surface_card</item>
+        <item name="colorSurfaceVariant">@color/nex_light_surface_tinted</item>
+        <item name="colorOutline">@color/nex_light_border_tinted</item>
+        <item name="colorOutlineVariant">@color/nex_light_border_subtle</item>
+        <item name="colorError">@color/nex_light_error</item>
+        <item name="shapeAppearanceSmallComponent">@style/inputsMaterialComponentCorner</item>
+        <item name="android:windowAnimationStyle">@style/CustomActivityAnimation</item>
+        <item name="motionEasingEmphasizedInterpolator">@android:interpolator/fast_out_slow_in</item>
+        <item name="chipStyle">@style/CustomChipFilter</item>
+        <item name="isDark">0</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFFFF</item>
+        <item name="colorSurfaceContainerLow">#FFF7FAFF</item>
+        <item name="colorSurfaceContainer">#FFEFF5FD</item>
+        <item name="colorSurfaceContainerHigh">#FFE7F0FB</item>
+        <item name="colorSurfaceContainerHighest">#FFE2ECFA</item>
+        <item name="colorSurfaceDim">#FFDCE7F5</item>
+        <item name="colorSurfaceBright">#FFFFFFFF</item>
+        <item name="colorOnBackground">#FF0F172A</item>
+        <item name="colorOnSurface">#FF0F172A</item>
+        <item name="bottomSheetDialogTheme">@style/Custom.BottomSheet.Light</item>
+        <item name="android:windowBackground">@color/nex_light_bg_primary</item>
+    </style>
+    <!-- Light theme -->
+
+    <!-- Retro theme (kept as a slot, painted with the NexOrbit light scheme) -->
+    <style name="AppThemeRetro" parent="Theme.Material3Expressive.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/nex_light_bg_primary</item>
+        <item name="android:navigationBarColor">@color/nex_light_surface_card</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="colorAccent">@color/nex_light_primary_blue</item>
+        <item name="android:textColorSecondary">@color/nex_light_text_secondary</item>
+        <item name="android:textColorPrimary">@color/nex_light_text_primary</item>
+        <item name="colorPrimary">@color/nex_light_primary_blue</item>
+        <item name="colorOnPrimary">@color/nex_orbit_white</item>
+        <item name="colorPrimaryContainer">@color/nex_light_surface_tinted</item>
+        <item name="colorOnPrimaryContainer">@color/nex_light_primary_pressed</item>
+        <item name="colorSecondary">@color/nex_light_text_secondary</item>
+        <item name="colorOnSecondary">@color/nex_orbit_white</item>
+        <item name="colorOnSurfaceVariant">@color/nex_light_text_secondary</item>
+        <item name="colorSecondaryContainer">@color/nex_light_surface_tinted</item>
+        <item name="materialCardBackgroundColor">@color/nex_light_surface_card</item>
+
+        <item name="navigationBarColor">@color/nex_light_surface_card</item>
+        <item name="diffAddedColor">@color/retroThemeDiffAddedColor</item>
+        <item name="diffRemovedColor">@color/retroThemeDiffRemovedColor</item>
+        <item name="diffSelectedColor">@color/retroThemeDiffSelectedColor</item>
+        <item name="primaryTextColor">@color/nex_light_text_primary</item>
+        <item name="primaryBackgroundColor">@color/nex_light_bg_primary</item>
+        <item name="inputBackgroundColor">@color/nex_light_surface_tinted</item>
+        <item name="inputSelectedColor">@color/retroThemeInputSelected</item>
+        <item name="inputTextColor">@color/nex_light_text_primary</item>
+        <item name="checkboxStyle">@style/AppThemeRetroCheckBoxStyle</item>
+        <item name="selectedTextColor">@color/nex_light_primary_blue</item>
+        <item name="alertDialogTheme">@style/AppThemeRetroConfirmDialog</item>
+        <item name="popupMenuStyle">@style/AppThemeRetroPopupMenuStyle</item>
+        <item name="android:homeAsUpIndicator">@drawable/ic_arrow_back</item>
+        <item name="autoCompleteTextViewStyle">@style/AppThemeRetroSearchAutoCompleteTextView</item>
+        <item name="hintColor">@color/nex_light_text_secondary</item>
+        <item name="colorControlActivated">@color/nex_light_primary_blue</item>
+        <item name="dividerColor">@color/nex_light_border_subtle</item>
+        <item name="searchViewStyle">@style/AppSearchViewStyle</item>
+        <item name="progressIndicatorColor">@color/nex_light_primary_blue</item>
+        <item name="fabColor">@color/nex_light_primary_blue</item>
+        <item name="iconsColor">@color/nex_light_primary_blue</item>
+        <item name="pagerTabIndicatorColor">@color/nex_light_primary_blue</item>
+        <item name="android:actionOverflowButtonStyle">@style/customOverflowButtonStyle</item>
+        <item name="actionOverflowMenuStyle">@style/customOverflowMenuStyle</item>
+        <item name="colorSurface">@color/nex_light_surface_card</item>
+        <item name="colorSurfaceVariant">@color/nex_light_surface_tinted</item>
+        <item name="colorOutline">@color/nex_light_border_tinted</item>
+        <item name="colorOutlineVariant">@color/nex_light_border_subtle</item>
+        <item name="colorError">@color/nex_light_error</item>
+        <item name="shapeAppearanceSmallComponent">@style/inputsMaterialComponentCorner</item>
+        <item name="android:windowAnimationStyle">@style/CustomActivityAnimation</item>
+        <item name="motionEasingEmphasizedInterpolator">@android:interpolator/fast_out_slow_in</item>
+        <item name="chipStyle">@style/CustomChipFilter</item>
+        <item name="isDark">0</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFFFF</item>
+        <item name="colorSurfaceContainerLow">#FFF7FAFF</item>
+        <item name="colorSurfaceContainer">#FFEFF5FD</item>
+        <item name="colorSurfaceContainerHigh">#FFE7F0FB</item>
+        <item name="colorSurfaceContainerHighest">#FFE2ECFA</item>
+        <item name="colorSurfaceDim">#FFDCE7F5</item>
+        <item name="colorSurfaceBright">#FFFFFFFF</item>
+        <item name="colorOnBackground">#FF0F172A</item>
+        <item name="colorOnSurface">#FF0F172A</item>
+        <item name="bottomSheetDialogTheme">@style/Custom.BottomSheet.Light</item>
+        <item name="android:windowBackground">@color/nex_light_bg_primary</item>
+    </style>
+    <!-- Retro theme -->
+
+    <!-- Pitch black theme -->
+    <style name="AppThemePitchBlack" parent="Theme.Material3Expressive.Dark.NoActionBar">
+        <item name="android:statusBarColor">@color/pitchBlackThemeBackground</item>
+        <item name="android:navigationBarColor">@color/pitchBlackThemeBackground</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="colorAccent">@color/nex_dark_highlight_blue</item>
+        <item name="android:textColorSecondary">@color/nex_dark_text_secondary</item>
+        <item name="android:textColorPrimary">@color/nex_dark_text_primary</item>
+        <item name="colorPrimary">@color/nex_dark_primary_blue</item>
+        <item name="colorOnPrimary">@color/nex_orbit_white</item>
+        <item name="colorPrimaryContainer">@color/nex_dark_tinted_container</item>
+        <item name="colorOnPrimaryContainer">@color/nex_dark_highlight_blue</item>
+        <item name="colorSecondary">@color/nex_dark_text_secondary</item>
+        <item name="colorOnSecondary">@color/pitchBlackThemeBackground</item>
+        <item name="colorOnSurfaceVariant">@color/nex_dark_text_secondary</item>
+        <item name="colorSecondaryContainer">@color/pitchBlackThemeColorSecondary</item>
+        <item name="materialCardBackgroundColor">@color/pitchBlackThemeCardBackground</item>
+
+        <item name="navigationBarColor">@color/pitchBlackThemeBackground</item>
+        <item name="diffAddedColor">@color/diffAddedColor</item>
+        <item name="diffRemovedColor">@color/diffRemovedColor</item>
+        <item name="diffSelectedColor">@color/diffSelectedColor</item>
+        <item name="primaryTextColor">@color/nex_dark_text_primary</item>
+        <item name="primaryBackgroundColor">@color/pitchBlackThemeBackground</item>
+        <item name="inputBackgroundColor">@color/nex_dark_surface_input</item>
+        <item name="inputSelectedColor">@color/inputSelected</item>
+        <item name="inputTextColor">@color/nex_dark_text_primary</item>
+        <item name="checkboxStyle">@style/AppThemeCheckBoxStyle</item>
+        <item name="selectedTextColor">@color/nex_dark_primary_blue</item>
+        <item name="alertDialogTheme">@style/AppThemePitchBlackConfirmDialog</item>
+        <item name="popupMenuStyle">@style/AppThemePitchBlackPopupMenuStyle</item>
+        <item name="android:homeAsUpIndicator">@drawable/ic_arrow_back</item>
+        <item name="autoCompleteTextViewStyle">@style/AppThemeDarkSearchAutoCompleteTextView</item>
+        <item name="hintColor">@color/nex_dark_text_secondary</item>
+        <item name="colorControlActivated">@color/nex_dark_primary_blue</item>
+        <item name="dividerColor">@color/pitchBlackThemeDividerColor</item>
+        <item name="searchViewStyle">@style/AppSearchViewStyle</item>
+        <item name="progressIndicatorColor">@color/nex_dark_primary_blue</item>
+        <item name="fabColor">@color/nex_dark_primary_blue</item>
+        <item name="iconsColor">@color/nex_dark_primary_blue</item>
+        <item name="pagerTabIndicatorColor">@color/nex_dark_primary_blue</item>
+        <item name="android:actionOverflowButtonStyle">@style/customOverflowButtonStyle</item>
+        <item name="actionOverflowMenuStyle">@style/customOverflowMenuStyle</item>
+        <item name="colorSurface">@color/pitchBlackThemeGeneralBackgroundColor</item>
+        <item name="colorSurfaceVariant">@color/nex_dark_surface_input</item>
+        <item name="colorOutline">@color/nex_dark_border_blue</item>
+        <item name="colorOutlineVariant">@color/pitchBlackThemeDividerColor</item>
+        <item name="colorError">@color/nex_dark_error</item>
+        <item name="shapeAppearanceSmallComponent">@style/inputsMaterialComponentCorner</item>
+        <item name="android:windowAnimationStyle">@style/CustomActivityAnimation</item>
+        <item name="motionEasingEmphasizedInterpolator">@android:interpolator/fast_out_slow_in</item>
+        <item name="materialSwitchStyle">@style/m3SwitchStyle</item>
+        <item name="chipStyle">@style/CustomChipFilter</item>
+        <item name="isDark">1</item>
+        <item name="colorSurfaceContainerLowest">#FF05070D</item>
+        <item name="colorSurfaceContainerLow">#FF080B12</item>
+        <item name="colorSurfaceContainer">#FF0B101B</item>
+        <item name="colorSurfaceContainerHigh">#FF0F1626</item>
+        <item name="colorSurfaceContainerHighest">#FF141C2E</item>
+        <item name="colorSurfaceDim">#FF04060A</item>
+        <item name="colorSurfaceBright">#FF172034</item>
+        <item name="colorOnBackground">#FFF1F5F9</item>
+        <item name="colorOnSurface">#FFF1F5F9</item>
+        <item name="bottomSheetDialogTheme">@style/Custom.BottomSheet</item>
+        <item name="android:windowBackground">@color/pitchBlackThemeBackground</item>
+    </style>
+    <!-- Pitch black theme -->
+
+    <!-- Deep navy dark theme -->
+    <style name="AppThemeCodebergDark" parent="Theme.Material3Expressive.Dark.NoActionBar">
+        <item name="android:statusBarColor">@color/nex_dark_bg_primary</item>
+        <item name="android:navigationBarColor">@color/nex_dark_bg_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="colorAccent">@color/nex_dark_highlight_blue</item>
+        <item name="android:textColorSecondary">@color/nex_dark_text_secondary</item>
+        <item name="android:textColorPrimary">@color/nex_dark_text_primary</item>
+        <item name="colorPrimary">@color/nex_dark_primary_blue</item>
+        <item name="colorOnPrimary">@color/nex_orbit_white</item>
+        <item name="colorPrimaryContainer">@color/nex_dark_tinted_container</item>
+        <item name="colorOnPrimaryContainer">@color/nex_dark_highlight_blue</item>
+        <item name="colorSecondary">@color/nex_dark_text_secondary</item>
+        <item name="colorOnSecondary">@color/nex_dark_bg_primary</item>
+        <item name="colorOnSurfaceVariant">@color/nex_dark_text_secondary</item>
+        <item name="colorSecondaryContainer">@color/nex_dark_surface_card</item>
+        <item name="materialCardBackgroundColor">@color/nex_dark_surface_card</item>
+
+        <item name="navigationBarColor">@color/nex_dark_bg_primary</item>
+        <item name="diffAddedColor">@color/diffAddedColor</item>
+        <item name="diffRemovedColor">@color/diffRemovedColor</item>
+        <item name="diffSelectedColor">@color/diffSelectedColor</item>
+        <item name="primaryTextColor">@color/nex_dark_text_primary</item>
+        <item name="primaryBackgroundColor">@color/nex_dark_bg_primary</item>
+        <item name="inputBackgroundColor">@color/nex_dark_surface_input</item>
+        <item name="inputSelectedColor">@color/inputSelected</item>
+        <item name="inputTextColor">@color/nex_dark_text_primary</item>
+        <item name="checkboxStyle">@style/AppThemeCheckBoxStyle</item>
+        <item name="selectedTextColor">@color/nex_dark_primary_blue</item>
+        <item name="alertDialogTheme">@style/AppThemeCodebergDarkConfirmDialog</item>
+        <item name="popupMenuStyle">@style/AppThemeCodebergDarkPopupMenuStyle</item>
+        <item name="android:homeAsUpIndicator">@drawable/ic_arrow_back</item>
+        <item name="autoCompleteTextViewStyle">@style/AppThemeDarkSearchAutoCompleteTextView</item>
+        <item name="hintColor">@color/nex_dark_text_secondary</item>
+        <item name="colorControlActivated">@color/nex_dark_primary_blue</item>
+        <item name="dividerColor">@color/nex_dark_divider</item>
+        <item name="searchViewStyle">@style/AppSearchViewStyle</item>
+        <item name="progressIndicatorColor">@color/nex_dark_primary_blue</item>
+        <item name="fabColor">@color/nex_dark_primary_blue</item>
+        <item name="iconsColor">@color/nex_dark_primary_blue</item>
+        <item name="pagerTabIndicatorColor">@color/nex_dark_primary_blue</item>
+        <item name="android:actionOverflowButtonStyle">@style/customOverflowButtonStyle</item>
+        <item name="actionOverflowMenuStyle">@style/customOverflowMenuStyle</item>
+        <item name="colorSurface">@color/nex_dark_surface_card</item>
+        <item name="colorSurfaceVariant">@color/nex_dark_surface_input</item>
+        <item name="colorOutline">@color/nex_dark_border_blue</item>
+        <item name="colorOutlineVariant">@color/nex_dark_divider</item>
+        <item name="colorError">@color/nex_dark_error</item>
+        <item name="shapeAppearanceSmallComponent">@style/inputsMaterialComponentCorner</item>
+        <item name="android:windowAnimationStyle">@style/CustomActivityAnimation</item>
+        <item name="motionEasingEmphasizedInterpolator">@android:interpolator/fast_out_slow_in</item>
+        <item name="materialSwitchStyle">@style/m3SwitchStyle</item>
+        <item name="chipStyle">@style/CustomChipFilter</item>
+        <item name="isDark">1</item>
+        <item name="colorSurfaceContainerLowest">#FF08101E</item>
+        <item name="colorSurfaceContainerLow">#FF0E1A30</item>
+        <item name="colorSurfaceContainer">#FF101D33</item>
+        <item name="colorSurfaceContainerHigh">#FF14223D</item>
+        <item name="colorSurfaceContainerHighest">#FF1A2B4A</item>
+        <item name="colorSurfaceDim">#FF070D18</item>
+        <item name="colorSurfaceBright">#FF1C2E4D</item>
+        <item name="colorOnBackground">#FFF1F5F9</item>
+        <item name="colorOnSurface">#FFF1F5F9</item>
+        <item name="bottomSheetDialogTheme">@style/Custom.BottomSheet</item>
+        <item name="android:windowBackground">@color/nex_dark_bg_primary</item>
+    </style>
+    <!-- Deep navy dark theme -->
+
+    <style name="FontManrope">
+        <item name="android:fontFamily">@font/manroperegular</item>
+        <item name="fontFamily">@font/manroperegular</item>
+    </style>
+
+    <style name="FontRoboto">
+        <item name="android:fontFamily">@font/roboto</item>
+        <item name="fontFamily">@font/roboto</item>
+    </style>
+
+    <style name="FontSourceCode">
+        <item name="android:fontFamily">@font/sourcecodeproregular</item>
+        <item name="fontFamily">@font/sourcecodeproregular</item>
+    </style>
+</resources>

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import socket
 import sys
 from pathlib import Path
 
@@ -24,6 +25,11 @@ def main() -> int:
     # Prefer explicit upstream; default to local OmniRoute port (prod: same host; docker: set OMNIROUTE_UPSTREAM).
     omni_upstream = (os.environ.get("OMNIROUTE_UPSTREAM") or "http://127.0.0.1:20128").rstrip("/")
     gitea_upstream = (os.environ.get("GITEA_INTERNAL_URL") or "http://gitea:3000").rstrip("/")
+    if "://host.docker.internal" in gitea_upstream:
+        try:
+            gitea_upstream = gitea_upstream.replace("host.docker.internal", socket.gethostbyname("host.docker.internal"), 1)
+        except OSError:
+            pass
     immich_upstream = (os.environ.get("IMMICH_INTERNAL_URL") or "http://immich-server:2283").rstrip("/")
     dawarich_upstream = (os.environ.get("DAWARICH_INTERNAL_URL") or "http://dawarich:3000").rstrip("/")
     sentry_upstream = (os.environ.get("SENTRY_INTERNAL_URL") or "http://glitchtip-web:8000").rstrip("/")

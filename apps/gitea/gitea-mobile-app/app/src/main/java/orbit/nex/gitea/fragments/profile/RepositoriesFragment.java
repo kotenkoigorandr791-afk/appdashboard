@@ -1,0 +1,237 @@
+package orbit.nex.gitea.fragments.profile;
+
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.search.SearchView;
+import java.util.ArrayList;
+import orbit.nex.gitea.R;
+import orbit.nex.gitea.activities.ProfileActivity;
+import orbit.nex.gitea.adapters.ReposListAdapter;
+import orbit.nex.gitea.databinding.FragmentRepositoriesBinding;
+import orbit.nex.gitea.helpers.Constants;
+import orbit.nex.gitea.helpers.EndlessRecyclerViewScrollListener;
+import orbit.nex.gitea.helpers.UIHelper;
+import orbit.nex.gitea.viewmodels.RepositoriesViewModel;
+
+public class RepositoriesFragment extends Fragment
+		implements ProfileActivity.ProfileActionInterface {
+
+	private static final String ARG_USERNAME = "username";
+	private FragmentRepositoriesBinding binding;
+	private RepositoriesViewModel viewModel;
+	private ReposListAdapter adapter;
+	private EndlessRecyclerViewScrollListener scrollListener;
+	private String username;
+	private int resultLimit;
+	private boolean isSearching = false;
+	private boolean isFirstLoad = true;
+	private boolean isViewReady = false;
+	private SearchView searchView;
+
+	public RepositoriesFragment() {}
+
+	public static RepositoriesFragment newInstance(String username) {
+		RepositoriesFragment fragment = new RepositoriesFragment();
+		Bundle args = new Bundle();
+		args.putString(ARG_USERNAME, username);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			username = getArguments().getString(ARG_USERNAME);
+		}
+	}
+
+	@Override
+	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+		super.onViewCreated(view, savedInstanceState);
+		View dock = requireActivity().findViewById(R.id.docked_toolbar);
+		UIHelper.applyInsets(view, dock, binding.recyclerView, binding.pullToRefresh, null);
+		isViewReady = true;
+	}
+
+	@Override
+	public View onCreateView(
+			@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+		binding = FragmentRepositoriesBinding.inflate(inflater, container, false);
+		resultLimit = Constants.getCurrentResultLimit(requireContext());
+		viewModel = new ViewModelProvider(this).get(RepositoriesViewModel.class);
+
+		setupRecyclerView();
+		setupSwipeRefresh();
+		setupSearch();
+		observeViewModel();
+
+		return binding.getRoot();
+	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		if (!isHidden() && isFirstLoad && isViewReady) {
+			lazyLoad();
+		}
+	}
+
+	@Override
+	public void onHiddenChanged(boolean hidden) {
+		super.onHiddenChanged(hidden);
+		if (!hidden && isFirstLoad && isViewReady) {
+			lazyLoad();
+		}
+	}
+
+	private void lazyLoad() {
+		isFirstLoad = false;
+		refreshData();
+	}
+
+	private void setupRecyclerView() {
+		adapter = new ReposListAdapter(new ArrayList<>(), requireContext());
+		adapter.isUserOrg = true;
+
+		LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
+		binding.recyclerView.setLayoutManager(layoutManager);
+		binding.recyclerView.setAdapter(adapter);
+
+		scrollListener =
+				new EndlessRecyclerViewScrollListener(layoutManager) {
+					@Override
+					public void onLoadMore(int page, int totalItemsCount, RecyclerView view) {
+						if (!isSearching && username != null) {
+							viewModel.fetchRepos(
+									requireContext(),
+									"userRepos",
+									username,
+									null,
+									page,
+									resultLimit,
+									null,
+									false);
+						}
+					}
+				};
+		binding.recyclerView.addOnScrollListener(scrollListener);
+	}
+
+	private void setupSearch() {
+		searchView = binding.searchView;
+		RecyclerView searchRecycler = binding.searchResultsRecycler;
+
+		searchRecycler.setLayoutManager(new LinearLayoutManager(requireContext()));
+		searchRecycler.setAdapter(adapter);
+
+		searchView
+				.getEditText()
+				.addTextChangedListener(
+						new TextWatcher() {
+							@Override
+							public void beforeTextChanged(
+									CharSequence s, int start, int count, int after) {}
+
+							@Override
+							public void onTextChanged(
+									CharSequence s, int start, int before, int count) {
+								String query = s.toString();
+								isSearching = !query.isEmpty();
+
+								adapter.getFilter()
+										.filter(
+												query,
+												count1 -> {
+													boolean isEmpty = adapter.getItemCount() == 0;
+													binding.layoutEmpty
+															.getRoot()
+															.setVisibility(
+																	isSearching && isEmpty
+																			? View.VISIBLE
+																			: View.GONE);
+												});
+							}
+
+							@Override
+							public void afterTextChanged(Editable s) {}
+						});
+
+		searchView.addTransitionListener(
+				(searchView, previousState, newState) -> {
+					if (newState
+							== com.google.android.material.search.SearchView.TransitionState
+									.HIDDEN) {
+						isSearching = false;
+						adapter.getFilter().filter("");
+						updateUiState();
+					}
+				});
+	}
+
+	@Override
+	public void onSearchTriggered() {
+		if (searchView != null) {
+			searchView.show();
+		}
+	}
+
+	private void observeViewModel() {
+		viewModel
+				.getRepos()
+				.observe(
+						getViewLifecycleOwner(),
+						list -> {
+							adapter.updateList(list);
+							updateUiState();
+						});
+
+		viewModel
+				.getIsLoading()
+				.observe(
+						getViewLifecycleOwner(),
+						loading -> {
+							boolean hasData = adapter.getItemCount() > 0;
+							binding.expressiveLoader.setVisibility(
+									loading && !hasData ? View.VISIBLE : View.GONE);
+						});
+
+		viewModel.getHasLoadedOnce().observe(getViewLifecycleOwner(), hasLoaded -> updateUiState());
+	}
+
+	private void updateUiState() {
+		boolean isEmpty = adapter.getItemCount() == 0;
+		boolean loaded = Boolean.TRUE.equals(viewModel.getHasLoadedOnce().getValue());
+		binding.layoutEmpty.getRoot().setVisibility(loaded && isEmpty ? View.VISIBLE : View.GONE);
+	}
+
+	private void refreshData() {
+		if (scrollListener == null || viewModel == null) {
+			return;
+		}
+		scrollListener.resetState();
+		viewModel.resetPagination();
+		if (username != null) {
+			viewModel.fetchRepos(
+					requireContext(), "userRepos", username, null, 1, resultLimit, null, true);
+		}
+	}
+
+	private void setupSwipeRefresh() {
+		binding.pullToRefresh.setOnRefreshListener(
+				() -> {
+					binding.pullToRefresh.setRefreshing(false);
+					refreshData();
+				});
+	}
+}

@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/content_scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:clipToPadding="false">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="@dimen/dimen12dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/mainCommitCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="?attr/materialCardViewElevatedStyle"
+                app:cardBackgroundColor="?attr/materialCardBackgroundColor"
+                app:cardCornerRadius="@dimen/dimen16dp"
+                app:cardElevation="@dimen/dimen0dp"
+                app:strokeWidth="0dp"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="@dimen/dimen16dp">
+
+                    <TextView
+                        android:id="@+id/commitSubject"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textColor="?attr/primaryTextColor"
+                        android:textStyle="bold"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        tools:text="Refactor commit list with modern ConstraintLayout" />
+
+                    <TextView
+                        android:id="@+id/commitBody"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/dimen8dp"
+                        android:alpha="0.8"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/primaryTextColor"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/commitSubject"
+                        tools:text="This refactor improves the performance by removing nested layouts and using modern M3 components." />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/commitAuthorAvatarFrame"
+                        android:layout_width="@dimen/dimen24dp"
+                        android:layout_height="@dimen/dimen24dp"
+                        android:layout_marginTop="@dimen/dimen16dp"
+                        app:cardCornerRadius="@dimen/dimen6dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="0dp"
+                        android:backgroundTint="@android:color/transparent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/commitBody">
+
+                        <ImageView
+                            android:id="@+id/commitAuthorAvatar"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:contentDescription="@string/generalImgContentText"
+                            android:scaleType="centerCrop"
+                            tools:src="@tools:sample/avatars" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/commitCommitterAvatarFrame"
+                        android:layout_width="@dimen/dimen24dp"
+                        android:layout_height="@dimen/dimen24dp"
+                        android:layout_marginStart="-10dp"
+                        app:cardCornerRadius="@dimen/dimen6dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="0dp"
+                        android:backgroundTint="@android:color/transparent"
+                        app:layout_constraintBottom_toBottomOf="@id/commitAuthorAvatarFrame"
+                        app:layout_constraintStart_toEndOf="@id/commitAuthorAvatarFrame"
+                        app:layout_constraintTop_toTopOf="@id/commitAuthorAvatarFrame">
+
+                        <ImageView
+                            android:id="@+id/commitCommitterAvatar"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:contentDescription="@string/generalImgContentText"
+                            android:scaleType="centerCrop"
+                            tools:src="@tools:sample/avatars" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:id="@+id/commitAuthorAndCommitter"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/dimen8dp"
+                        android:alpha="0.8"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textColor="?attr/primaryTextColor"
+                        app:layout_constraintBottom_toBottomOf="@id/commitAuthorAvatarFrame"
+                        app:layout_constraintEnd_toStartOf="@id/commitSha"
+                        app:layout_constraintStart_toEndOf="@id/commitCommitterAvatarFrame"
+                        app:layout_constraintTop_toTopOf="@id/commitAuthorAvatarFrame"
+                        tools:text="mian authored 2 hours ago" />
+
+                    <TextView
+                        android:id="@+id/commitSha"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:alpha="0.8"
+                        android:fontFamily="monospace"
+                        android:textAppearance="?attr/textAppearanceLabelSmall"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold"
+                        android:paddingHorizontal="@dimen/dimen6dp"
+                        android:paddingVertical="@dimen/dimen2dp"
+                        app:layout_constraintBottom_toBottomOf="@id/commitAuthorAvatarFrame"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/commitAuthorAvatarFrame"
+                        tools:text="357f3qd" />
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/statusesLvMain"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/dimen16dp"
+                        android:paddingVertical="@dimen/dimen4dp"
+                        app:layout_constraintTop_toBottomOf="@id/commitAuthorAvatarFrame">
+
+                        <LinearLayout
+                            android:id="@+id/statuses"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:minHeight="@dimen/dimen48dp"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="@dimen/dimen8dp"
+                            app:layout_constraintTop_toTopOf="parent"
+                            tools:ignore="UseCompoundDrawables">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/commitStatuses"
+                                android:textAppearance="?attr/textAppearanceTitleSmall"
+                                android:textColor="?attr/primaryTextColor" />
+
+                            <ImageView
+                                android:id="@+id/statusesExpandCollapse"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:contentDescription="@string/generalImgContentText"
+                                app:srcCompat="@drawable/ic_chevron_down"
+                                app:tint="?attr/primaryTextColor" />
+
+                        </LinearLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/statusesList"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="gone"
+                            app:layout_constraintTop_toBottomOf="@id/statuses" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/diff_files"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dimen8dp"
+                app:layout_constraintTop_toBottomOf="@id/mainCommitCard" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.loadingindicator.LoadingIndicator
+        android:id="@+id/expressive_loader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        app:indicatorSize="@dimen/dimen48dp"
+        app:trackThickness="@dimen/dimen4dp" />
+
+    <com.google.android.material.dockedtoolbar.DockedToolbarLayout
+        android:id="@+id/docked_toolbar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:paddingBottomSystemWindowInsets="false"
+        app:paddingLeftSystemWindowInsets="false"
+        app:paddingRightSystemWindowInsets="false"
+        app:paddingTopSystemWindowInsets="false"
+        android:layout_gravity="bottom|center_horizontal"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.RoundedDock"
+        android:backgroundTint="?attr/colorSurfaceContainerHighest">
+
+        <com.google.android.material.overflow.OverflowLinearLayout
+            android:id="@+id/docked_toolbar_child"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_back"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:icon="@drawable/ic_arrow_back"
+                android:contentDescription="@string/close" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_dock_menu"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:icon="@drawable/ic_dotted_menu" />
+
+        </com.google.android.material.overflow.OverflowLinearLayout>
+
+    </com.google.android.material.dockedtoolbar.DockedToolbarLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

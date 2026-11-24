@@ -1,0 +1,900 @@
+package orbit.nex.gitea.fragments;
+
+import android.app.Activity;
+import android.app.NotificationManager;
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import com.google.android.material.search.SearchView;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import okhttp3.ResponseBody;
+import org.apache.commons.io.FilenameUtils;
+import orbit.nex.gitea.R;
+import orbit.nex.gitea.activities.CommitsActivity;
+import orbit.nex.gitea.activities.RepoDetailActivity;
+import orbit.nex.gitea.adapters.FilesAdapter;
+import orbit.nex.gitea.api.models.contents.RepoGetContentsList;
+import orbit.nex.gitea.bottomsheets.BranchPickerBottomSheet;
+import orbit.nex.gitea.bottomsheets.ContentViewerBottomSheet;
+import orbit.nex.gitea.bottomsheets.CreateFileBottomSheet;
+import orbit.nex.gitea.bottomsheets.GenericMenuBottomSheet;
+import orbit.nex.gitea.clients.RetrofitClient;
+import orbit.nex.gitea.database.api.BaseApi;
+import orbit.nex.gitea.database.api.UserAccountsApi;
+import orbit.nex.gitea.database.models.UserAccount;
+import orbit.nex.gitea.databinding.FragmentFilesBinding;
+import orbit.nex.gitea.helpers.AppUtil;
+import orbit.nex.gitea.helpers.BookmarkHelper;
+import orbit.nex.gitea.helpers.Constants;
+import orbit.nex.gitea.helpers.Path;
+import orbit.nex.gitea.helpers.Toasty;
+import orbit.nex.gitea.helpers.UIHelper;
+import orbit.nex.gitea.helpers.UrlHelper;
+import orbit.nex.gitea.helpers.contexts.RepositoryContext;
+import orbit.nex.gitea.models.GenericMenuItemModel;
+import orbit.nex.gitea.models.RepositoryMenuItemModel;
+import orbit.nex.gitea.notifications.Notifications;
+import orbit.nex.gitea.viewmodels.FilesViewModel;
+import retrofit2.Call;
+
+public class FilesFragment extends Fragment
+		implements FilesAdapter.FilesAdapterListener, RepoDetailActivity.RepoHubProvider {
+
+	private FragmentFilesBinding binding;
+	private FilesViewModel viewModel;
+	private FilesAdapter filesAdapter;
+	private RepositoryContext repository;
+	private final Path path = new Path();
+	private boolean isFirstLoad = true;
+	private String pendingAction = null;
+	private RepoGetContentsList pendingFile = null;
+	private RepoGetContentsList pendingDownloadFile;
+
+	public static FilesFragment newInstance(RepositoryContext repository) {
+		FilesFragment fragment = new FilesFragment();
+		fragment.setArguments(repository.getBundle());
+		return fragment;
+	}
+
+	@Override
+	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+		super.onViewCreated(view, savedInstanceState);
+		View dock = requireActivity().findViewById(R.id.docked_toolbar);
+		UIHelper.applyInsets(view, dock, binding.recyclerView, binding.pullToRefresh, null);
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			repository = RepositoryContext.fromBundle(getArguments());
+		}
+	}
+
+	@Override
+	public View onCreateView(
+			@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+		binding = FragmentFilesBinding.inflate(inflater, container, false);
+		viewModel = new ViewModelProvider(this).get(FilesViewModel.class);
+
+		setupRecyclerView();
+		setupListeners();
+		setupBackNavigation();
+		observeViewModel();
+		observeFileContent();
+
+		String dir = requireActivity().getIntent().getStringExtra("dir");
+		if (dir != null && path.size() == 0) {
+			for (String segment : dir.split("/")) {
+				path.addWithoutEncoding(segment);
+			}
+		}
+
+		refresh();
+		return binding.getRoot();
+	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		if (!isHidden() && isFirstLoad) {
+			lazyLoad();
+		}
+	}
+
+	@Override
+	public void onHiddenChanged(boolean hidden) {
+		super.onHiddenChanged(hidden);
+		if (!hidden && isFirstLoad) {
+			lazyLoad();
+		}
+	}
+
+	private void lazyLoad() {
+		isFirstLoad = false;
+		refresh();
+	}
+
+	@Override
+	public List<RepositoryMenuItemModel> getRepoHubItems() {
+		List<RepositoryMenuItemModel> items = new ArrayList<>();
+
+		boolean isBookmarked =
+				BookmarkHelper.isBookmarked(
+						requireContext(),
+						"repo",
+						repository.getOwner(),
+						repository.getName(),
+						"files",
+						null);
+
+		items.add(
+				new RepositoryMenuItemModel(
+						"FILES_COMMITS",
+						R.string.commits,
+						R.drawable.ic_commit,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		items.add(
+				new RepositoryMenuItemModel(
+						"FILES_SWITCH_BRANCH",
+						R.string.branches,
+						R.drawable.ic_branch,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		items.add(
+				new RepositoryMenuItemModel(
+						"FILES_SEARCH",
+						R.string.search,
+						R.drawable.ic_search,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		if (repository.getPermissions().isAdmin() && !repository.getRepository().isArchived()) {
+			items.add(
+					new RepositoryMenuItemModel(
+							"FILES_ADD_NEW",
+							R.string.pageTitleNewFile,
+							R.drawable.ic_add,
+							R.attr.colorPrimaryContainer,
+							R.attr.colorOnPrimaryContainer));
+		}
+		items.add(
+				new RepositoryMenuItemModel(
+						"BOOKMARK_TAB",
+						isBookmarked ? R.string.bookmark_remove : R.string.bookmark_add,
+						isBookmarked ? R.drawable.ic_bookmark_remove : R.drawable.ic_bookmark_add,
+						isBookmarked ? R.attr.colorErrorContainer : R.attr.colorPrimarySurface,
+						isBookmarked
+								? R.attr.colorOnErrorContainer
+								: R.attr.colorOnPrimarySurface));
+		items.add(
+				new RepositoryMenuItemModel(
+						"CONTEXT_SHARE",
+						R.string.share_location,
+						R.drawable.ic_share,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		return items;
+	}
+
+	@Override
+	public void onHubActionSelected(String actionId) {
+		switch (actionId) {
+			case "FILES_COMMITS":
+				startActivity(repository.getIntent(getContext(), CommitsActivity.class));
+				break;
+
+			case "FILES_SWITCH_BRANCH":
+				chooseBranch();
+				break;
+
+			case "FILES_SEARCH":
+				binding.searchView.show();
+				break;
+
+			case "FILES_ADD_NEW":
+				CreateFileBottomSheet.newInstance(
+								repository, FilesViewModel.FileAction.CREATE, null, null, null)
+						.show(getChildFragmentManager(), "CREATE_FILE");
+				break;
+			case "BOOKMARK_TAB":
+				BookmarkHelper.toggleBookmark(
+						requireContext(),
+						"repo",
+						repository.getOwner(),
+						repository.getName(),
+						"files",
+						null,
+						repository.getBranchRef(),
+						getString(R.string.tabTextFiles),
+						UrlHelper.buildCurrentContextUrl(
+								requireContext(),
+								repository.getOwner(),
+								repository.getName(),
+								"src",
+								"branch",
+								repository.getBranchRef()));
+				break;
+			case "CONTEXT_SHARE":
+				String url =
+						UrlHelper.buildCurrentContextUrl(
+								requireContext(),
+								repository.getOwner(),
+								repository.getName(),
+								"src",
+								"branch",
+								repository.getBranchRef(),
+								path.toString());
+				AppUtil.sharingIntent(requireContext(), url);
+				break;
+		}
+	}
+
+	public void refreshFromGlobal() {
+		refresh();
+	}
+
+	@Override
+	public void onMenuClick(RepoGetContentsList file) {
+		showFileOptionsBottomSheet(file);
+	}
+
+	@Override
+	public void onSearchFilterCompleted(int count) {
+		boolean isSearching = binding.searchView.isShowing();
+		if (isSearching) {
+			binding.searchResultsRecycler.setVisibility(count == 0 ? View.GONE : View.VISIBLE);
+		} else {
+			binding.recyclerView.setVisibility(count == 0 ? View.GONE : View.VISIBLE);
+		}
+	}
+
+	private void setupRecyclerView() {
+		filesAdapter = new FilesAdapter(requireContext(), this);
+
+		binding.recyclerView.setHasFixedSize(true);
+		binding.recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+		binding.recyclerView.setAdapter(filesAdapter);
+
+		binding.searchResultsRecycler.setHasFixedSize(true);
+		binding.searchResultsRecycler.setLayoutManager(new LinearLayoutManager(getContext()));
+		binding.searchResultsRecycler.setAdapter(filesAdapter);
+	}
+
+	private void setupListeners() {
+		binding.pullToRefresh.setOnRefreshListener(this::refresh);
+
+		binding.searchView
+				.getEditText()
+				.addTextChangedListener(
+						new TextWatcher() {
+							@Override
+							public void beforeTextChanged(
+									CharSequence s, int start, int count, int after) {}
+
+							@Override
+							public void afterTextChanged(Editable s) {}
+
+							@Override
+							public void onTextChanged(
+									CharSequence s, int start, int before, int count) {
+								filesAdapter.getFilter().filter(s);
+							}
+						});
+
+		binding.searchView.addTransitionListener(
+				(searchView, previousState, newState) -> {
+					if (newState == SearchView.TransitionState.HIDDEN) {
+						filesAdapter.getFilter().filter("");
+						boolean hasFiles = filesAdapter.getItemCount() > 0;
+						binding.recyclerView.setVisibility(hasFiles ? View.VISIBLE : View.GONE);
+					}
+				});
+	}
+
+	private void setupBackNavigation() {
+		requireActivity()
+				.getOnBackPressedDispatcher()
+				.addCallback(
+						getViewLifecycleOwner(),
+						new OnBackPressedCallback(true) {
+							@Override
+							public void handleOnBackPressed() {
+								if (binding.searchView.isShowing()) {
+									binding.searchView.hide();
+									return;
+								}
+								if (path.size() > 0) {
+									path.remove(path.size() - 1);
+									refresh();
+								} else {
+									setEnabled(false);
+									requireActivity().getOnBackPressedDispatcher().onBackPressed();
+								}
+							}
+						});
+	}
+
+	private void observeViewModel() {
+		viewModel
+				.getFiles()
+				.observe(
+						getViewLifecycleOwner(),
+						list -> {
+							binding.pullToRefresh.setRefreshing(false);
+							filesAdapter.setPathData(
+									repository.getName(),
+									path.segments(),
+									new FilesAdapter.PathNavigationListener() {
+										@Override
+										public void onNavigateToPath(String clickedPath) {
+											path.clear();
+											for (String s : clickedPath.split("/")) {
+												path.addWithoutEncoding(s);
+											}
+											refresh();
+										}
+
+										@Override
+										public void onNavigateToRoot() {
+											path.clear();
+											refresh();
+										}
+									});
+							filesAdapter.setFiles(list);
+
+							boolean isEmpty = list.isEmpty();
+							binding.recyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+							binding.filesFrame.setVisibility(View.VISIBLE);
+							binding.layoutEmpty
+									.getRoot()
+									.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+						});
+
+		viewModel
+				.getIsFilesLoading()
+				.observe(
+						getViewLifecycleOwner(),
+						loading -> {
+							binding.expressiveLoader.setVisibility(
+									loading ? View.VISIBLE : View.GONE);
+							if (loading) {
+								binding.recyclerView.setVisibility(View.GONE);
+								binding.layoutEmpty.getRoot().setVisibility(View.GONE);
+							}
+						});
+
+		viewModel
+				.getErrorMessage()
+				.observe(
+						getViewLifecycleOwner(),
+						msg -> {
+							if (msg != null) Toasty.show(requireContext(), msg);
+						});
+	}
+
+	public void refresh() {
+		viewModel.loadFiles(
+				requireContext(),
+				repository.getOwner(),
+				repository.getName(),
+				repository.getBranchRef(),
+				path.toString());
+	}
+
+	private void observeFileContent() {
+		viewModel
+				.getFileContent()
+				.observe(
+						getViewLifecycleOwner(),
+						data -> {
+							if (data != null && pendingFile != null) {
+								String action = pendingAction;
+								RepoGetContentsList file = pendingFile;
+
+								viewModel.clearFileContent();
+								pendingAction = null;
+								pendingFile = null;
+
+								binding.expressiveLoader.setVisibility(View.GONE);
+
+								if ("view".equals(action)) {
+									openViewer(file, data);
+								} else if ("edit".equals(action)) {
+									if (!data.isBinary && data.textContent != null) {
+										CreateFileBottomSheet.newInstance(
+														repository,
+														FilesViewModel.FileAction.EDIT,
+														file.getPath(),
+														file.getSha(),
+														data.textContent)
+												.show(getChildFragmentManager(), "EDIT_FILE");
+									}
+								}
+							}
+						});
+
+		viewModel
+				.getErrorMessage()
+				.observe(
+						getViewLifecycleOwner(),
+						error -> {
+							if (error != null && pendingFile != null) {
+								binding.expressiveLoader.setVisibility(View.GONE);
+								pendingAction = null;
+								pendingFile = null;
+							}
+						});
+	}
+
+	private boolean isBinaryFileType(AppUtil.FileType fileType) {
+		return fileType != AppUtil.FileType.TEXT
+				&& fileType != AppUtil.FileType.IMAGE
+				&& fileType != AppUtil.FileType.UNKNOWN;
+	}
+
+	private boolean isEditableFileType(AppUtil.FileType fileType) {
+		return fileType != AppUtil.FileType.IMAGE
+				&& fileType != AppUtil.FileType.AUDIO
+				&& fileType != AppUtil.FileType.VIDEO
+				&& fileType != AppUtil.FileType.EXECUTABLE
+				&& fileType != AppUtil.FileType.FONT
+				&& fileType != AppUtil.FileType.KEYSTORE
+				&& fileType != AppUtil.FileType.DOCUMENT;
+	}
+
+	@Override
+	public void onClickFile(RepoGetContentsList file) {
+		switch (file.getType()) {
+			case "dir":
+				path.addWithoutEncoding(file.getName());
+				refresh();
+				break;
+			case "file":
+			case "symlink":
+				openFileViewer(file);
+				break;
+			case "submodule":
+				handleSubmodule(file);
+				break;
+		}
+	}
+
+	public void openFileViewer(RepoGetContentsList file) {
+		String fileExtension = FilenameUtils.getExtension(file.getName());
+		AppUtil.FileType fileType = AppUtil.getFileType(fileExtension);
+
+		if (isBinaryFileType(fileType)) {
+			showFileOptionsBottomSheet(file);
+			return;
+		}
+
+		pendingAction = "view";
+		pendingFile = file;
+		binding.expressiveLoader.setVisibility(View.VISIBLE);
+		boolean isImage = fileType == AppUtil.FileType.IMAGE;
+		viewModel.fetchFileContent(
+				requireContext(),
+				repository.getOwner(),
+				repository.getName(),
+				file.getPath(),
+				repository.getBranchRef(),
+				isImage);
+	}
+
+	private void openFileForEdit(RepoGetContentsList file) {
+		String fileExtension = FilenameUtils.getExtension(file.getName());
+		AppUtil.FileType fileType = AppUtil.getFileType(fileExtension);
+
+		if (!isEditableFileType(fileType)) {
+			Toasty.show(requireContext(), R.string.fileTypeCannotBeEdited);
+			return;
+		}
+
+		pendingAction = "edit";
+		pendingFile = file;
+		binding.expressiveLoader.setVisibility(View.VISIBLE);
+		viewModel.fetchFileContent(
+				requireContext(),
+				repository.getOwner(),
+				repository.getName(),
+				file.getPath(),
+				repository.getBranchRef(),
+				false);
+	}
+
+	public void openViewerLinkIntent(RepoGetContentsList file) {
+		openFileViewer(file);
+	}
+
+	private void openViewer(RepoGetContentsList file, FilesViewModel.FileContentData data) {
+		String fileExtension = FilenameUtils.getExtension(file.getName());
+		String fileName = file.getName();
+		AppUtil.FileType fileType = AppUtil.getFileType(fileExtension);
+
+		binding.expressiveLoader.setVisibility(View.GONE);
+
+		Map<String, String> metadata = new HashMap<>();
+		if (file.getHtmlUrl() != null) {
+			metadata.put("URL", file.getHtmlUrl());
+		}
+
+		if (fileType == AppUtil.FileType.IMAGE && data.binaryContent != null) {
+			ContentViewerBottomSheet.newInstance(
+							data.binaryContent,
+							fileName,
+							repository,
+							ContentViewerBottomSheet.Feature.IMAGE_PREVIEW,
+							ContentViewerBottomSheet.Feature.SHOW_TITLE,
+							ContentViewerBottomSheet.Feature.ALLOW_SHARE)
+					.show(getChildFragmentManager(), "FILE_VIEWER");
+			return;
+		}
+
+		String content = data.textContent != null ? data.textContent : "";
+
+		if (fileExtension.equalsIgnoreCase("md")) {
+			ContentViewerBottomSheet.newInstance(
+							content,
+							fileName,
+							repository,
+							fileExtension,
+							metadata,
+							ContentViewerBottomSheet.Feature.MARKDOWN_PREVIEW,
+							ContentViewerBottomSheet.Feature.START_IN_MARKDOWN,
+							ContentViewerBottomSheet.Feature.SHOW_TITLE,
+							ContentViewerBottomSheet.Feature.ALLOW_COPY,
+							ContentViewerBottomSheet.Feature.ALLOW_SHARE)
+					.show(getChildFragmentManager(), "FILE_VIEWER");
+			return;
+		}
+
+		if (fileType == AppUtil.FileType.TEXT) {
+			ContentViewerBottomSheet.newInstance(
+							content,
+							fileName,
+							repository,
+							fileExtension,
+							metadata,
+							ContentViewerBottomSheet.Feature.SYNTAX_HIGHLIGHT,
+							ContentViewerBottomSheet.Feature.SHOW_TITLE,
+							ContentViewerBottomSheet.Feature.ALLOW_COPY,
+							ContentViewerBottomSheet.Feature.ALLOW_SHARE)
+					.show(getChildFragmentManager(), "FILE_VIEWER");
+			return;
+		}
+
+		ContentViewerBottomSheet.newInstance(
+						content,
+						fileName,
+						repository,
+						null,
+						metadata,
+						ContentViewerBottomSheet.Feature.SHOW_TITLE,
+						ContentViewerBottomSheet.Feature.ALLOW_COPY,
+						ContentViewerBottomSheet.Feature.ALLOW_SHARE)
+				.show(getChildFragmentManager(), "FILE_VIEWER");
+	}
+
+	private void showFileOptionsBottomSheet(RepoGetContentsList file) {
+		String fileExtension = FilenameUtils.getExtension(file.getName());
+		AppUtil.FileType fileType = AppUtil.getFileType(fileExtension);
+		boolean canEdit =
+				repository.getPermissions().isPush()
+						&& !repository.getRepository().isArchived()
+						&& isEditableFileType(fileType);
+		boolean canDelete =
+				repository.getPermissions().isPush() && !repository.getRepository().isArchived();
+
+		List<GenericMenuItemModel> items = new ArrayList<>();
+
+		if (canEdit) {
+			items.add(
+					new GenericMenuItemModel(
+							"FILE_EDIT",
+							R.string.editFile,
+							R.drawable.ic_edit,
+							R.attr.colorPrimarySurface,
+							R.attr.colorOnPrimarySurface));
+		}
+
+		if (canDelete) {
+			items.add(
+					new GenericMenuItemModel(
+							"FILE_DELETE",
+							R.string.menuDeleteText,
+							R.drawable.ic_delete,
+							R.attr.colorErrorContainer,
+							R.attr.colorOnErrorContainer));
+		}
+
+		items.add(
+				new GenericMenuItemModel(
+						"FILE_DOWNLOAD",
+						R.string.download,
+						R.drawable.ic_download,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		items.add(
+				new GenericMenuItemModel(
+						"FILE_SHARE_URL",
+						R.string.share_location,
+						R.drawable.ic_share,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		items.add(
+				new GenericMenuItemModel(
+						"FILE_COPY_URL",
+						R.string.genericCopyUrl,
+						R.drawable.ic_copy,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		items.add(
+				new GenericMenuItemModel(
+						"FILE_OPEN_BROWSER",
+						R.string.openInBrowser,
+						R.drawable.ic_browser,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		GenericMenuBottomSheet sheet =
+				GenericMenuBottomSheet.newInstance(file.getName(), null, items);
+
+		sheet.setOnMenuItemClickListener(
+				id -> {
+					switch (id) {
+						case "FILE_EDIT":
+							openFileForEdit(file);
+							break;
+						case "FILE_DELETE":
+							CreateFileBottomSheet.newInstance(
+											repository,
+											FilesViewModel.FileAction.DELETE,
+											file.getPath(),
+											file.getSha(),
+											null)
+									.show(getChildFragmentManager(), "DELETE_FILE");
+							break;
+						case "FILE_DOWNLOAD":
+							requestFileDownload(file);
+							break;
+						case "FILE_SHARE_URL":
+							String shareUrl =
+									UrlHelper.buildCurrentContextUrl(
+											requireContext(),
+											repository.getOwner(),
+											repository.getName(),
+											"src",
+											"branch",
+											repository.getBranchRef(),
+											file.getPath());
+							AppUtil.sharingIntent(requireContext(), shareUrl);
+							break;
+						case "FILE_COPY_URL":
+							AppUtil.copyToClipboard(
+									requireContext(),
+									file.getHtmlUrl(),
+									getString(R.string.copied_to_clipboard));
+							break;
+						case "FILE_OPEN_BROWSER":
+							AppUtil.openUrlInBrowser(requireContext(), file.getHtmlUrl());
+							break;
+					}
+				});
+
+		sheet.show(getChildFragmentManager(), "FILE_MENU");
+	}
+
+	private void handleSubmodule(RepoGetContentsList file) {
+		String rawUrl = file.getSubmoduleGitUrl();
+		if (rawUrl == null) return;
+
+		Uri url = AppUtil.getUriFromGitUrl(rawUrl);
+		String host = url.getHost();
+		if (host == null) return;
+
+		UserAccountsApi userAccountsApi =
+				BaseApi.getInstance(requireContext(), UserAccountsApi.class);
+
+		if (userAccountsApi == null) return;
+
+		List<UserAccount> userAccounts = userAccountsApi.loggedInUserAccounts();
+
+		if (userAccounts == null || userAccounts.isEmpty()) {
+			AppUtil.openUrlInBrowser(requireContext(), url.toString());
+			return;
+		}
+
+		UserAccount targetAccount = null;
+
+		for (UserAccount account : userAccounts) {
+			Uri instanceUri = Uri.parse(account.getInstanceUrl());
+			if (Objects.requireNonNull(instanceUri.getHost()).equalsIgnoreCase(host)) {
+				targetAccount = account;
+				if (!Objects.equals(url.getScheme(), instanceUri.getScheme())) {
+					url = AppUtil.changeScheme(url, instanceUri.getScheme());
+				}
+				break;
+			}
+		}
+
+		if (targetAccount != null) {
+			AppUtil.switchToAccount(requireContext(), targetAccount, true);
+			List<String> pathSegments = url.getPathSegments();
+			if (pathSegments.size() < 2) {
+				AppUtil.openUrlInBrowser(requireContext(), url.toString());
+				return;
+			}
+
+			String owner = pathSegments.get(pathSegments.size() - 2);
+			String repo = pathSegments.get(pathSegments.size() - 1);
+			if (repo.endsWith(".git")) repo = repo.substring(0, repo.length() - 4);
+
+			startActivity(
+					new RepositoryContext(owner, repo, requireContext())
+							.getIntent(requireContext(), RepoDetailActivity.class));
+		} else {
+			AppUtil.openUrlInBrowser(requireContext(), url.toString());
+		}
+	}
+
+	private void chooseBranch() {
+		BranchPickerBottomSheet picker =
+				BranchPickerBottomSheet.newInstance(
+						repository.getOwner(), repository.getName(), repository.getBranchRef());
+
+		picker.setOnBranchSelectedListener(
+				branchName -> {
+					repository.setBranchRef(branchName);
+					path.clear();
+					refresh();
+				});
+
+		picker.show(getChildFragmentManager(), "branch_picker");
+	}
+
+	private void requestFileDownload(RepoGetContentsList file) {
+		pendingDownloadFile = file;
+		Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+		intent.addCategory(Intent.CATEGORY_OPENABLE);
+		intent.putExtra(Intent.EXTRA_TITLE, file.getName());
+		intent.setType("*/*");
+		downloadLauncher.launch(intent);
+	}
+
+	private final ActivityResultLauncher<Intent> downloadLauncher =
+			registerForActivityResult(
+					new ActivityResultContracts.StartActivityForResult(),
+					result -> {
+						if (result.getResultCode() == Activity.RESULT_OK
+								&& result.getData() != null) {
+							Uri targetUri = result.getData().getData();
+							if (targetUri != null && pendingDownloadFile != null) {
+								downloadFileToUri(pendingDownloadFile, targetUri);
+								pendingDownloadFile = null;
+							}
+						}
+					});
+
+	private void downloadFileToUri(RepoGetContentsList file, Uri targetUri) {
+		NotificationManager notificationManager =
+				(NotificationManager)
+						requireContext().getSystemService(Context.NOTIFICATION_SERVICE);
+		int notificationId = Notifications.uniqueNotificationId(requireContext());
+
+		NotificationCompat.Builder builder =
+				new NotificationCompat.Builder(
+								requireContext(), Constants.downloadNotificationChannelId)
+						.setContentTitle(getString(R.string.download_started_title))
+						.setContentText(getString(R.string.download_started_desc, file.getName()))
+						.setSmallIcon(R.drawable.app_logo)
+						.setPriority(NotificationCompat.PRIORITY_LOW)
+						.setOngoing(true)
+						.setProgress(100, 0, false);
+
+		notificationManager.notify(notificationId, builder.build());
+
+		new Thread(
+						() -> {
+							try {
+								Call<ResponseBody> call =
+										RetrofitClient.getWebInterface(requireContext())
+												.getFileContents(
+														repository.getOwner(),
+														repository.getName(),
+														repository.getBranchRef(),
+														file.getPath());
+
+								retrofit2.Response<ResponseBody> response = call.execute();
+
+								if (response.isSuccessful() && response.body() != null) {
+									try (OutputStream os =
+											requireContext()
+													.getContentResolver()
+													.openOutputStream(targetUri)) {
+										AppUtil.copyProgress(
+												response.body().byteStream(),
+												os,
+												file.getSize(),
+												progress -> {
+													builder.setProgress(100, progress, false);
+													notificationManager.notify(
+															notificationId, builder.build());
+												});
+
+										builder.setContentTitle(
+														getString(R.string.download_complete_title))
+												.setContentText(
+														getString(
+																R.string.download_complete_desc,
+																file.getName()))
+												.setOngoing(false)
+												.setProgress(0, 0, false);
+										notificationManager.notify(notificationId, builder.build());
+
+										requireActivity()
+												.runOnUiThread(
+														() ->
+																Toasty.show(
+																		requireContext(),
+																		R.string
+																				.downloadFileSaved));
+									}
+								} else {
+									throw new IOException("Download failed: " + response.code());
+								}
+							} catch (Exception e) {
+								builder.setContentTitle(getString(R.string.download_failed_title))
+										.setContentText(
+												getString(
+														R.string.download_failed_desc,
+														file.getName()))
+										.setOngoing(false)
+										.setProgress(0, 0, false);
+								notificationManager.notify(notificationId, builder.build());
+
+								requireActivity()
+										.runOnUiThread(
+												() ->
+														Toasty.show(
+																requireContext(),
+																R.string.download_failed_title));
+							}
+						})
+				.start();
+	}
+
+	@Override
+	public void onDestroyView() {
+		super.onDestroyView();
+		binding = null;
+	}
+}

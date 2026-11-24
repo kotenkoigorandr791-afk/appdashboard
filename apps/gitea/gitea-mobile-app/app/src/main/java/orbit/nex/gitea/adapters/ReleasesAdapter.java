@@ -1,0 +1,189 @@
+package orbit.nex.gitea.adapters;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.graphics.drawable.Drawable;
+import android.transition.AutoTransition;
+import android.transition.TransitionManager;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import java.util.List;
+import java.util.Locale;
+import org.gitnex.tea4j.v2.models.Release;
+import orbit.nex.gitea.R;
+import orbit.nex.gitea.databinding.ListReleasesBinding;
+import orbit.nex.gitea.helpers.AvatarGenerator;
+import orbit.nex.gitea.helpers.Markdown;
+import orbit.nex.gitea.helpers.TimeHelper;
+import orbit.nex.gitea.helpers.Toasty;
+import orbit.nex.gitea.helpers.contexts.RepositoryContext;
+
+public class ReleasesAdapter extends RecyclerView.Adapter<ReleasesAdapter.ReleasesViewHolder> {
+
+	private final Context context;
+	private List<Release> releasesList;
+	private final boolean canDelete;
+	private final RepositoryContext repositoryContext;
+	private final OnReleaseItemClickListener listener;
+
+	public interface OnReleaseItemClickListener {
+		void onMenuClick(Release release, int position);
+
+		void onDownload(String url);
+	}
+
+	public ReleasesAdapter(
+			Context context,
+			List<Release> releases,
+			boolean canDelete,
+			RepositoryContext repositoryContext,
+			OnReleaseItemClickListener listener) {
+		this.context = context;
+		this.releasesList = releases;
+		this.canDelete = canDelete;
+		this.repositoryContext = repositoryContext;
+		this.listener = listener;
+	}
+
+	@NonNull @Override
+	public ReleasesViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+		ListReleasesBinding binding =
+				ListReleasesBinding.inflate(LayoutInflater.from(context), parent, false);
+		return new ReleasesViewHolder(binding);
+	}
+
+	@Override
+	public void onBindViewHolder(@NonNull ReleasesViewHolder holder, int position) {
+		Release release = releasesList.get(position);
+		holder.bind(release);
+		holder.binding.getRoot().updateAppearance(position, getItemCount());
+	}
+
+	@Override
+	public int getItemCount() {
+		return releasesList != null ? releasesList.size() : 0;
+	}
+
+	@SuppressLint("NotifyDataSetChanged")
+	public void updateList(List<Release> list) {
+		this.releasesList = list;
+		notifyDataSetChanged();
+	}
+
+	public class ReleasesViewHolder extends RecyclerView.ViewHolder {
+		private final ListReleasesBinding binding;
+
+		public ReleasesViewHolder(ListReleasesBinding binding) {
+			super(binding.getRoot());
+			this.binding = binding;
+		}
+
+		void bind(Release release) {
+			String name =
+					(release.getName() == null || release.getName().isEmpty())
+							? release.getTagName()
+							: release.getName();
+			binding.releaseName.setText(name);
+
+			setupTypeBadge(release);
+
+			if (release.getAuthor() != null) {
+				binding.authorName.setText(
+						context.getString(
+								R.string.releasePublishedBy, release.getAuthor().getLogin()));
+
+				String label =
+						(release.getAuthor().getFullName() != null)
+								? release.getAuthor().getFullName()
+								: release.getAuthor().getLogin();
+				Drawable placeholder = AvatarGenerator.getLetterAvatar(context, label, 44);
+
+				Glide.with(context)
+						.load(release.getAuthor().getAvatarUrl())
+						.diskCacheStrategy(DiskCacheStrategy.ALL)
+						.placeholder(R.drawable.loader_animated)
+						.error(placeholder)
+						.centerCrop()
+						.into(binding.authorAvatar);
+			}
+
+			binding.releaseTag.setText(release.getTagName());
+			if (release.getPublishedAt() != null) {
+				binding.releaseDate.setText(
+						TimeHelper.formatTime(release.getPublishedAt(), Locale.getDefault()));
+				binding.releaseDate.setOnClickListener(
+						v ->
+								Toasty.show(
+										context,
+										TimeHelper.getFullDateTime(
+												release.getPublishedAt(), Locale.getDefault())));
+			}
+
+			if (release.getBody() != null && !release.getBody().isEmpty()) {
+				Markdown.render(
+						context, release.getBody(), binding.releaseBodyContent, repositoryContext);
+			} else {
+				binding.releaseBodyContent.setVisibility(View.GONE);
+			}
+
+			if (release.getAssets() != null && !release.getAssets().isEmpty()) {
+				binding.downloadList.setVisibility(View.VISIBLE);
+				ReleasesDownloadsAdapter downloadsAdapter =
+						new ReleasesDownloadsAdapter(release.getAssets(), listener::onDownload);
+
+				binding.downloadList.setLayoutManager(new LinearLayoutManager(context));
+				binding.downloadList.setAdapter(downloadsAdapter);
+				binding.downloadList.setNestedScrollingEnabled(false);
+			} else {
+				binding.downloadList.setVisibility(View.GONE);
+			}
+
+			binding.itemMenu.setVisibility(canDelete ? View.VISIBLE : View.GONE);
+			binding.itemMenu.setOnClickListener(
+					v -> listener.onMenuClick(release, getBindingAdapterPosition()));
+
+			binding.btnAssets.setOnClickListener(
+					v -> {
+						boolean isVisible =
+								binding.downloadsContainer.getVisibility() == View.VISIBLE;
+						TransitionManager.beginDelayedTransition(
+								binding.card, new AutoTransition());
+						binding.downloadsContainer.setVisibility(
+								isVisible ? View.GONE : View.VISIBLE);
+						binding.imgExpand.setImageResource(
+								isVisible
+										? R.drawable.ic_chevron_right
+										: R.drawable.ic_chevron_down);
+					});
+
+			binding.sourceZipLayout.downloadName.setText(R.string.zipArchiveDownloadReleasesTab);
+			binding.sourceZipLayout
+					.getRoot()
+					.setOnClickListener(v -> listener.onDownload(release.getZipballUrl()));
+		}
+
+		private void setupTypeBadge(Release release) {
+			String label;
+			int color;
+			if (release.isPrerelease()) {
+				label = context.getString(R.string.releaseTypePre).toUpperCase();
+				color = ContextCompat.getColor(context, R.color.releasePre);
+			} else if (release.isDraft()) {
+				label = context.getString(R.string.releaseDraftText).toUpperCase();
+				color = ContextCompat.getColor(context, R.color.lightYellow);
+			} else {
+				label = context.getString(R.string.releaseTypeStable).toUpperCase();
+				color = ContextCompat.getColor(context, R.color.darkGreen);
+			}
+			binding.releaseTypeBadge.setImageDrawable(
+					AvatarGenerator.getLabelDrawable(context, label, color, 20));
+		}
+	}
+}

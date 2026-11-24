@@ -236,7 +236,7 @@ if ($path === '/client-auth') {
     purgeClientBrowserAuthRequests($db);
     $row = getClientBrowserAuthRequest($db, $requestId);
     $validRequest = $row && clientBrowserAuthMatches($browserToken, (string)($row['browser_token_hash'] ?? '')) && (int)($row['expires_at'] ?? 0) >= time();
-    $mobileAuth = $validRequest && in_array((string)($row['platform'] ?? ''), ['nexsteps', 'nexspends'], true);
+    $mobileAuth = $validRequest && in_array((string)($row['platform'] ?? ''), ['nexsteps', 'nexspends', 'nexgitea'], true);
     $deviceName = $validRequest ? my_htmlspecialchars((string)($row['device_name'] ?: 'Desktop app')) : 'Desktop app';
     $platformName = $validRequest ? my_htmlspecialchars((string)($row['platform'] ?: 'desktop')) : 'desktop';
     $userEmail = my_htmlspecialchars((string)($_SESSION['user']['email'] ?? ''));

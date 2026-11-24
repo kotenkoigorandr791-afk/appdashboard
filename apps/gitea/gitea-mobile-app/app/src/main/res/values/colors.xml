@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ========================================== -->
+    <!-- NexOrbit Cosmic Navy (dark)                -->
+    <!-- ========================================== -->
+    <color name="nex_dark_bg_primary">#FF0B1324</color>
+    <color name="nex_dark_bg_glow_center">#FF132544</color>
+    <color name="nex_dark_surface_card">#FF14223D</color>
+    <color name="nex_dark_surface_input">#FF0E1A30</color>
+    <color name="nex_dark_primary_blue">#FF3B82F6</color>
+    <color name="nex_dark_primary_pressed">#FF2563EB</color>
+    <color name="nex_dark_highlight_blue">#FF60A5FA</color>
+    <color name="nex_dark_tinted_container">#293B82F6</color>
+    <color name="nex_dark_border_blue">#5260A5FA</color>
+    <color name="nex_dark_text_primary">#FFF1F5F9</color>
+    <color name="nex_dark_text_secondary">#FF94A3B8</color>
+    <color name="nex_dark_divider">#FF1E2B45</color>
+    <color name="nex_dark_error">#FFF87171</color>
+
+    <!-- ========================================== -->
+    <!-- NexOrbit Ice Slate (light)                 -->
+    <!-- ========================================== -->
+    <color name="nex_light_bg_primary">#FFEBF2FA</color>
+    <color name="nex_light_bg_glow_center">#FFF8FBFF</color>
+    <color name="nex_light_surface_card">#FFFFFFFF</color>
+    <color name="nex_light_surface_tinted">#FFE2ECFA</color>
+    <color name="nex_light_primary_blue">#FF2563EB</color>
+    <color name="nex_light_primary_pressed">#FF1D4ED8</color>
+    <color name="nex_light_border_tinted">#FFB6CCF0</color>
+    <color name="nex_light_border_subtle">#FFCBD5E1</color>
+    <color name="nex_light_text_primary">#FF0F172A</color>
+    <color name="nex_light_text_secondary">#FF475569</color>
+    <color name="nex_light_error">#FFDC2626</color>
+
+    <!-- Shared brand gradient -->
+    <color name="nex_orbit_cyan">#FF22D3EE</color>
+    <color name="nex_orbit_purple">#FF8B5CF6</color>
+    <color name="nex_orbit_white">#FFFFFFFF</color>
+
+    <!-- Legacy semantic names kept so existing layouts keep compiling.
+         Every one of them now resolves to the NexOrbit scheme. -->
+    <color name="colorPrimary">@color/nex_dark_bg_primary</color>
+    <color name="colorPrimaryDark">@color/nex_dark_bg_primary</color>
+    <color name="colorAccent">@color/nex_dark_text_secondary</color>
+    <color name="hintColor">@color/nex_dark_text_secondary</color>
+    <color name="colorWhite">@color/nex_orbit_white</color>
+    <color name="black">#FF05070D</color>
+    <color name="tooltipBackground">@color/nex_dark_primary_pressed</color>
+    <color name="blurColor">#41818181</color>
+    <color name="btnBackground">@color/nex_dark_primary_blue</color>
+    <color name="btnTextColor">@color/nex_orbit_white</color>
+    <color name="inputBackground">@color/nex_dark_surface_input</color>
+    <color name="inputSelected">#FF1E3355</color>
+    <color name="toastBackground">@color/nex_dark_surface_card</color>
+    <color name="releasePre">#FFF59E0B</color>
+    <color name="releaseStable">@color/nex_dark_primary_blue</color>
+    <color name="colorRed">@color/nex_dark_error</color>
+    <color name="colorLightGreen">#FF5AE0A8</color>
+    <color name="colorDarkGreen">@color/nex_dark_primary_blue</color>
+    <color name="darkRed">@color/nex_dark_error</color>
+    <color name="lightBlue">@color/nex_dark_highlight_blue</color>
+    <color name="lightGray">@color/nex_dark_text_secondary</color>
+    <color name="darkGreen">@color/nex_dark_primary_blue</color>
+    <color name="diffRemovedColor">#574343</color>
+    <color name="diffAddedColor">#485A4B</color>
+    <color name="diffSelectedColor">#434A57</color>
+    <color name="dividerColorDark">@color/nex_dark_divider</color>
+    <color name="lightYellow">#FFEFD34A</color>
+    <color name="warningColor">#FFDBB109</color>
+    <color name="colorSecondaryContainer">@color/nex_dark_surface_card</color>
+    <color name="cardBackground">@color/nex_dark_surface_card</color>
+    <color name="reaction_selected_overlay">#333B82F6</color>
+
+    <color name="lightThemeDiffRemovedColor">#FCEDED</color>
+    <color name="lightThemeDiffAddedColor">#EAF8ED</color>
+    <color name="lightThemeDiffSelectedColor">#E2ECFA</color>
+    <color name="lightThemeTextColor">@color/nex_light_text_secondary</color>
+    <color name="lightThemeBackground">@color/nex_light_bg_primary</color>
+    <color name="lightThemeInputBackground">@color/nex_light_surface_tinted</color>
+    <color name="lightThemInputSelected">#FFD3E2F8</color>
+    <color name="lightThemeInputTextColor">@color/nex_light_text_primary</color>
+    <color name="lightThemeDividerColor">@color/nex_light_border_subtle</color>
+    <color name="lightThemeColorSecondaryContainer">@color/nex_light_surface_tinted</color>
+    <color name="lightThemeCardBackground">@color/nex_light_surface_card</color>
+
+    <!-- Retro slot now uses the same NexOrbit ice scheme -->
+    <color name="retroThemeDiffRemovedColor">#FCEDED</color>
+    <color name="retroThemeDiffAddedColor">#EAF8ED</color>
+    <color name="retroThemeDiffSelectedColor">#E2ECFA</color>
+    <color name="retroThemeTextColor">@color/nex_light_text_secondary</color>
+    <color name="retroThemeBackground">@color/nex_light_bg_primary</color>
+    <color name="retroThemeInputBackground">@color/nex_light_surface_tinted</color>
+    <color name="retroThemeInputSelected">#FFD3E2F8</color>
+    <color name="retroThemeInputTextColor">@color/nex_light_text_primary</color>
+    <color name="retroThemeDividerColor">@color/nex_light_border_subtle</color>
+    <color name="retroThemeColorPrimary">@color/nex_light_primary_blue</color>
+    <color name="retroThemeColorSecondary">@color/nex_light_border_tinted</color>
+    <color name="retroThemeCardBackground">@color/nex_light_surface_card</color>
+
+    <color name="iconPrMergedColor">#FF8B5CF6</color>
+    <color name="iconIssuePrClosedColor">#FFF87171</color>
+
+    <color name="pitchBlackThemeBackground">#FF05070D</color>
+    <color name="pitchBlackThemeTextColor">@color/nex_dark_text_primary</color>
+    <color name="pitchBlackThemeDividerColor">#FF101725</color>
+    <color name="pitchBlackThemeGeneralBackgroundColor">#FF0B101B</color>
+    <color name="pitchBlackThemeColorSecondary">#FF101725</color>
+    <color name="pitchBlackThemeCardBackground">#FF0F1626</color>
+
+    <!-- Previously the Codeberg slot: now the NexOrbit deep navy variant -->
+    <color name="codebergDarkThemeBackground">@color/nex_dark_bg_primary</color>
+    <color name="codebergDarkThemeTextColor">@color/nex_dark_text_primary</color>
+    <color name="codebergDarkThemeDividerColor">@color/nex_dark_divider</color>
+    <color name="codebergDarkThemeGeneralBackgroundColor">@color/nex_dark_surface_card</color>
+    <color name="codebergDarkThemeColorSecondary">@color/nex_dark_surface_card</color>
+    <color name="codebergDarkThemeCardBackground">@color/nex_dark_surface_card</color>
+    <color name="codebergDarkThemeIconsColors">@color/nex_dark_primary_blue</color>
+    <color name="codebergDarkColorPrimary">@color/nex_dark_primary_blue</color>
+    <color name="codebergDarkInputBackground">@color/nex_dark_surface_input</color>
+    <color name="codebergDarkHintColor">@color/nex_dark_text_secondary</color>
+
+    <color name="heatmap_grey">#FF1E2B45</color>
+    <color name="heatmap_green_1">#FF1B3A63</color>
+    <color name="heatmap_green_2">#FF25518C</color>
+    <color name="heatmap_green_3">#FF2F6FE0</color>
+    <color name="heatmap_green_4">#FF3B82F6</color>
+
+    <color name="alert_note_border">#FF3B82F6</color>
+    <color name="alert_tip_border">#FF22D3EE</color>
+    <color name="alert_important_border">#FF8B5CF6</color>
+    <color name="alert_warning_border">#FFDAA038</color>
+    <color name="alert_caution_border">#FFF87171</color>
+    <color name="alert_text">#FF0F172A</color>
+
+    <color name="chipColor1">#FFDCE9FF</color>
+    <color name="chipColor2">#FFE2F7F3</color>
+    <color name="chipColor3">#FFFFF0DE</color>
+    <color name="chipColor4">#FFF0E7FF</color>
+    <color name="chipColor5">#FFFFE4E6</color>
+</resources>

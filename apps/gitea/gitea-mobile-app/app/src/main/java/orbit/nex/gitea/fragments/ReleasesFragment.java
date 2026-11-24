@@ -1,0 +1,688 @@
+package orbit.nex.gitea.fragments;
+
+import android.app.Activity;
+import android.app.NotificationManager;
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.X509TrustManager;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import org.gitnex.tea4j.v2.auth.ApiKeyAuth;
+import org.gitnex.tea4j.v2.models.Release;
+import org.gitnex.tea4j.v2.models.Tag;
+import orbit.nex.gitea.R;
+import orbit.nex.gitea.activities.BaseActivity;
+import orbit.nex.gitea.activities.RepoDetailActivity;
+import orbit.nex.gitea.adapters.ReleasesAdapter;
+import orbit.nex.gitea.adapters.TagsAdapter;
+import orbit.nex.gitea.bottomsheets.CreateReleaseBottomSheet;
+import orbit.nex.gitea.bottomsheets.GenericMenuBottomSheet;
+import orbit.nex.gitea.databinding.FragmentReleasesBinding;
+import orbit.nex.gitea.helpers.AppUtil;
+import orbit.nex.gitea.helpers.BookmarkHelper;
+import orbit.nex.gitea.helpers.Constants;
+import orbit.nex.gitea.helpers.EndlessRecyclerViewScrollListener;
+import orbit.nex.gitea.helpers.Toasty;
+import orbit.nex.gitea.helpers.UIHelper;
+import orbit.nex.gitea.helpers.UrlHelper;
+import orbit.nex.gitea.helpers.contexts.RepositoryContext;
+import orbit.nex.gitea.helpers.ssl.MemorizingTrustManager;
+import orbit.nex.gitea.models.GenericMenuItemModel;
+import orbit.nex.gitea.models.RepositoryMenuItemModel;
+import orbit.nex.gitea.notifications.Notifications;
+import orbit.nex.gitea.structs.FragmentRefreshListener;
+import orbit.nex.gitea.viewmodels.ReleasesViewModel;
+
+public class ReleasesFragment extends Fragment implements RepoDetailActivity.RepoHubProvider {
+
+	private FragmentReleasesBinding binding;
+	private ReleasesViewModel viewModel;
+	private ReleasesAdapter releasesAdapter;
+	private TagsAdapter tagsAdapter;
+	private RepositoryContext repository;
+	private int resultLimit;
+	private EndlessRecyclerViewScrollListener scrollListener;
+	private boolean isInitialLoad = true;
+	public static String currentDownloadUrl = null;
+	private boolean isFirstLoad = true;
+
+	public interface OnReleaseItemClickListener extends FragmentRefreshListener {
+		void onDelete(Object item, int position);
+
+		void onDownload(String url);
+
+		@Override
+		default void onRefresh(String url) {
+			onDownload(url);
+		}
+	}
+
+	public static ReleasesFragment newInstance(RepositoryContext repository) {
+		ReleasesFragment fragment = new ReleasesFragment();
+		fragment.setArguments(repository.getBundle());
+		return fragment;
+	}
+
+	@Override
+	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+		super.onViewCreated(view, savedInstanceState);
+		View dock = requireActivity().findViewById(R.id.docked_toolbar);
+		UIHelper.applyInsets(view, dock, binding.recyclerView, binding.pullToRefresh, null);
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		repository = RepositoryContext.fromBundle(requireArguments());
+	}
+
+	@Nullable @Override
+	public View onCreateView(
+			@NonNull LayoutInflater inflater,
+			@Nullable ViewGroup container,
+			@Nullable Bundle savedInstanceState) {
+		binding = FragmentReleasesBinding.inflate(inflater, container, false);
+		viewModel = new ViewModelProvider(requireActivity()).get(ReleasesViewModel.class);
+
+		resultLimit = Constants.getCurrentResultLimit(requireContext());
+
+		setupAdapters();
+		setupListeners();
+		observeViewModel();
+
+		return binding.getRoot();
+	}
+
+	@Override
+	public List<RepositoryMenuItemModel> getRepoHubItems() {
+		List<RepositoryMenuItemModel> items = new ArrayList<>();
+
+		boolean isShowingTags = repository.isReleasesViewTypeIsTag();
+		String releaseAction = isShowingTags ? "tags" : "releases";
+
+		boolean isBookmarked =
+				BookmarkHelper.isBookmarked(
+						requireContext(),
+						"repo",
+						repository.getOwner(),
+						repository.getName(),
+						releaseAction,
+						null);
+
+		items.add(
+				new RepositoryMenuItemModel(
+						"RELEASE_VIEW_TOGGLE",
+						isShowingTags ? R.string.tabTextReleases : R.string.tags,
+						isShowingTags ? R.drawable.ic_release : R.drawable.ic_tag,
+						isShowingTags ? R.attr.colorTertiaryContainer : R.attr.colorSurfaceVariant,
+						isShowingTags
+								? R.attr.colorOnTertiaryContainer
+								: R.attr.colorOnSurfaceVariant));
+
+		if (repository.getPermissions().isPush() && !repository.getRepository().isArchived()) {
+			items.add(
+					new RepositoryMenuItemModel(
+							"RELEASE_CREATE_NEW",
+							R.string.create_release_tag,
+							R.drawable.ic_add,
+							R.attr.colorPrimaryContainer,
+							R.attr.colorOnPrimaryContainer));
+		}
+		items.add(
+				new RepositoryMenuItemModel(
+						"BOOKMARK_TAB",
+						isBookmarked ? R.string.bookmark_remove : R.string.bookmark_add,
+						isBookmarked ? R.drawable.ic_bookmark_remove : R.drawable.ic_bookmark_add,
+						isBookmarked ? R.attr.colorErrorContainer : R.attr.colorPrimarySurface,
+						isBookmarked
+								? R.attr.colorOnErrorContainer
+								: R.attr.colorOnPrimarySurface));
+		items.add(
+				new RepositoryMenuItemModel(
+						"CONTEXT_SHARE",
+						R.string.share_location,
+						R.drawable.ic_share,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		return items;
+	}
+
+	@Override
+	public void onHubActionSelected(String actionId) {
+		switch (actionId) {
+			case "RELEASE_VIEW_TOGGLE":
+				repository.setReleasesViewTypeIsTag(!repository.isReleasesViewTypeIsTag());
+				refreshData();
+				break;
+
+			case "RELEASE_CREATE_NEW":
+				CreateReleaseBottomSheet.newInstance(repository, null)
+						.show(getChildFragmentManager(), "CREATE_RELEASE");
+				break;
+			case "BOOKMARK_TAB":
+				String action = repository.isReleasesViewTypeIsTag() ? "tags" : "releases";
+				String title =
+						repository.isReleasesViewTypeIsTag()
+								? getString(R.string.tags)
+								: getString(R.string.tabTextReleases);
+				BookmarkHelper.toggleBookmark(
+						requireContext(),
+						"repo",
+						repository.getOwner(),
+						repository.getName(),
+						action,
+						null,
+						null,
+						title,
+						UrlHelper.buildCurrentContextUrl(
+								requireContext(),
+								repository.getOwner(),
+								repository.getName(),
+								"releases"));
+				break;
+			case "CONTEXT_SHARE":
+				String url =
+						UrlHelper.buildCurrentContextUrl(
+								requireContext(),
+								repository.getOwner(),
+								repository.getName(),
+								"releases");
+				AppUtil.sharingIntent(requireContext(), url);
+				break;
+		}
+	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		if (!isHidden() && isFirstLoad) {
+			lazyLoad();
+		}
+	}
+
+	@Override
+	public void onHiddenChanged(boolean hidden) {
+		super.onHiddenChanged(hidden);
+		if (!hidden && isFirstLoad) {
+			lazyLoad();
+		}
+	}
+
+	private void lazyLoad() {
+		isFirstLoad = false;
+		initDataFetch();
+	}
+
+	private void setupAdapters() {
+		LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
+		binding.recyclerView.setHasFixedSize(true);
+		binding.recyclerView.setLayoutManager(layoutManager);
+
+		scrollListener =
+				new EndlessRecyclerViewScrollListener(layoutManager) {
+					@Override
+					public void onLoadMore(int page, int totalItemsCount, RecyclerView view) {
+						if (repository.isReleasesViewTypeIsTag()) {
+							viewModel.fetchTags(
+									requireContext(),
+									repository.getOwner(),
+									repository.getName(),
+									page,
+									resultLimit,
+									false);
+						} else {
+							viewModel.fetchReleases(
+									requireContext(),
+									repository.getOwner(),
+									repository.getName(),
+									page,
+									resultLimit,
+									false);
+						}
+					}
+				};
+		binding.recyclerView.addOnScrollListener(scrollListener);
+	}
+
+	private void setupListeners() {
+		binding.pullToRefresh.setOnRefreshListener(this::refreshData);
+	}
+
+	private void initDataFetch() {
+		isInitialLoad = true;
+		scrollListener.resetState();
+		viewModel.resetPagination();
+		viewModel.resetTagsPagination();
+
+		if (repository.isReleasesViewTypeIsTag()) {
+			viewModel.fetchTags(
+					requireContext(),
+					repository.getOwner(),
+					repository.getName(),
+					1,
+					resultLimit,
+					true);
+		} else {
+			viewModel.fetchReleases(
+					requireContext(),
+					repository.getOwner(),
+					repository.getName(),
+					1,
+					resultLimit,
+					true);
+		}
+	}
+
+	private void observeViewModel() {
+		viewModel
+				.getReleases()
+				.observe(
+						getViewLifecycleOwner(),
+						list -> {
+							if (list == null) return;
+
+							if (!repository.isReleasesViewTypeIsTag()) {
+								if (isInitialLoad && list.isEmpty()) {
+									repository.setReleasesViewTypeIsTag(true);
+									viewModel.fetchTags(
+											requireContext(),
+											repository.getOwner(),
+											repository.getName(),
+											1,
+											resultLimit,
+											true);
+									return;
+								}
+								handleReleasesView(list);
+							}
+						});
+
+		viewModel
+				.getTags()
+				.observe(
+						getViewLifecycleOwner(),
+						list -> {
+							if (list == null) return;
+
+							if (repository.isReleasesViewTypeIsTag()) {
+								handleTagsView(list);
+							}
+						});
+
+		viewModel.getIsLoading().observe(getViewLifecycleOwner(), this::handleLoadingState);
+
+		viewModel.getIsTagsLoading().observe(getViewLifecycleOwner(), this::handleLoadingState);
+
+		viewModel
+				.getError()
+				.observe(
+						getViewLifecycleOwner(),
+						err -> {
+							if (err != null) Toasty.show(requireContext(), err);
+						});
+
+		viewModel
+				.getActionResult()
+				.observe(
+						getViewLifecycleOwner(),
+						code -> {
+							if (code == null || code == -1) return;
+
+							if (code == 204) {
+								int messageRes =
+										repository.isReleasesViewTypeIsTag()
+												? R.string.tagDeleted
+												: R.string.releaseDeleted;
+								Toasty.show(requireContext(), messageRes);
+								refreshData();
+							} else if (code == 200 || code == 201) {
+								refreshData();
+							} else {
+								Toasty.show(requireContext(), R.string.genericError);
+							}
+
+							viewModel.resetActionResult();
+						});
+	}
+
+	private void handleLoadingState(boolean loading) {
+		if (loading) {
+			binding.expressiveLoader.setVisibility(View.VISIBLE);
+			binding.layoutEmpty.getRoot().setVisibility(View.GONE);
+		} else {
+			binding.expressiveLoader.setVisibility(View.GONE);
+			binding.pullToRefresh.setRefreshing(false);
+		}
+	}
+
+	private void handleReleasesView(List<Release> list) {
+		isInitialLoad = false;
+		if (releasesAdapter == null
+				|| scrollListener.getCurrentPage() <= 1
+				|| binding.recyclerView.getAdapter() != releasesAdapter) {
+
+			boolean canDelete = repository.getPermissions().isPush();
+
+			releasesAdapter =
+					new ReleasesAdapter(
+							requireContext(),
+							list,
+							canDelete,
+							repository,
+							new ReleasesAdapter.OnReleaseItemClickListener() {
+								@Override
+								public void onMenuClick(Release release, int position) {
+									showReleaseOptionsBottomSheet(release, position);
+								}
+
+								@Override
+								public void onDownload(String url) {
+									requestFileDownload(url);
+								}
+							});
+			binding.recyclerView.setAdapter(releasesAdapter);
+		} else {
+			releasesAdapter.updateList(list);
+		}
+		updateEmptyState(list.isEmpty());
+	}
+
+	private void showReleaseOptionsBottomSheet(Release release, int position) {
+		List<GenericMenuItemModel> items = new ArrayList<>();
+
+		items.add(
+				new GenericMenuItemModel(
+						"RELEASE_EDIT",
+						R.string.editRelease,
+						R.drawable.ic_edit,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+		items.add(
+				new GenericMenuItemModel(
+						"RELEASE_DELETE",
+						R.string.menuDeleteText,
+						R.drawable.ic_delete,
+						R.attr.colorErrorContainer,
+						R.attr.colorOnErrorContainer));
+		items.add(
+				new GenericMenuItemModel(
+						"RELEASE_SHARE",
+						R.string.share_location,
+						R.drawable.ic_share,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		GenericMenuBottomSheet sheet =
+				GenericMenuBottomSheet.newInstance(release.getName(), null, items);
+
+		sheet.setOnMenuItemClickListener(
+				id -> {
+					switch (id) {
+						case "RELEASE_SHARE":
+							String url =
+									UrlHelper.buildCurrentContextUrl(
+											requireContext(),
+											repository.getOwner(),
+											repository.getName(),
+											"releases",
+											"tag",
+											release.getTagName());
+							AppUtil.sharingIntent(requireContext(), url);
+							break;
+						case "RELEASE_EDIT":
+							CreateReleaseBottomSheet.newInstance(repository, release)
+									.show(getParentFragmentManager(), "EDIT_RELEASE");
+							break;
+						case "RELEASE_DELETE":
+							new MaterialAlertDialogBuilder(requireContext())
+									.setTitle(
+											getString(
+													R.string.deleteGenericTitle, release.getName()))
+									.setMessage(R.string.deleteReleaseConfirmation)
+									.setPositiveButton(
+											R.string.menuDeleteText,
+											(d, w) ->
+													viewModel.deleteRelease(
+															requireContext(),
+															repository.getOwner(),
+															repository.getName(),
+															release.getId(),
+															position))
+									.setNegativeButton(R.string.cancelButton, null)
+									.show();
+							break;
+					}
+				});
+
+		sheet.show(getChildFragmentManager(), "RELEASE_MENU");
+	}
+
+	private void handleTagsView(List<Tag> list) {
+		isInitialLoad = false;
+		if (tagsAdapter == null
+				|| scrollListener.getCurrentPage() <= 1
+				|| binding.recyclerView.getAdapter() != tagsAdapter) {
+
+			boolean canDelete = repository.getPermissions().isPush();
+
+			tagsAdapter =
+					new TagsAdapter(
+							requireContext(),
+							list,
+							canDelete,
+							new OnReleaseItemClickListener() {
+								@Override
+								public void onDelete(Object item, int position) {
+									Tag tag = (Tag) item;
+									new MaterialAlertDialogBuilder(requireContext())
+											.setTitle(
+													getString(
+															R.string.deleteGenericTitle,
+															tag.getName()))
+											.setMessage(R.string.deleteTagConfirmation)
+											.setPositiveButton(
+													R.string.menuDeleteText,
+													(d, w) ->
+															viewModel.deleteTag(
+																	requireContext(),
+																	repository.getOwner(),
+																	repository.getName(),
+																	tag.getName(),
+																	position))
+											.setNegativeButton(R.string.cancelButton, null)
+											.show();
+								}
+
+								@Override
+								public void onDownload(String url) {
+									requestFileDownload(url);
+								}
+							});
+			binding.recyclerView.setAdapter(tagsAdapter);
+		} else {
+			tagsAdapter.updateList(list);
+		}
+		updateEmptyState(list.isEmpty());
+	}
+
+	private void refreshData() {
+
+		scrollListener.resetState();
+		viewModel.resetPagination();
+		viewModel.resetTagsPagination();
+		binding.expressiveLoader.setVisibility(View.VISIBLE);
+
+		if (repository.isReleasesViewTypeIsTag()) {
+			viewModel.fetchTags(
+					requireContext(),
+					repository.getOwner(),
+					repository.getName(),
+					1,
+					resultLimit,
+					true);
+		} else {
+			viewModel.fetchReleases(
+					requireContext(),
+					repository.getOwner(),
+					repository.getName(),
+					1,
+					resultLimit,
+					true);
+		}
+	}
+
+	private void updateEmptyState(boolean isEmpty) {
+		boolean loading = Boolean.TRUE.equals(viewModel.getIsLoading().getValue());
+
+		if (isEmpty && !loading) {
+			binding.layoutEmpty.getRoot().setVisibility(View.VISIBLE);
+			binding.recyclerView.setVisibility(View.GONE);
+		} else if (!isEmpty) {
+			binding.layoutEmpty.getRoot().setVisibility(View.GONE);
+			binding.recyclerView.setVisibility(View.VISIBLE);
+		} else {
+			binding.layoutEmpty.getRoot().setVisibility(View.GONE);
+			binding.recyclerView.setVisibility(View.GONE);
+		}
+	}
+
+	@Override
+	public void onDestroyView() {
+		super.onDestroyView();
+		binding = null;
+	}
+
+	private void requestFileDownload(String url) {
+		currentDownloadUrl = url;
+		Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+		intent.addCategory(Intent.CATEGORY_OPENABLE);
+		intent.putExtra(Intent.EXTRA_TITLE, Uri.parse(url).getLastPathSegment());
+		intent.setType("*/*");
+		downloadLauncher.launch(intent);
+	}
+
+	private final ActivityResultLauncher<Intent> downloadLauncher =
+			registerForActivityResult(
+					new ActivityResultContracts.StartActivityForResult(),
+					result -> {
+						if (result.getResultCode() == Activity.RESULT_OK
+								&& result.getData() != null) {
+							executeDownload(result.getData().getData());
+						}
+					});
+
+	private void executeDownload(Uri targetUri) {
+		try {
+			NotificationManager notificationManager =
+					(NotificationManager)
+							requireContext().getSystemService(Context.NOTIFICATION_SERVICE);
+			int notificationId = Notifications.uniqueNotificationId(requireContext());
+
+			NotificationCompat.Builder builder =
+					new NotificationCompat.Builder(
+									requireContext(), Constants.downloadNotificationChannelId)
+							.setContentTitle(getString(R.string.download_started_title))
+							.setContentText(
+									getString(
+											R.string.download_started_desc,
+											Uri.parse(currentDownloadUrl).getLastPathSegment()))
+							.setSmallIcon(R.drawable.app_logo)
+							.setPriority(NotificationCompat.PRIORITY_LOW)
+							.setOngoing(true);
+
+			notificationManager.notify(notificationId, builder.build());
+
+			SSLContext sslContext = SSLContext.getInstance("TLS");
+			MemorizingTrustManager mtm = new MemorizingTrustManager(requireContext());
+			sslContext.init(null, new X509TrustManager[] {mtm}, new SecureRandom());
+
+			ApiKeyAuth auth = new ApiKeyAuth("header", "Authorization");
+			auth.setApiKey(((BaseActivity) requireActivity()).getAccount().getWebAuthorization());
+
+			OkHttpClient client =
+					new OkHttpClient.Builder()
+							.addInterceptor(auth)
+							.sslSocketFactory(sslContext.getSocketFactory(), mtm)
+							.hostnameVerifier(
+									mtm.wrapHostnameVerifier(
+											HttpsURLConnection.getDefaultHostnameVerifier()))
+							.build();
+
+			client.newCall(new Request.Builder().url(currentDownloadUrl).build())
+					.enqueue(
+							new Callback() {
+								@Override
+								public void onFailure(@NonNull Call call, @NonNull IOException e) {
+									builder.setContentTitle(
+													getString(R.string.download_failed_title))
+											.setContentText(
+													getString(
+															R.string.download_failed_desc,
+															Uri.parse(currentDownloadUrl)
+																	.getLastPathSegment()))
+											.setOngoing(false);
+									notificationManager.notify(notificationId, builder.build());
+								}
+
+								@Override
+								public void onResponse(
+										@NonNull Call call, @NonNull Response response)
+										throws IOException {
+									if (!response.isSuccessful()) {
+										onFailure(call, new IOException());
+										return;
+									}
+									try (OutputStream os =
+											requireContext()
+													.getContentResolver()
+													.openOutputStream(targetUri)) {
+										AppUtil.copyProgress(
+												Objects.requireNonNull(response.body())
+														.byteStream(),
+												os,
+												0,
+												p -> {});
+										builder.setContentTitle(
+														getString(R.string.download_complete_title))
+												.setContentText(
+														getString(
+																R.string.download_complete_desc,
+																Uri.parse(currentDownloadUrl)
+																		.getLastPathSegment()))
+												.setOngoing(false);
+										notificationManager.notify(notificationId, builder.build());
+									}
+								}
+							});
+		} catch (Exception e) {
+			Toasty.show(requireContext(), R.string.network_error);
+		}
+	}
+}

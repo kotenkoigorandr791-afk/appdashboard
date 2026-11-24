@@ -1,0 +1,405 @@
+<resources>
+    <style name="AppTheme.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <style name="customTabLayout" parent="TextAppearance.Design.Tab">
+        <item name="android:textSize">@dimen/dimen16sp</item>
+    </style>
+
+    <style name="Widget.App.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="thumbTint">@color/colorWhite</item>
+        <item name="colorPrimary">?attr/fabColor</item>
+    </style>
+
+    <style name="m3SwitchStyle" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="materialThemeOverlay">@style/Widget.App.Switch</item>
+        <item name="thumbTint">@color/colorWhite</item>
+    </style>
+
+    <style name="Widget.App.Slider" parent="Widget.Material3.Slider">
+        <item name="thumbTint">@color/colorWhite</item>
+        <item name="colorPrimary">?attr/fabColor</item>
+    </style>
+
+    <style name="m3SliderStyle" parent="Widget.Material3.Slider">
+        <item name="materialThemeOverlay">@style/Widget.App.Slider</item>
+        <item name="thumbTint">@color/colorWhite</item>
+    </style>
+
+    <!-- Custom Material cards -->
+    <style name="CustomMaterCardViewStyle" parent="@style/Widget.MaterialComponents.CardView">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.card.custom.corners</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.card.custom.corners" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopRight">@dimen/dimen20dp</item>
+        <item name="cornerSizeTopLeft">@dimen/dimen20dp</item>
+        <item name="cornerSizeBottomRight">@dimen/dimen20dp</item>
+        <item name="cornerSizeBottomLeft">@dimen/dimen20dp</item>
+    </style>
+
+    <style name="CustomMaterialCardStyle" parent="@style/Widget.MaterialComponents.CardView">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.custom.card</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.custom.card" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/dimen20dp</item>
+    </style>
+
+    <style name="inputsMaterialComponentCorner" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/dimen12dp</item>
+    </style>
+
+    <style name="customOverflowButtonStyle">
+        <item name="android:src">@drawable/ic_dotted_menu</item>
+        <item name="android:paddingStart">@dimen/dimen12dp</item>
+        <item name="android:paddingEnd">@dimen/dimen12dp</item>
+    </style>
+
+    <style name="customOverflowMenuStyle" parent="@style/Widget.Material3.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/shape_round_corners</item>
+    </style>
+
+    <style name="AppSearchViewStyle" parent="Widget.AppCompat.SearchView">
+        <item name="searchHintIcon">@drawable/ic_search</item>
+        <item name="searchIcon">@null</item>
+        <item name="queryBackground">@android:color/transparent</item>
+        <item name="closeIcon">@drawable/ic_close</item>
+    </style>
+
+    <style name="AppThemeLightSearchAutoCompleteTextView" parent="Widget.AppCompat.Light.AutoCompleteTextView">
+        <item name="android:textColor">@color/lightThemeTextColor</item>
+        <item name="android:textColorHint">@color/lightThemeTextColor</item>
+    </style>
+
+    <style name="AppThemeDarkSearchAutoCompleteTextView" parent="Widget.AppCompat.Light.AutoCompleteTextView">
+        <item name="android:textColor">@color/colorWhite</item>
+        <item name="android:textColorHint">@color/colorWhite</item>
+    </style>
+
+    <style name="AppThemeConfirmDialog" parent="Theme.Material3.Dark.Dialog.Alert">
+        <item name="android:background">@color/nex_dark_surface_card</item>
+        <item name="android:textColorPrimary">@color/nex_dark_text_primary</item>
+        <item name="android:textColor">@color/nex_dark_text_primary</item>
+        <item name="colorControlNormal">@color/nex_dark_text_primary</item>
+        <item name="colorControlActivated">@color/nex_dark_primary_blue</item>
+        <item name="buttonBarNegativeButtonStyle">@style/NegativeButtonStyle</item>
+        <item name="buttonBarPositiveButtonStyle">@style/PositiveButtonStyle</item>
+        <item name="buttonBarNeutralButtonStyle">@style/NeutralButtonStyle</item>
+        <item name="android:windowBackground">@drawable/shape_round_corners</item>
+    </style>
+
+    <style name="AppThemeLightConfirmDialog" parent="Theme.Material3.Light.Dialog.Alert">
+        <item name="android:background">@color/nex_light_surface_card</item>
+        <item name="android:textColorPrimary">@color/nex_light_text_primary</item>
+        <item name="android:textColor">@color/nex_light_text_primary</item>
+        <item name="colorControlNormal">@color/nex_light_text_primary</item>
+        <item name="colorControlActivated">@color/nex_light_primary_blue</item>
+        <item name="buttonBarNegativeButtonStyle">@style/NegativeButtonStyle</item>
+        <item name="buttonBarPositiveButtonStyle">@style/PositiveButtonStyle</item>
+        <item name="buttonBarNeutralButtonStyle">@style/NeutralButtonStyle</item>
+        <item name="android:windowBackground">@drawable/shape_round_corners</item>
+    </style>
+
+    <style name="NegativeButtonStyle" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/darkRed</item>
+        <item name="android:layout_marginEnd">@dimen/dimen16dp</item>
+    </style>
+
+    <style name="PositiveButtonStyle" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/nex_dark_primary_blue</item>
+    </style>
+
+    <style name="NeutralButtonStyle" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/colorAccent</item>
+    </style>
+
+    <style name="AppThemePopupMenuStyle" parent="Widget.Material3.PopupMenu">
+        <item name="android:popupBackground">@drawable/shape_round_corners</item>
+        <item name="android:textColor">@color/colorWhite</item>
+        <item name="android:layout_marginStart">@dimen/dimen4dp</item>
+        <item name="android:layout_marginEnd">@dimen/dimen4dp</item>
+    </style>
+
+    <style name="AppThemeLightPopupMenuStyle" parent="Widget.Material3.PopupMenu">
+        <item name="android:popupBackground">@drawable/shape_round_corners</item>
+        <item name="android:itemBackground">@color/nex_light_bg_primary</item>
+        <item name="android:textColor">@color/nex_light_text_primary</item>
+        <item name="android:layout_marginStart">@dimen/dimen4dp</item>
+        <item name="android:layout_marginEnd">@dimen/dimen4dp</item>
+    </style>
+
+    <style name="AppThemeLightCheckBoxStyle" parent="Widget.Material3.CompoundButton.CheckBox">
+        <item name="buttonTint">@color/nex_light_primary_blue</item>
+    </style>
+
+    <style name="AppThemeCheckBoxStyle" parent="Widget.Material3.CompoundButton.CheckBox">
+        <item name="buttonTint">?attr/iconsColor</item>
+    </style>
+
+    <!-- Retro theme styles -->
+    <style name="AppThemeRetroCheckBoxStyle" parent="Widget.Material3.CompoundButton.CheckBox">
+        <item name="buttonTint">@color/nex_light_primary_blue</item>
+    </style>
+
+    <style name="AppThemeRetroSearchAutoCompleteTextView" parent="Widget.AppCompat.Light.AutoCompleteTextView">
+        <item name="android:textColor">@color/nex_light_text_primary</item>
+        <item name="android:textColorHint">@color/nex_light_text_secondary</item>
+    </style>
+
+    <style name="AppThemeRetroConfirmDialog" parent="ThemeOverlay.Material3.Dialog.Alert">
+        <item name="android:background">@color/nex_light_surface_card</item>
+        <item name="android:textColorPrimary">@color/nex_light_text_primary</item>
+        <item name="android:textColor">@color/nex_light_text_primary</item>
+        <item name="colorControlNormal">@color/nex_light_text_primary</item>
+        <item name="colorControlActivated">@color/nex_light_primary_blue</item>
+        <item name="buttonBarNegativeButtonStyle">@style/RetroNegativeButtonStyle</item>
+        <item name="buttonBarPositiveButtonStyle">@style/RetroPositiveButtonStyle</item>
+        <item name="buttonBarNeutralButtonStyle">@style/RetroNeutralButtonStyle</item>
+        <item name="android:windowBackground">@drawable/shape_round_corners</item>
+    </style>
+
+    <style name="RetroNegativeButtonStyle" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/nex_light_text_primary</item>
+        <item name="android:layout_marginEnd">@dimen/dimen16dp</item>
+    </style>
+
+    <style name="RetroPositiveButtonStyle" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/darkRed</item>
+    </style>
+
+    <style name="RetroNeutralButtonStyle" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/nex_light_primary_blue</item>
+    </style>
+
+    <style name="AppThemeRetroPopupMenuStyle" parent="Widget.Material3.PopupMenu">
+        <item name="android:popupBackground">@drawable/shape_round_corners</item>
+        <item name="android:itemBackground">@color/nex_light_bg_primary</item>
+        <item name="android:textColor">@color/nex_light_text_primary</item>
+        <item name="android:layout_marginStart">@dimen/dimen4dp</item>
+        <item name="android:layout_marginEnd">@dimen/dimen4dp</item>
+    </style>
+    <!-- Retro theme styles -->
+
+    <!-- Pitch black theme styles -->
+    <style name="AppThemePitchBlackConfirmDialog" parent="Theme.Material3.Dark.Dialog.Alert">
+        <item name="android:background">@color/pitchBlackThemeGeneralBackgroundColor</item>
+        <item name="android:textColorPrimary">@color/nex_dark_text_primary</item>
+        <item name="android:textColor">@color/nex_dark_text_primary</item>
+        <item name="colorControlNormal">@color/nex_dark_text_primary</item>
+        <item name="colorControlActivated">@color/nex_dark_primary_blue</item>
+        <item name="buttonBarNegativeButtonStyle">@style/NegativeButtonStyle</item>
+        <item name="buttonBarPositiveButtonStyle">@style/PositiveButtonStyle</item>
+        <item name="buttonBarNeutralButtonStyle">@style/NeutralButtonStyle</item>
+        <item name="android:windowBackground">@drawable/shape_round_corners</item>
+    </style>
+
+    <style name="AppThemePitchBlackPopupMenuStyle" parent="Widget.Material3.PopupMenu">
+        <item name="android:popupBackground">@drawable/shape_round_corners</item>
+        <item name="android:itemBackground">@color/pitchBlackThemeGeneralBackgroundColor</item>
+        <item name="android:textColor">@color/nex_dark_text_primary</item>
+        <item name="android:layout_marginStart">@dimen/dimen4dp</item>
+        <item name="android:layout_marginEnd">@dimen/dimen4dp</item>
+    </style>
+    <!-- Pitch black theme styles -->
+
+    <!-- Deep navy dark theme styles -->
+    <style name="AppThemeCodebergDarkConfirmDialog" parent="Theme.Material3.Dark.Dialog.Alert">
+        <item name="android:background">@color/nex_dark_surface_card</item>
+        <item name="android:textColorPrimary">@color/nex_dark_text_primary</item>
+        <item name="android:textColor">@color/nex_dark_text_primary</item>
+        <item name="colorControlNormal">@color/nex_dark_text_primary</item>
+        <item name="colorControlActivated">@color/nex_dark_primary_blue</item>
+        <item name="buttonBarNegativeButtonStyle">@style/NegativeButtonStyle</item>
+        <item name="buttonBarPositiveButtonStyle">@style/PositiveButtonStyle</item>
+        <item name="buttonBarNeutralButtonStyle">@style/NeutralButtonStyle</item>
+        <item name="android:windowBackground">@drawable/shape_round_corners</item>
+    </style>
+
+    <style name="AppThemeCodebergDarkPopupMenuStyle" parent="Widget.Material3.PopupMenu">
+        <item name="android:popupBackground">@drawable/shape_round_corners</item>
+        <item name="android:itemBackground">@color/nex_dark_surface_card</item>
+        <item name="android:textColor">@color/nex_dark_text_primary</item>
+        <item name="android:layout_marginStart">@dimen/dimen4dp</item>
+        <item name="android:layout_marginEnd">@dimen/dimen4dp</item>
+    </style>
+    <!-- Deep navy dark theme styles -->
+
+    <style name="AppThemeSystem" parent="AppThemeLight"/>
+
+    <style name="AppThemeSystemPitchBlack" parent="AppThemeLight"/>
+
+    <style name="AppThemeDynamicSystem" parent="AppThemeLightDynamicColors"/>
+
+    <style name="CustomChipFilter" parent="Widget.Material3.Chip.Filter">
+        <item name="chipBackgroundColor">?attr/colorSurfaceContainerHighest</item>
+        <item name="chipStrokeWidth">0dp</item>
+        <item name="chipStrokeColor">@android:color/transparent</item>
+        <item name="android:textColor">?attr/primaryTextColor</item>
+        <item name="rippleColor">@android:color/transparent</item>
+        <item name="checkedIconTint">?attr/iconsColor</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Chip.Rounded</item>
+    </style>
+
+    <style name="ShapeAppearance.Chip.Rounded" parent="ShapeAppearance.Material3.Corner.Full">
+        <item name="cornerFamily">rounded</item>
+    </style>
+
+    <!-- Bottom navigation bar, mirrored after the Spends app shell -->
+    <style name="ShapeAppearance.RoundedDock" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/dimen28dp</item>
+    </style>
+
+    <style name="Widget.Nex.DockButton" parent="Widget.Material3.Button.TextButton">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:elevation">0dp</item>
+        <item name="elevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:textColor">@color/dock_nav_color</item>
+        <item name="iconTint">@color/dock_nav_color</item>
+        <item name="android:textSize">@dimen/dimen10sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="iconGravity">top</item>
+        <item name="iconPadding">@dimen/dimen4dp</item>
+        <item name="iconSize">@dimen/dimen22dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingStart">@dimen/dimen4dp</item>
+        <item name="android:paddingEnd">@dimen/dimen4dp</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="rippleColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Widget.Nex.DockItem" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:gravity">center</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+    </style>
+
+    <style name="Widget.Nex.DockAction" parent="Widget.Material3.Button.IconButton">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:elevation">0dp</item>
+        <item name="elevation">0dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="iconTint">@color/dock_action_color</item>
+    </style>
+
+    <style name="Widget.Nex.DockAddButton" parent="Widget.Material3.Button.IconButton.Filled">
+        <item name="android:minWidth">@dimen/dimen48dp</item>
+        <item name="android:minHeight">@dimen/dimen48dp</item>
+        <item name="backgroundTint">?attr/colorPrimary</item>
+        <item name="iconTint">?attr/colorOnPrimary</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Nex.AddButton</item>
+    </style>
+
+    <style name="ShapeAppearance.Nex.AddButton" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/dimen18dp</item>
+    </style>
+
+    <style name="ShapeAppearance.TopRounded" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">@dimen/dimen28dp</item>
+        <item name="cornerSizeTopRight">@dimen/dimen28dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
+    <style name="Widget.BottomSheet.Dark" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="shapeAppearance">@style/ShapeAppearance.TopRounded</item>
+        <item name="backgroundTint">@color/nex_dark_bg_primary</item>
+    </style>
+
+    <style name="Widget.BottomSheet.Light" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="shapeAppearance">@style/ShapeAppearance.TopRounded</item>
+        <item name="backgroundTint">@color/nex_light_bg_primary</item>
+    </style>
+
+    <style name="Custom.BottomSheet" parent="Theme.Material3.Dark.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.BottomSheet.Dark</item>
+        <item name="primaryBackgroundColor">@color/nex_dark_bg_primary</item>
+        <item name="materialCardBackgroundColor">@color/nex_dark_surface_card</item>
+        <item name="colorSurface">@color/nex_dark_surface_card</item>
+        <item name="colorSurfaceVariant">@color/nex_dark_surface_input</item>
+        <item name="colorSurfaceContainerHighest">@color/nex_dark_surface_input</item>
+        <item name="colorSurfaceContainerHigh">@color/nex_dark_surface_card</item>
+        <item name="primaryTextColor">@color/nex_dark_text_primary</item>
+        <item name="colorOnSurface">@color/nex_dark_text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/nex_dark_text_secondary</item>
+        <item name="colorPrimary">@color/nex_dark_primary_blue</item>
+        <item name="colorOutlineVariant">@color/nex_dark_divider</item>
+        <item name="isDark">1</item>
+    </style>
+
+    <style name="Custom.BottomSheet.Light" parent="Theme.Material3.Light.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.BottomSheet.Light</item>
+        <item name="primaryBackgroundColor">@color/nex_light_bg_primary</item>
+        <item name="materialCardBackgroundColor">@color/nex_light_surface_card</item>
+        <item name="colorSurface">@color/nex_light_surface_card</item>
+        <item name="colorSurfaceVariant">@color/nex_light_surface_tinted</item>
+        <item name="colorSurfaceContainerHighest">@color/nex_light_surface_tinted</item>
+        <item name="colorSurfaceContainerHigh">@color/nex_light_surface_card</item>
+        <item name="primaryTextColor">@color/nex_light_text_primary</item>
+        <item name="colorOnSurface">@color/nex_light_text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/nex_light_text_secondary</item>
+        <item name="colorPrimary">@color/nex_light_primary_blue</item>
+        <item name="colorOutlineVariant">@color/nex_light_border_subtle</item>
+        <item name="isDark">0</item>
+    </style>
+
+    <!-- Personalization page cards -->
+    <style name="Widget.Nex.SettingsCard" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">?attr/colorSurfaceVariant</item>
+        <item name="cardCornerRadius">@dimen/dimen20dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="TextAppearance.Nex.SectionTitle" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textColor">?attr/primaryTextColor</item>
+    </style>
+
+    <style name="CustomActivityAnimation" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:activityOpenExitAnimation">@android:anim/fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:activityCloseExitAnimation">@android:anim/fade_out</item>
+    </style>
+
+    <style name="PRMetadataItem">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+    </style>
+
+    <style name="PRMetadataIcon">
+        <item name="android:layout_width">16dp</item>
+        <item name="android:layout_height">16dp</item>
+        <item name="android:tint">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <style name="PRMetadataText">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodySmall</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+</resources>

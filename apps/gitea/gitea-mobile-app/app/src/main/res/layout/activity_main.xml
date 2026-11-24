@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/primaryBackgroundColor">
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/nav_host_fragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:id="@+id/dock_actions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="20dp"
+        android:background="@drawable/dock_actions_background"
+        android:elevation="8dp"
+        android:orientation="horizontal"
+        android:padding="4dp"
+        android:visibility="gone"
+        android:translationY="-56dp"
+        app:layout_anchor="@id/docked_toolbar"
+        app:layout_anchorGravity="top|end">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dock_search"
+            style="@style/Widget.Nex.DockAction"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="@string/search"
+            app:icon="@drawable/ic_search" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dock_sort"
+            style="@style/Widget.Nex.DockAction"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="@string/sort"
+            app:icon="@drawable/ic_dotted_menu" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/docked_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/dock_background"
+        android:elevation="12dp">
+
+        <com.google.android.material.overflow.OverflowLinearLayout
+            android:id="@+id/dock_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="6dp">
+
+            <LinearLayout
+                android:id="@+id/btn_nav_home"
+                style="@style/Widget.Nex.DockItem"
+                android:layout_weight="1">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@string/navHome"
+                    android:duplicateParentState="true"
+                    android:src="@drawable/ic_home"
+                    android:tint="@color/dock_nav_color" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:duplicateParentState="true"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/navHome"
+                    android:textColor="@color/dock_nav_color"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_nav_repos"
+                style="@style/Widget.Nex.DockItem"
+                android:layout_weight="1">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@string/navRepos"
+                    android:duplicateParentState="true"
+                    android:src="@drawable/ic_repo"
+                    android:tint="@color/dock_nav_color" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:duplicateParentState="true"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/navRepos"
+                    android:textColor="@color/dock_nav_color"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_nav_notifications"
+                style="@style/Widget.Nex.DockItem"
+                android:layout_weight="1">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@string/navNotifications"
+                    android:duplicateParentState="true"
+                    android:src="@drawable/ic_notifications"
+                    android:tint="@color/dock_nav_color" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:duplicateParentState="true"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/navNotifications"
+                    android:textColor="@color/dock_nav_color"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_dock_new_repo"
+                style="@style/Widget.Nex.DockItem"
+                android:layout_weight="1">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@string/pageTitleNewRepo"
+                    android:duplicateParentState="true"
+                    android:src="@drawable/ic_add"
+                    android:tint="@color/dock_nav_color" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:duplicateParentState="true"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/navNew"
+                    android:textColor="@color/dock_nav_color"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+        </com.google.android.material.overflow.OverflowLinearLayout>
+
+    </FrameLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

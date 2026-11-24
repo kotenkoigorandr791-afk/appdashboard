@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.imageview.ShapeableImageView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/avatar"
+    android:layout_width="@dimen/dimen32dp"
+    android:layout_height="@dimen/dimen32dp"
+    android:padding="@dimen/dimen1dp"
+    android:background="@android:color/transparent"
+    android:scaleType="centerCrop"
+    app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small"
+    app:strokeColor="?attr/colorSurface"
+    app:strokeWidth="0dp" />

@@ -1,0 +1,280 @@
+package orbit.nex.gitea.adapters;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Color;
+import android.os.Handler;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.RecyclerView;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.vdurmont.emoji.EmojiParser;
+import java.util.List;
+import java.util.Locale;
+import org.gitnex.tea4j.v2.models.PullRequest;
+import orbit.nex.gitea.R;
+import orbit.nex.gitea.activities.ProfileActivity;
+import orbit.nex.gitea.databinding.ListPrBinding;
+import orbit.nex.gitea.helpers.AppDatabaseSettings;
+import orbit.nex.gitea.helpers.AppUtil;
+import orbit.nex.gitea.helpers.AvatarGenerator;
+import orbit.nex.gitea.helpers.ColorInverter;
+import orbit.nex.gitea.helpers.LabelStylingHelper;
+import orbit.nex.gitea.helpers.Markdown;
+import orbit.nex.gitea.helpers.TimeHelper;
+import orbit.nex.gitea.helpers.Toasty;
+
+public class PullRequestsAdapter
+		extends RecyclerView.Adapter<PullRequestsAdapter.PullRequestsHolder> {
+
+	private final Context context;
+	private List<PullRequest> prList;
+	private OnPrClickListener clickListener;
+
+	public interface OnPrClickListener {
+		void onPrClick(PullRequest pullRequest);
+	}
+
+	public void setOnPrClickListener(OnPrClickListener listener) {
+		this.clickListener = listener;
+	}
+
+	public PullRequestsAdapter(Context context, List<PullRequest> prListMain) {
+		this.context = context;
+		this.prList = prListMain;
+	}
+
+	@NonNull @Override
+	public PullRequestsHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+		ListPrBinding binding = ListPrBinding.inflate(LayoutInflater.from(context), parent, false);
+		return new PullRequestsHolder(binding);
+	}
+
+	@Override
+	public void onBindViewHolder(@NonNull PullRequestsHolder holder, int position) {
+		holder.bindData(prList.get(position));
+		holder.binding.getRoot().updateAppearance(position, getItemCount());
+	}
+
+	@Override
+	public int getItemCount() {
+		return prList != null ? prList.size() : 0;
+	}
+
+	@SuppressLint("NotifyDataSetChanged")
+	public void notifyDataChanged() {
+		notifyDataSetChanged();
+	}
+
+	public void updateList(List<PullRequest> list) {
+		prList = list;
+		notifyDataChanged();
+	}
+
+	public class PullRequestsHolder extends RecyclerView.ViewHolder {
+		final ListPrBinding binding;
+		private PullRequest prObject;
+
+		PullRequestsHolder(ListPrBinding binding) {
+			super(binding.getRoot());
+			this.binding = binding;
+
+			View.OnClickListener openPr =
+					v -> {
+						if (clickListener != null
+								&& prObject != null
+								&& prObject.getBase() != null
+								&& prObject.getBase().getRepo() != null) {
+							clickListener.onPrClick(prObject);
+						}
+					};
+
+			binding.getRoot().setOnClickListener(openPr);
+			binding.frameLabels.setOnClickListener(openPr);
+			binding.frameLabelsDots.setOnClickListener(openPr);
+		}
+
+		void bindData(PullRequest pr) {
+			this.prObject = pr;
+			Locale locale = Locale.getDefault();
+
+			if (pr.getMilestone() != null) {
+				binding.milestoneLayout.setVisibility(View.VISIBLE);
+				binding.milestoneTitle.setText(pr.getMilestone().getTitle());
+			} else {
+				binding.milestoneLayout.setVisibility(View.GONE);
+			}
+
+			if (isDraftOrWip(pr)) {
+				binding.prStateIcon.setVisibility(View.VISIBLE);
+				binding.prStateIcon.setOnClickListener(
+						v -> {
+							Toasty.show(
+									context,
+									context.getResources().getString(R.string.releaseDraftText));
+						});
+			} else {
+				binding.prStateIcon.setVisibility(View.GONE);
+			}
+
+			if (pr.isMerged()) {
+				binding.mergedBadge.setVisibility(View.VISIBLE);
+				int mergedColor = ContextCompat.getColor(context, R.color.alert_important_border);
+				binding.mergedBadge.setImageDrawable(
+						AvatarGenerator.getLabelDrawable(
+								context,
+								context.getString(R.string.merged).toUpperCase(),
+								mergedColor,
+								16));
+
+			} else if (pr.getState() == PullRequest.StateEnum.CLOSED) {
+				binding.mergedBadge.setVisibility(View.VISIBLE);
+				int closedColor = ContextCompat.getColor(context, R.color.colorRed);
+				binding.mergedBadge.setImageDrawable(
+						AvatarGenerator.getLabelDrawable(
+								context,
+								context.getString(R.string.isClosed).toUpperCase(),
+								closedColor,
+								16));
+
+			} else {
+				binding.mergedBadge.setVisibility(View.GONE);
+			}
+
+			binding.userName.setText(pr.getUser().getLogin());
+			binding.repoFullName.setText(pr.getBase().getRepo().getFullName());
+			binding.prNumber.setText(context.getString(R.string.hash_with_text, pr.getNumber()));
+			binding.prCommentsCount.setText(String.valueOf(pr.getComments()));
+			binding.prCreatedTime.setText(TimeHelper.formatTime(pr.getCreatedAt(), locale));
+
+			binding.prCreatedTime.setOnClickListener(
+					v -> {
+						Toasty.show(
+								context,
+								TimeHelper.getFullDateTime(pr.getCreatedAt(), Locale.getDefault()));
+					});
+
+			if (pr.getComments() > 10) {
+				binding.commentIcon.setImageDrawable(
+						ContextCompat.getDrawable(context, R.drawable.ic_flame));
+				binding.commentIcon.setColorFilter(
+						ContextCompat.getColor(context, R.color.releasePre));
+			} else {
+				binding.commentIcon.setImageDrawable(
+						ContextCompat.getDrawable(context, R.drawable.ic_comment));
+				binding.commentIcon.setColorFilter(null);
+			}
+
+			Glide.with(context)
+					.load(pr.getUser().getAvatarUrl())
+					.diskCacheStrategy(DiskCacheStrategy.ALL)
+					.placeholder(R.drawable.loader_animated)
+					.centerCrop()
+					.into(binding.assigneeAvatar);
+
+			setupUserClicks(pr);
+			Markdown.render(context, EmojiParser.parseToUnicode(pr.getTitle()), binding.prTitle);
+			renderLabels(pr);
+		}
+
+		private boolean isDraftOrWip(PullRequest pr) {
+			String title = pr.getTitle().toLowerCase().trim();
+			return title.startsWith("[wip]")
+					|| title.startsWith("wip:")
+					|| title.startsWith("draft:")
+					|| title.startsWith("(draft)")
+					|| title.startsWith("[draft]")
+					|| pr.isDraft();
+		}
+
+		private void setupUserClicks(PullRequest pr) {
+			new Handler()
+					.postDelayed(
+							() -> {
+								if (!AppUtil.checkGhostUsers(pr.getUser().getLogin())) {
+									binding.assigneeAvatar.setOnClickListener(
+											v -> {
+												Intent i =
+														new Intent(context, ProfileActivity.class);
+												i.putExtra("username", pr.getUser().getLogin());
+												context.startActivity(i);
+											});
+								}
+							},
+							500);
+		}
+
+		private void renderLabels(PullRequest pr) {
+			binding.frameLabels.removeAllViews();
+			binding.frameLabelsDots.removeAllViews();
+
+			if (pr.getLabels() == null || pr.getLabels().isEmpty()) {
+				binding.labelsScrollViewWithText.setVisibility(View.GONE);
+				binding.labelsScrollViewDots.setVisibility(View.GONE);
+				return;
+			}
+
+			boolean showText =
+					Boolean.parseBoolean(
+							AppDatabaseSettings.getSettingsValue(
+									context, AppDatabaseSettings.APP_LABELS_IN_LIST_KEY));
+			binding.labelsScrollViewWithText.setVisibility(showText ? View.VISIBLE : View.GONE);
+			binding.labelsScrollViewDots.setVisibility(showText ? View.GONE : View.VISIBLE);
+
+			LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
+			params.setMargins(0, 0, 15, 0);
+
+			LabelStylingHelper stylingHelper = LabelStylingHelper.getInstance(context);
+
+			for (org.gitnex.tea4j.v2.models.Label label : pr.getLabels()) {
+				if (showText) {
+					String labelText = label.getName();
+					String colorHex = "#" + label.getColor();
+					boolean exclusive = label.isExclusive();
+					int color = Color.parseColor(colorHex);
+					int contrast = ColorInverter.getContrastColor(color);
+					String contrastHex = String.format("#%06X", contrast);
+
+					if (LabelStylingHelper.isScopedLabel(labelText, exclusive)) {
+						LinearLayout container = new LinearLayout(context);
+						container.setOrientation(LinearLayout.HORIZONTAL);
+						container.setGravity(android.view.Gravity.CENTER_VERTICAL);
+						container.setLayoutParams(params);
+
+						TextView keyView = new TextView(context);
+						TextView valueView = new TextView(context);
+
+						stylingHelper.styleScopedLabel(
+								labelText, colorHex, contrastHex, keyView, valueView, 11, 3, 8);
+
+						container.addView(keyView);
+						container.addView(valueView);
+						binding.frameLabels.addView(container);
+					} else {
+						TextView labelView = new TextView(context);
+						labelView.setLayoutParams(params);
+
+						stylingHelper.styleRegularLabel(
+								labelText, colorHex, contrastHex, labelView, 11, 3, 8);
+
+						binding.frameLabels.addView(labelView);
+					}
+				} else {
+					ImageView iv = new ImageView(context);
+					iv.setLayoutParams(params);
+					int color = Color.parseColor("#" + label.getColor());
+					iv.setImageDrawable(AvatarGenerator.getCircleColorDrawable(context, color, 14));
+					binding.frameLabelsDots.addView(iv);
+				}
+			}
+		}
+	}
+}

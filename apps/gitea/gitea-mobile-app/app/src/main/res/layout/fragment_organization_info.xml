@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/primaryBackgroundColor">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/primaryBackgroundColor"
+                android:paddingBottom="@dimen/dimen32dp">
+
+                <View
+                    android:id="@+id/headerBackground"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/dimen120dp"
+                    android:background="?attr/primaryBackgroundColor"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/orgAvatar"
+                    android:layout_width="@dimen/dimen100dp"
+                    android:layout_height="@dimen/dimen100dp"
+                    android:layout_marginTop="@dimen/dimen56dp"
+                    android:layout_marginStart="@dimen/dimen16dp"
+                    android:padding="@dimen/dimen4dp"
+                    app:strokeWidth="@dimen/dimen0dp"
+                    android:background="?attr/primaryBackgroundColor"
+                    android:scaleType="centerCrop"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.ExtraLarge" />
+
+                <TextView
+                    android:id="@+id/orgNameInfo"
+                    style="@style/TextAppearance.Material3.HeadlineMedium"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/dimen12dp"
+                    android:layout_marginHorizontal="@dimen/dimen24dp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/primaryTextColor"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/orgAvatar" />
+
+                <TextView
+                    android:id="@+id/orgUsername"
+                    style="@style/TextAppearance.Material3.TitleMedium"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:alpha="0.6"
+                    android:textColor="?attr/primaryTextColor"
+                    app:layout_constraintEnd_toEndOf="@id/orgNameInfo"
+                    app:layout_constraintStart_toStartOf="@id/orgNameInfo"
+                    app:layout_constraintTop_toBottomOf="@id/orgNameInfo" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                app:cardBackgroundColor="?attr/materialCardBackgroundColor"
+                app:cardElevation="0dp"
+                app:shapeAppearance="@style/ShapeAppearance.TopRounded"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/dimen24dp">
+
+                    <TextView
+                        style="@style/TextAppearance.Material3.LabelLarge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/navAbout"
+                        android:textAllCaps="true"
+                        android:textColor="?attr/colorPrimary"
+                        android:letterSpacing="0.1" />
+
+                    <TextView
+                        android:id="@+id/orgDescInfo"
+                        style="@style/TextAppearance.Material3.BodyLarge"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/dimen8dp"
+                        android:textColor="?attr/primaryTextColor" />
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="@dimen/dimen24dp"
+                        app:dividerColor="?attr/colorOutlineVariant" />
+
+                    <include
+                        android:id="@+id/layoutEmail"
+                        layout="@layout/item_profile_info" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/dimen12dp" />
+
+                    <include
+                        android:id="@+id/layoutWebsite"
+                        layout="@layout/item_profile_info" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/dimen12dp" />
+
+                    <include
+                        android:id="@+id/layoutLocation"
+                        layout="@layout/item_profile_info" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.loadingindicator.LoadingIndicator
+        android:id="@+id/expressive_loader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        app:indicatorSize="@dimen/dimen48dp"
+        app:trackThickness="@dimen/dimen4dp" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -4,6 +4,7 @@ require_once APP_ROOT . '/shell/oauth.php';
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $parts = public_api_parse_path();
 $service = strtolower((string)($parts[1] ?? ''));
+if (($parts[0] ?? '') === 'gitea' && $service === 'connect') $service = 'gitea_mobile';
 $apiUser = $_SESSION['user'] ?? ($GLOBALS['public_api_user'] ?? []);
 $email = (string)($apiUser['email'] ?? '');
 $refresh = (string)($_GET['refresh'] ?? '') === '1';
@@ -20,6 +21,11 @@ if ($service === 'immich') {
 }
 if ($service === 'gitea') {
     $out = integrations_gitea_credentials($email, $refresh);
+    public_api_json($out, !empty($out['ok']) ? 200 : 503);
+}
+if ($service === 'gitea_mobile') {
+    $out = integrations_gitea_mobile_credentials($email);
+    header('Cache-Control: no-store');
     public_api_json($out, !empty($out['ok']) ? 200 : 503);
 }
 if ($service === 'kanboard') {
@@ -254,6 +260,58 @@ function integrations_gitea_http(string $method, string $path, ?array $auth, ?ar
         $data = is_array($decoded) ? $decoded : ['raw' => $body];
     }
     return ['code' => $code, 'data' => $data, 'error' => $err];
+}
+
+function integrations_gitea_mobile_credentials(string $email): array {
+    $user = $_SESSION['user'] ?? ($GLOBALS['public_api_user'] ?? []);
+    oauth_ensure_gitea_user($email, (string)($user['name'] ?? $email), ((int)($user['role'] ?? 0)) >= 2, (string)($user['theme'] ?? 'light'), (string)($user['photo'] ?? ''));
+    $pdo = oauth_gitea_db();
+    if (!$pdo) return ['ok' => false, 'error' => 'gitea_unavailable'];
+    try {
+        $stmt = $pdo->prepare('SELECT id, name FROM "user" WHERE lower(email) = lower(:email) LIMIT 1');
+        $stmt->execute([':email' => $email]);
+        $account = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$account) return ['ok' => false, 'error' => 'gitea_user_not_found'];
+        $username = (string)$account['name'];
+        $token = '';
+        $auth = integrations_gitea_admin_auth();
+        if ($auth) {
+            $path = '/users/' . rawurlencode($username) . '/tokens';
+            $list = integrations_gitea_http('GET', $path, $auth);
+            if ($list['code'] >= 200 && $list['code'] < 300 && is_array($list['data'])) {
+                foreach ($list['data'] as $row) {
+                    if (is_array($row) && ($row['name'] ?? '') === 'NexGitea Mobile') {
+                        integrations_gitea_http('DELETE', $path . '/' . rawurlencode((string)($row['id'] ?? $row['name'])), $auth);
+                    }
+                }
+                $created = integrations_gitea_http('POST', $path, $auth, ['name' => 'NexGitea Mobile', 'scopes' => ['all']]);
+                if ($created['code'] >= 200 && $created['code'] < 300) $token = (string)($created['data']['sha1'] ?? $created['data']['token'] ?? '');
+            }
+        }
+        if ($token === '') {
+            $pdo->beginTransaction();
+            $pdo->prepare('SELECT id FROM "user" WHERE id = :uid FOR UPDATE')->execute([':uid' => (int)$account['id']]);
+            $pdo->prepare('DELETE FROM access_token WHERE uid = :uid AND name = :name')->execute([':uid' => (int)$account['id'], ':name' => 'NexGitea Mobile']);
+            $columns = $pdo->query("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'access_token'")->fetchAll(PDO::FETCH_COLUMN);
+            $token = bin2hex(random_bytes(20));
+            $salt = bin2hex(random_bytes(5));
+            $now = time();
+            if (in_array('token_salt', $columns, true)) {
+                $stmt = $pdo->prepare('INSERT INTO access_token (uid, name, token_hash, token_salt, token_last_eight, scope, created_unix, updated_unix) VALUES (:uid, :name, :hash, :salt, :last8, :scope, :created, :updated)');
+                $stmt->execute([':uid' => (int)$account['id'], ':name' => 'NexGitea Mobile', ':hash' => bin2hex(hash_pbkdf2('sha256', $token, $salt, 10000, 50, true)), ':salt' => $salt, ':last8' => substr($token, -8), ':scope' => 'all', ':created' => $now, ':updated' => $now]);
+            } else {
+                $stmt = $pdo->prepare('INSERT INTO access_token (uid, name, sha1, token_last_eight, scope, created_unix, updated_unix) VALUES (:uid, :name, :hash, :last8, :scope, :created, :updated)');
+                $stmt->execute([':uid' => (int)$account['id'], ':name' => 'NexGitea Mobile', ':hash' => hash('sha256', $token), ':last8' => substr($token, -8), ':scope' => 'all', ':created' => $now, ':updated' => $now]);
+            }
+            $pdo->commit();
+        }
+        $origin = rtrim(public_api_host_base(), '/');
+        $base = $origin . '/embed/git';
+        return ['ok' => true, 'service' => 'gitea', 'gitea' => ['base_url' => $base, 'api_url' => $base . '/api/v1', 'git_http_base' => $base, 'ssh' => ['host' => (string)parse_url($origin, PHP_URL_HOST), 'port' => 2222]], 'access_token' => $token, 'token_type' => 'token', 'user' => ['email' => $email, 'username' => $username]];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        return ['ok' => false, 'error' => 'gitea_token_create_failed'];
+    }
 }
 
 function integrations_gitea_create_token_cli(string $username): ?string {

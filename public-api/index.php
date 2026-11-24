@@ -50,6 +50,11 @@ if ($section === 'integrations') {
     require __DIR__ . '/routes/integrations.php';
     exit;
 }
+if ($section === 'gitea' && ($parts[1] ?? '') === 'connect' && count($parts) === 2) {
+    public_api_auth_user(true);
+    require __DIR__ . '/routes/integrations.php';
+    exit;
+}
 $app = $section;
 $allowed = ['cloud','films','recipes','smart_home','spends','steps','kanboard'];
 if (!in_array($app, $allowed, true)) {

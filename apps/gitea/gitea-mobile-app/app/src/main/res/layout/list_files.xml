@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.listitem.ListItemLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.listitem.ListItemCardView
+        android:id="@+id/card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:checkable="false"
+        android:layout_marginVertical="@dimen/dimen1dp"
+        app:strokeWidth="0dp"
+        app:cardBackgroundColor="?attr/materialCardBackgroundColor">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/fileFrame"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/dimen4dp">
+
+            <TextView
+                android:id="@+id/fileInfo"
+                style="@style/TextAppearance.Material3.LabelLarge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/size"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:alpha="0.8"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/fileDate"
+                style="@style/TextAppearance.Material3.LabelLarge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:alpha="0.8"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageView
+                android:id="@+id/fileTypeIs"
+                android:layout_width="@dimen/dimen24dp"
+                android:layout_height="@dimen/dimen24dp"
+                android:layout_marginTop="@dimen/dimen16dp"
+                android:contentDescription="@string/generalImgContentText"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/fileInfo"
+                app:srcCompat="@drawable/ic_document" />
+
+            <TextView
+                android:id="@+id/fileName"
+                style="@style/TextAppearance.Material3.BodyLarge"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/dimen12dp"
+                android:layout_marginEnd="@dimen/dimen12dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@string/defaultFilename"
+                app:layout_constraintEnd_toStartOf="@+id/iv_chevron"
+                app:layout_constraintStart_toEndOf="@id/fileTypeIs"
+                app:layout_constraintTop_toTopOf="@id/fileTypeIs"
+                app:layout_constraintBottom_toBottomOf="@id/fileTypeIs" />
+
+            <ImageView
+                android:id="@+id/iv_chevron"
+                android:layout_width="@dimen/dimen32dp"
+                android:layout_height="@dimen/dimen32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/generalImgContentText"
+                android:padding="@dimen/dimen2dp"
+                android:scaleType="centerInside"
+                app:layout_constraintBottom_toBottomOf="@id/fileName"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/fileName"
+                app:srcCompat="@drawable/ic_chevron_right"
+                app:tint="?attr/iconsColor" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.listitem.ListItemCardView>
+
+</com.google.android.material.listitem.ListItemLayout>

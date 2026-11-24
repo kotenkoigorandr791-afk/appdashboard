@@ -1,0 +1,169 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.spotless)
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+android {
+    defaultConfig {
+        applicationId = "orbit.nex.gitea"
+        minSdkVersion libs.versions.minSdk.get() as int
+        targetSdkVersion libs.versions.targetSdk.get() as int
+        versionCode = libs.versions.versionCode.get() as int
+        versionName = libs.versions.versionName.get()
+        multiDexEnabled = true
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        compileSdk = libs.versions.compileSdk.get() as int
+        vectorDrawables.useSupportLibrary = true
+    }
+
+    compileSdk = libs.versions.compileSdk.get() as int
+
+    flavorDimensions = ["default"]
+    productFlavors {
+        free {
+            applicationId "orbit.nex.gitea"
+        }
+        pro {
+            applicationId "orbit.nex.gitea.pro"
+        }
+    }
+
+    buildFeatures {
+        viewBinding = true
+        buildConfig = true
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            debuggable = true
+        }
+
+        release {
+            minifyEnabled false
+            //noinspection NotShrinkingResources
+            shrinkResources = false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled = true
+        sourceCompatibility JavaVersion.toVersion(libs.versions.javaVersion.get())
+        targetCompatibility JavaVersion.toVersion(libs.versions.javaVersion.get())
+    }
+
+    lint {
+        abortOnError = false
+    }
+
+    namespace = 'orbit.nex.gitea'
+
+    packagingOptions {
+        resources {
+            excludes += [
+                'META-INF/versions/9/OSGI-INF/MANIFEST.MF',
+                'META-INF/DEPENDENCIES',
+                'META-INF/LICENSE',
+                'META-INF/LICENSE.txt',
+                'META-INF/NOTICE',
+                'META-INF/NOTICE.txt'
+            ]
+            pickFirsts += [
+                'META-INF/versions/9/OSGI-INF/MANIFEST.MF'
+            ]
+        }
+    }
+}
+
+configurations {
+    cleanedAnnotations
+    compile.exclude group: 'org.jetbrains', module: 'annotations'
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+
+    // AndroidX
+    implementation libs.androidx.appcompat
+    implementation libs.androidx.material
+    implementation libs.androidx.compose.material3
+    implementation libs.androidx.compose.material3.window
+    implementation libs.androidx.constraintlayout
+    implementation libs.androidx.lifecycle.viewmodel
+    implementation libs.androidx.room.runtime
+    annotationProcessor libs.androidx.room.compiler
+    implementation libs.androidx.work
+    implementation libs.androidx.biometric
+    implementation libs.androidx.browser
+    implementation libs.swipe.refresh
+
+    // Testing
+    testImplementation libs.junit
+    androidTestImplementation libs.androidx.test.junit
+    androidTestImplementation libs.androidx.test.espresso
+
+    // Networking
+    implementation libs.okhttp
+    implementation libs.retrofit
+    implementation libs.retrofit.converter.gson
+    implementation libs.retrofit.converter.scalars
+    implementation libs.okhttp.logging
+    implementation libs.gson
+
+    // Utils
+    implementation libs.commons.io
+    implementation libs.photoview
+    implementation libs.urlbuilder
+    implementation libs.stormpot
+    implementation libs.codeview
+    implementation libs.android.gif.drawable
+    implementation libs.android.svg
+    implementation libs.emoji.java
+    implementation(libs.tea4j) {
+        exclude group: 'org.apache.oltu.oauth2', module: 'org.apache.oltu.oauth2.common'
+    }
+
+    // Markwon bundle
+    implementation libs.bundles.markwon
+
+    // Glide
+    implementation libs.glide
+    implementation libs.glide.annotations
+    implementation libs.glide.okhttp
+    annotationProcessor libs.glide.compiler
+
+    // ACRA bundle
+    implementation libs.bundles.acra
+
+    // Desugaring
+    coreLibraryDesugaring libs.desugar.jdk.libs
+
+    constraints {
+        it.implementation(libs.kotlin.stdlib.jdk7)
+        it.implementation(libs.kotlin.stdlib.jdk8)
+    }
+}
+
+spotless {
+    java {
+        target 'src/**/*.java'
+
+        importOrder('android', 'androidx', 'com', 'junit', 'net', 'org', 'java', 'javax', '', '\\#')
+
+        removeUnusedImports()
+        googleJavaFormat().aosp()
+        leadingSpacesToTabs()
+        formatAnnotations()
+    }
+}

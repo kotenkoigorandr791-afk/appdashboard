@@ -1,0 +1,407 @@
+package orbit.nex.gitea.fragments;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.search.SearchView;
+import java.util.ArrayList;
+import java.util.List;
+import org.gitnex.tea4j.v2.models.PullRequest;
+import orbit.nex.gitea.R;
+import orbit.nex.gitea.activities.PullRequestDetailActivity;
+import orbit.nex.gitea.activities.RepoDetailActivity;
+import orbit.nex.gitea.adapters.PullRequestsAdapter;
+import orbit.nex.gitea.bottomsheets.CreatePullRequestBottomSheet;
+import orbit.nex.gitea.databinding.FragmentPullRequestsBinding;
+import orbit.nex.gitea.helpers.AppUtil;
+import orbit.nex.gitea.helpers.BookmarkHelper;
+import orbit.nex.gitea.helpers.Constants;
+import orbit.nex.gitea.helpers.EndlessRecyclerViewScrollListener;
+import orbit.nex.gitea.helpers.Toasty;
+import orbit.nex.gitea.helpers.UIHelper;
+import orbit.nex.gitea.helpers.UrlHelper;
+import orbit.nex.gitea.helpers.contexts.RepositoryContext;
+import orbit.nex.gitea.models.RepositoryMenuItemModel;
+import orbit.nex.gitea.viewmodels.PullRequestsViewModel;
+
+public class PullRequestsFragment extends Fragment implements RepoDetailActivity.RepoHubProvider {
+
+	private FragmentPullRequestsBinding binding;
+	private PullRequestsViewModel viewModel;
+	private PullRequestsAdapter adapter;
+	private RepositoryContext repository;
+	private int resultLimit;
+	private EndlessRecyclerViewScrollListener scrollListener;
+	private boolean isFirstLoad = true;
+
+	public static PullRequestsFragment newInstance(RepositoryContext repository) {
+		PullRequestsFragment f = new PullRequestsFragment();
+		f.setArguments(repository.getBundle());
+		return f;
+	}
+
+	@Override
+	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+		super.onViewCreated(view, savedInstanceState);
+		View dock = requireActivity().findViewById(R.id.docked_toolbar);
+		UIHelper.applyInsets(view, dock, binding.recyclerView, binding.pullToRefresh, null);
+		setupSearch();
+	}
+
+	@Nullable @Override
+	public View onCreateView(
+			@NonNull LayoutInflater inflater,
+			@Nullable ViewGroup container,
+			@Nullable Bundle savedInstanceState) {
+		binding = FragmentPullRequestsBinding.inflate(inflater, container, false);
+		viewModel = new ViewModelProvider(requireActivity()).get(PullRequestsViewModel.class);
+
+		repository = RepositoryContext.fromBundle(requireArguments());
+		resultLimit = Constants.getCurrentResultLimit(requireContext());
+
+		setupAdapters();
+		setupListeners();
+		observeViewModel();
+
+		return binding.getRoot();
+	}
+
+	@Override
+	public List<RepositoryMenuItemModel> getRepoHubItems() {
+		List<RepositoryMenuItemModel> items = new ArrayList<>();
+
+		boolean isBookmarked =
+				BookmarkHelper.isBookmarked(
+						requireContext(),
+						"repo",
+						repository.getOwner(),
+						repository.getName(),
+						"pulls",
+						null);
+
+		items.add(
+				new RepositoryMenuItemModel(
+						"PR_SEARCH",
+						R.string.search,
+						R.drawable.ic_search,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		boolean isCurrentlyOpen = repository.getPrState() == RepositoryContext.State.OPEN;
+
+		items.add(
+				new RepositoryMenuItemModel(
+						"PR_STATE_TOGGLE",
+						isCurrentlyOpen ? R.string.isClosed : R.string.isOpen,
+						R.drawable.ic_filter,
+						isCurrentlyOpen
+								? R.attr.colorTertiaryContainer
+								: R.attr.colorSurfaceVariant,
+						isCurrentlyOpen
+								? R.attr.colorOnTertiaryContainer
+								: R.attr.colorOnSurfaceVariant));
+
+		if (repository.getRepository().isHasPullRequests()
+				&& !repository.getRepository().isArchived()) {
+			items.add(
+					new RepositoryMenuItemModel(
+							"PR_CREATE_NEW",
+							R.string.create_pr,
+							R.drawable.ic_add,
+							R.attr.colorPrimaryContainer,
+							R.attr.colorOnPrimaryContainer));
+		}
+		items.add(
+				new RepositoryMenuItemModel(
+						"BOOKMARK_TAB",
+						isBookmarked ? R.string.bookmark_remove : R.string.bookmark_add,
+						isBookmarked ? R.drawable.ic_bookmark_remove : R.drawable.ic_bookmark_add,
+						isBookmarked ? R.attr.colorErrorContainer : R.attr.colorPrimarySurface,
+						isBookmarked
+								? R.attr.colorOnErrorContainer
+								: R.attr.colorOnPrimarySurface));
+		items.add(
+				new RepositoryMenuItemModel(
+						"CONTEXT_SHARE",
+						R.string.share_location,
+						R.drawable.ic_share,
+						R.attr.colorPrimarySurface,
+						R.attr.colorOnPrimarySurface));
+
+		return items;
+	}
+
+	@Override
+	public void onHubActionSelected(String actionId) {
+		switch (actionId) {
+			case "PR_SEARCH":
+				binding.searchView.show();
+				break;
+
+			case "PR_STATE_TOGGLE":
+				RepositoryContext.State newState =
+						(repository.getPrState() == RepositoryContext.State.OPEN)
+								? RepositoryContext.State.CLOSED
+								: RepositoryContext.State.OPEN;
+				repository.setPrState(newState);
+				refreshData();
+				break;
+
+			case "PR_CREATE_NEW":
+				CreatePullRequestBottomSheet.newInstance(repository, null)
+						.show(getParentFragmentManager(), "CREATE_PULL_REQUEST");
+				break;
+			case "BOOKMARK_TAB":
+				BookmarkHelper.toggleBookmark(
+						requireContext(),
+						"repo",
+						repository.getOwner(),
+						repository.getName(),
+						"pulls",
+						null,
+						null,
+						getString(R.string.pageTitleIssues),
+						UrlHelper.buildCurrentContextUrl(
+								requireContext(),
+								repository.getOwner(),
+								repository.getName(),
+								"pulls"));
+				break;
+			case "CONTEXT_SHARE":
+				String url =
+						UrlHelper.buildCurrentContextUrl(
+								requireContext(),
+								repository.getOwner(),
+								repository.getName(),
+								"pulls");
+				AppUtil.sharingIntent(requireContext(), url);
+				break;
+		}
+	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		if (!isHidden() && isFirstLoad) {
+			lazyLoad();
+		}
+	}
+
+	@Override
+	public void onHiddenChanged(boolean hidden) {
+		super.onHiddenChanged(hidden);
+		if (!hidden && isFirstLoad) {
+			lazyLoad();
+		}
+	}
+
+	private void lazyLoad() {
+		isFirstLoad = false;
+		List<PullRequest> currentPrs = viewModel.getPrList().getValue();
+
+		if (currentPrs == null || currentPrs.size() <= 1) {
+			refreshData();
+		} else {
+			binding.expressiveLoader.setVisibility(View.GONE);
+			binding.recyclerView.setVisibility(View.VISIBLE);
+		}
+	}
+
+	public void refreshFromGlobal() {
+		refreshData();
+	}
+
+	private void setupAdapters() {
+		adapter = new PullRequestsAdapter(requireContext(), new ArrayList<>());
+		adapter.setOnPrClickListener(
+				pullRequest -> {
+					Intent intent = new Intent(requireContext(), PullRequestDetailActivity.class);
+					intent.putExtra("source", "pr_repo_fragment");
+					intent.putExtra("prObject", pullRequest);
+					startActivity(intent);
+				});
+
+		LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
+		binding.recyclerView.setLayoutManager(layoutManager);
+		binding.recyclerView.setHasFixedSize(true);
+		binding.recyclerView.setAdapter(adapter);
+
+		binding.searchResultsRecycler.setLayoutManager(new LinearLayoutManager(requireContext()));
+		binding.searchResultsRecycler.setAdapter(adapter);
+
+		scrollListener =
+				new EndlessRecyclerViewScrollListener(layoutManager) {
+					@Override
+					public void onLoadMore(int page, int totalItemsCount, RecyclerView view) {
+						viewModel.fetchPullRequests(
+								requireContext(),
+								repository.getOwner(),
+								repository.getName(),
+								repository.getPrState().toString(),
+								page,
+								resultLimit,
+								false);
+					}
+				};
+		binding.recyclerView.addOnScrollListener(scrollListener);
+	}
+
+	private void setupSearch() {
+		binding.searchView
+				.getEditText()
+				.addTextChangedListener(
+						new TextWatcher() {
+							@Override
+							public void beforeTextChanged(
+									CharSequence s, int start, int count, int after) {}
+
+							@Override
+							public void onTextChanged(
+									CharSequence s, int start, int before, int count) {
+								filterLocal(s.toString());
+							}
+
+							@Override
+							public void afterTextChanged(Editable s) {}
+						});
+
+		binding.searchView.addTransitionListener(
+				(searchView, previousState, newState) -> {
+					if (newState == SearchView.TransitionState.HIDDEN) {
+						resetToFullList();
+					}
+				});
+	}
+
+	private void filterLocal(String text) {
+		List<PullRequest> fullList = viewModel.getPrList().getValue();
+		if (fullList == null) return;
+
+		if (text.isEmpty()) {
+			adapter.updateList(fullList);
+			return;
+		}
+
+		List<PullRequest> filtered = new ArrayList<>();
+		String query = text.toLowerCase().trim();
+
+		for (PullRequest pr : fullList) {
+			if (pr.getTitle().toLowerCase().contains(query)
+					|| String.valueOf(pr.getNumber()).contains(query)) {
+				filtered.add(pr);
+			}
+		}
+		adapter.updateList(filtered);
+	}
+
+	private void resetToFullList() {
+		List<PullRequest> fullList = viewModel.getPrList().getValue();
+		if (fullList != null) {
+			adapter.updateList(fullList);
+		}
+	}
+
+	private void observeViewModel() {
+		viewModel
+				.getPrList()
+				.observe(
+						getViewLifecycleOwner(),
+						list -> {
+							adapter.updateList(list);
+							updateUiState();
+						});
+
+		viewModel
+				.getIsLoading()
+				.observe(
+						getViewLifecycleOwner(),
+						loading -> {
+							if (loading && adapter.getItemCount() == 0) {
+								binding.expressiveLoader.setVisibility(View.VISIBLE);
+								binding.layoutEmpty.getRoot().setVisibility(View.GONE);
+							} else {
+								binding.expressiveLoader.setVisibility(View.GONE);
+								binding.pullToRefresh.setRefreshing(false);
+							}
+						});
+
+		viewModel
+				.getError()
+				.observe(
+						getViewLifecycleOwner(),
+						err -> {
+							if (err != null) {
+								Toasty.show(requireContext(), err);
+								binding.expressiveLoader.setVisibility(View.GONE);
+								binding.pullToRefresh.setRefreshing(false);
+							}
+						});
+
+		viewModel
+				.getActionResult()
+				.observe(
+						getViewLifecycleOwner(),
+						code -> {
+							if (code == null || code == -1) return;
+
+							if (code == 200 || code == 201) {
+								refreshData();
+							} else {
+								Toasty.show(requireContext(), R.string.genericError);
+							}
+
+							viewModel.resetActionResult();
+						});
+	}
+
+	private void updateUiState() {
+		boolean isEmpty = adapter.getItemCount() == 0;
+		boolean hasLoaded = Boolean.TRUE.equals(viewModel.getHasLoadedOnce().getValue());
+		boolean isLoading = Boolean.TRUE.equals(viewModel.getIsLoading().getValue());
+
+		if (!isLoading && hasLoaded && isEmpty) {
+			binding.layoutEmpty.getRoot().setVisibility(View.VISIBLE);
+			binding.recyclerView.setVisibility(View.GONE);
+		} else {
+			binding.layoutEmpty.getRoot().setVisibility(View.GONE);
+			binding.recyclerView.setVisibility(View.VISIBLE);
+		}
+	}
+
+	private void refreshData() {
+		scrollListener.resetState();
+		viewModel.resetPagination();
+
+		binding.layoutEmpty.getRoot().setVisibility(View.GONE);
+		binding.expressiveLoader.setVisibility(View.VISIBLE);
+
+		viewModel.fetchPullRequests(
+				requireContext(),
+				repository.getOwner(),
+				repository.getName(),
+				repository.getPrState().toString(),
+				1,
+				resultLimit,
+				true);
+	}
+
+	private void setupListeners() {
+		binding.pullToRefresh.setOnRefreshListener(this::refreshData);
+	}
+
+	@Override
+	public void onDestroyView() {
+		super.onDestroyView();
+		binding = null;
+	}
+}

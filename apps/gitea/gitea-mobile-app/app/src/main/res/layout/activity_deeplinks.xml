@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingTop="@dimen/dimen56dp"
+    android:paddingBottom="@dimen/dimen16dp"
+    android:background="?attr/primaryBackgroundColor">
+
+    <com.google.android.material.loadingindicator.LoadingIndicator
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        app:indicatorSize="@dimen/dimen48dp"
+        app:trackThickness="@dimen/dimen4dp" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/dimen16dp">
+
+            <LinearLayout
+                android:id="@+id/addNewAccountFrame"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/addAccountText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/accountDoesNotExist"
+                    android:textColor="?attr/primaryTextColor"
+                    android:padding="@dimen/dimen4dp"
+                    android:textSize="@dimen/dimen18sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/addNewAccount"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/dimen54dp"
+                    android:layout_marginTop="@dimen/dimen24dp"
+                    android:text="@string/addNewAccountText" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/launchApp"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/dimen54dp"
+                    android:layout_marginTop="@dimen/dimen8dp"
+                    android:text="@string/launchApp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/openInBrowser"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/dimen16dp"
+                    android:text="@string/openWebRepo" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/noActionFrame"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/noActionText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/noActionText"
+                    android:padding="@dimen/dimen4dp"
+                    android:textColor="?attr/primaryTextColor"
+                    android:textSize="@dimen/dimen18sp" />
+
+                <include
+                    android:id="@+id/homeCard"
+                    layout="@layout/item_card_full"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/dimen24dp" />
+
+                <include
+                    android:id="@+id/repositoryCard"
+                    layout="@layout/item_card_full"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/dimen8dp" />
+
+                <include
+                    android:id="@+id/notificationCard"
+                    layout="@layout/item_card_full"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/dimen8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/openInBrowserNoActionFrame"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/dimen16dp"
+                    android:text="@string/openWebRepo" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

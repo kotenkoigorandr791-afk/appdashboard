@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.listitem.ListItemLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.listitem.ListItemCardView
+        android:id="@+id/card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="@dimen/dimen1dp"
+        app:cardBackgroundColor="?attr/materialCardBackgroundColor"
+        app:strokeWidth="0dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/dimen8dp">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/image"
+                android:layout_width="@dimen/dimen36dp"
+                android:layout_height="@dimen/dimen36dp"
+                android:layout_marginTop="@dimen/dimen12dp"
+                android:src="@drawable/ic_loader"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
+
+            <TextView
+                android:id="@+id/org_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/dimen12dp"
+                android:layout_marginEnd="@dimen/dimen8dp"
+                android:alpha="0.8"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/primaryTextColor"
+                app:layout_constraintEnd_toStartOf="@id/repo_info_end_frame"
+                app:layout_constraintStart_toEndOf="@id/image"
+                app:layout_constraintTop_toTopOf="@id/image"
+                tools:text="Organization Name" />
+
+            <TextView
+                android:id="@+id/repo_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="?attr/primaryTextColor"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toStartOf="@id/repo_info_end_frame"
+                app:layout_constraintStart_toStartOf="@id/org_name"
+                app:layout_constraintTop_toBottomOf="@id/org_name"
+                tools:text="Repository Name" />
+
+            <LinearLayout
+                android:id="@+id/repo_info_end_frame"
+                android:layout_width="@dimen/dimen32dp"
+                android:layout_height="@dimen/dimen32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                app:layout_constraintBottom_toBottomOf="@id/repo_name"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/org_name">
+
+                <ImageView
+                    android:id="@+id/reset_counter"
+                    android:layout_width="@dimen/dimen20dp"
+                    android:layout_height="@dimen/dimen20dp"
+                    android:contentDescription="@string/generalImgContentText"
+                    app:srcCompat="@drawable/ic_delete"
+                    app:tint="?attr/colorError" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/most_visited"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dimen8dp"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="@dimen/dimen8dp"
+                android:paddingVertical="@dimen/dimen2dp"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold"
+                android:drawablePadding="@dimen/dimen6dp"
+                app:drawableStartCompat="@drawable/ic_trending"
+                app:drawableTint="?attr/colorPrimary"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/image" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.listitem.ListItemCardView>
+
+</com.google.android.material.listitem.ListItemLayout>

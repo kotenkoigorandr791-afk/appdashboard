@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.listitem.ListItemLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.listitem.ListItemCardView
+        android:id="@+id/card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="@dimen/dimen1dp"
+        app:cardBackgroundColor="?attr/materialCardBackgroundColor"
+        app:strokeWidth="0dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/dimen8dp">
+
+            <ImageView
+                android:id="@+id/type"
+                android:layout_width="@dimen/dimen24dp"
+                android:layout_height="@dimen/dimen24dp"
+                android:contentDescription="@string/generalImgContentText"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="@id/subject"
+                app:layout_constraintBottom_toBottomOf="@id/subject"
+                app:srcCompat="@drawable/ic_pull_request"
+                app:tint="?attr/iconsColor" />
+
+            <TextView
+                android:id="@+id/subject"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/dimen12dp"
+                android:layout_marginEnd="@dimen/dimen8dp"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="?attr/primaryTextColor"
+                android:textSize="16sp"
+                app:layout_constraintEnd_toStartOf="@id/pinned"
+                app:layout_constraintStart_toEndOf="@id/type"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="#123 Awesome feature implementation" />
+
+            <TextView
+                android:id="@+id/repository"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dimen4dp"
+                android:alpha="0.7"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:textColor="?attr/primaryTextColor"
+                app:layout_constraintEnd_toEndOf="@id/subject"
+                app:layout_constraintStart_toStartOf="@id/subject"
+                app:layout_constraintTop_toBottomOf="@id/subject"
+                tools:text="org/repository-name" />
+
+            <ImageView
+                android:id="@+id/pinned"
+                android:layout_width="@dimen/dimen18dp"
+                android:layout_height="@dimen/dimen18dp"
+                android:layout_marginEnd="@dimen/dimen8dp"
+                android:contentDescription="@string/generalImgContentText"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/more"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_pin"
+                app:tint="?attr/colorPrimary"
+                tools:visibility="visible" />
+
+            <ImageView
+                android:id="@+id/more"
+                android:layout_width="@dimen/dimen32dp"
+                android:layout_height="@dimen/dimen32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/generalImgContentText"
+                android:padding="@dimen/dimen4dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_dotted_menu"
+                app:tint="?attr/iconsColor" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.listitem.ListItemCardView>
+
+</com.google.android.material.listitem.ListItemLayout>

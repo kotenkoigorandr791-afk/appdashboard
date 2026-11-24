@@ -1,0 +1,147 @@
+package orbit.nex.gitea.fragments;
+
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import java.util.ArrayList;
+import orbit.nex.gitea.R;
+import orbit.nex.gitea.adapters.OrganizationsListAdapter;
+import orbit.nex.gitea.databinding.FragmentOrganizationsBinding;
+import orbit.nex.gitea.helpers.Constants;
+import orbit.nex.gitea.helpers.EndlessRecyclerViewScrollListener;
+import orbit.nex.gitea.helpers.Toasty;
+import orbit.nex.gitea.helpers.UIHelper;
+import orbit.nex.gitea.viewmodels.OrganizationsViewModel;
+
+public class ExplorePublicOrganizationsFragment extends Fragment {
+
+	private FragmentOrganizationsBinding binding;
+	private OrganizationsViewModel viewModel;
+	private OrganizationsListAdapter adapter;
+	private EndlessRecyclerViewScrollListener scrollListener;
+	private int resultLimit;
+	private boolean isFirstLoad = true;
+	private boolean isViewReady = false;
+
+	@Override
+	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+		super.onViewCreated(view, savedInstanceState);
+		View dock = requireActivity().findViewById(R.id.docked_toolbar);
+		UIHelper.applyInsets(view, dock, binding.recyclerView, binding.pullToRefresh, null);
+		isViewReady = true;
+	}
+
+	@Nullable @Override
+	public View onCreateView(
+			@NonNull LayoutInflater inflater,
+			@Nullable ViewGroup container,
+			@Nullable Bundle savedInstanceState) {
+		binding = FragmentOrganizationsBinding.inflate(inflater, container, false);
+		viewModel = new ViewModelProvider(this).get(OrganizationsViewModel.class);
+		resultLimit = Constants.getCurrentResultLimit(requireContext());
+
+		setupUI();
+		observeViewModel();
+
+		return binding.getRoot();
+	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		if (!isHidden() && isFirstLoad && isViewReady) {
+			lazyLoad();
+		}
+	}
+
+	@Override
+	public void onHiddenChanged(boolean hidden) {
+		super.onHiddenChanged(hidden);
+		if (!hidden && isFirstLoad && isViewReady) {
+			lazyLoad();
+		}
+	}
+
+	private void lazyLoad() {
+		isFirstLoad = false;
+		refreshData();
+	}
+
+	private void setupUI() {
+		adapter = new OrganizationsListAdapter(requireContext(), new ArrayList<>());
+		LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
+		binding.recyclerView.setLayoutManager(layoutManager);
+		binding.recyclerView.setAdapter(adapter);
+
+		scrollListener =
+				new EndlessRecyclerViewScrollListener(layoutManager) {
+					@Override
+					public void onLoadMore(int page, int totalItemsCount, RecyclerView view) {
+						viewModel.fetchAllPublicOrgs(
+								requireContext(), page + 1, resultLimit, false);
+					}
+				};
+		binding.recyclerView.addOnScrollListener(scrollListener);
+
+		binding.pullToRefresh.setOnRefreshListener(this::refreshData);
+	}
+
+	private void observeViewModel() {
+		viewModel
+				.getOrgs()
+				.observe(
+						getViewLifecycleOwner(),
+						list -> {
+							adapter.updateList(list);
+							binding.pullToRefresh.setRefreshing(false);
+							updateUiVisibility(
+									Boolean.TRUE.equals(viewModel.getIsLoading().getValue()));
+						});
+
+		viewModel.getIsLoading().observe(getViewLifecycleOwner(), this::updateUiVisibility);
+
+		viewModel
+				.getError()
+				.observe(
+						getViewLifecycleOwner(),
+						error -> {
+							if (error != null) {
+								Toasty.show(requireContext(), error);
+								updateUiVisibility(false);
+							}
+						});
+	}
+
+	private void updateUiVisibility(boolean isLoading) {
+		boolean hasData = adapter.getItemCount() > 0;
+
+		binding.expressiveLoader.setVisibility(isLoading && !hasData ? View.VISIBLE : View.GONE);
+		boolean hasLoadedOnce = Boolean.TRUE.equals(viewModel.getHasLoadedOnce().getValue());
+
+		binding.layoutEmpty
+				.getRoot()
+				.setVisibility(!isLoading && !hasData && hasLoadedOnce ? View.VISIBLE : View.GONE);
+
+		binding.pullToRefresh.setVisibility(
+				!hasData && !isLoading && hasLoadedOnce ? View.GONE : View.VISIBLE);
+	}
+
+	private void refreshData() {
+		if (scrollListener != null) scrollListener.resetState();
+		if (viewModel == null) return;
+		viewModel.fetchAllPublicOrgs(requireContext(), 1, resultLimit, true);
+	}
+
+	@Override
+	public void onDestroyView() {
+		super.onDestroyView();
+		binding = null;
+	}
+}

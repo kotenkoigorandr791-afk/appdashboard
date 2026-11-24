@@ -236,6 +236,24 @@ pnpm-debug.log*
 .tgrep/
 .tgrep-*/
 
+# Gitea / NexGitea native Android (apps/gitea/gitea-mobile-app)
+/apps/gitea/gitea-mobile-app/.gradle/
+/apps/gitea/gitea-mobile-app/.kotlin/
+/apps/gitea/gitea-mobile-app/build/
+/apps/gitea/gitea-mobile-app/app/build/
+/apps/gitea/gitea-mobile-app/benchmark/build/
+/apps/gitea/gitea-mobile-app/local.properties
+/apps/gitea/gitea-mobile-app/captures/
+/apps/gitea/gitea-mobile-app/.cxx/
+/apps/gitea/gitea-mobile-app/.externalNativeBuild/
+/apps/gitea/gitea-mobile-app/.idea/
+/apps/gitea/gitea-mobile-app/**/build/
+/apps/gitea/gitea-mobile-app/**/*.apk
+/apps/gitea/gitea-mobile-app/**/*.aab
+/apps/gitea/gitea-mobile-app/**/*.jks
+/apps/gitea/gitea-mobile-app/**/*.keystore
+/apps/gitea/gitea-mobile-app/**/*.hprof
+
 # Benchmark credentials
 .bench-login.json
 .bench-token

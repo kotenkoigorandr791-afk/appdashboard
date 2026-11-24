@@ -1,0 +1,128 @@
+package orbit.nex.gitea.fragments;
+
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import java.util.ArrayList;
+import orbit.nex.gitea.R;
+import orbit.nex.gitea.adapters.DiffFilesAdapter;
+import orbit.nex.gitea.databinding.FragmentDiffFilesBinding;
+import orbit.nex.gitea.helpers.Toasty;
+import orbit.nex.gitea.helpers.UIHelper;
+import orbit.nex.gitea.viewmodels.PullRequestDiffViewModel;
+
+/**
+ * @author opyale
+ */
+public class DiffFilesFragment extends Fragment {
+
+	private FragmentDiffFilesBinding binding;
+	private PullRequestDiffViewModel viewModel;
+	private DiffFilesAdapter adapter;
+	private Context ctx;
+	private String owner;
+	private String repo;
+	private long prNumber;
+
+	public DiffFilesFragment() {}
+
+	public static DiffFilesFragment newInstance() {
+		return new DiffFilesFragment();
+	}
+
+	@Override
+	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+		super.onViewCreated(view, savedInstanceState);
+		View dock = requireActivity().findViewById(R.id.docked_toolbar);
+		UIHelper.applyInsets(view, dock, binding.diffFiles, null, binding.toolbarTitle);
+	}
+
+	@Override
+	public View onCreateView(
+			@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+		binding = FragmentDiffFilesBinding.inflate(inflater, container, false);
+		ctx = requireContext();
+
+		Intent intent = requireActivity().getIntent();
+		owner = intent.getStringExtra("owner");
+		repo = intent.getStringExtra("repo");
+		prNumber = intent.getLongExtra("prNumber", -1);
+
+		viewModel = new ViewModelProvider(requireActivity()).get(PullRequestDiffViewModel.class);
+
+		setupRecyclerView();
+		observeViewModel();
+
+		if (viewModel.getFiles().getValue() == null || viewModel.getFiles().getValue().isEmpty()) {
+			viewModel.fetchPRFiles(ctx, owner, repo, prNumber, getResources());
+		}
+
+		return binding.getRoot();
+	}
+
+	private void setupRecyclerView() {
+		adapter = new DiffFilesAdapter(ctx, new ArrayList<>(), owner, repo, null, "pull", prNumber);
+
+		binding.diffFiles.setHasFixedSize(true);
+		binding.diffFiles.setLayoutManager(new LinearLayoutManager(ctx));
+		binding.diffFiles.setAdapter(adapter);
+	}
+
+	private void observeViewModel() {
+
+		viewModel
+				.getFiles()
+				.observe(
+						getViewLifecycleOwner(),
+						files -> {
+							if (files != null) {
+								adapter.updateList(files);
+							}
+						});
+
+		viewModel
+				.getFilesHeader()
+				.observe(
+						getViewLifecycleOwner(),
+						header -> {
+							if (header != null && !header.isEmpty()) {
+								binding.toolbarTitle.setVisibility(View.VISIBLE);
+								binding.toolbarTitle.setText(header);
+							}
+						});
+
+		viewModel
+				.getIsFilesLoading()
+				.observe(
+						getViewLifecycleOwner(),
+						loading -> {
+							binding.expressiveLoader.setVisibility(
+									loading ? View.VISIBLE : View.GONE);
+							binding.diffFiles.setVisibility(loading ? View.GONE : View.VISIBLE);
+						});
+
+		viewModel
+				.getError()
+				.observe(
+						getViewLifecycleOwner(),
+						error -> {
+							if (error != null) {
+								Toasty.show(ctx, error);
+							}
+						});
+	}
+
+	@Override
+	public void onDestroyView() {
+		super.onDestroyView();
+		binding = null;
+	}
+}

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.listitem.ListItemLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.listitem.ListItemCardView
+        android:id="@+id/card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:checkable="false"
+        android:layout_marginVertical="@dimen/dimen1dp"
+        app:strokeWidth="0dp"
+        app:cardBackgroundColor="?attr/materialCardBackgroundColor">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/dimen8dp">
+
+            <ImageView
+                android:id="@+id/commitShaIcon"
+                android:layout_width="@dimen/dimen14dp"
+                android:layout_height="@dimen/dimen14dp"
+                android:layout_marginEnd="@dimen/dimen4dp"
+                android:alpha="0.8"
+                android:contentDescription="@string/generalImgContentText"
+                android:src="@drawable/ic_commit"
+                app:layout_constraintBottom_toBottomOf="@id/commitSha"
+                app:layout_constraintEnd_toStartOf="@id/commitSha"
+                app:layout_constraintTop_toTopOf="@id/commitSha"
+                app:tint="?attr/colorPrimary" />
+
+            <TextView
+                android:id="@+id/commitSha"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.8"
+                android:fontFamily="monospace"
+                android:textAppearance="?attr/textAppearanceLabelSmall"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold"
+                app:layout_constraintBaseline_toBaselineOf="@id/commitSubject"
+                app:layout_constraintEnd_toEndOf="parent"
+                tools:text="357f3qd" />
+
+            <TextView
+                android:id="@+id/commitSubject"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/dimen8dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="?attr/primaryTextColor"
+                app:layout_constraintEnd_toStartOf="@id/commitShaIcon"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="Refactor commit list with modern ConstraintLayout" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/commitAuthorAvatarFrame"
+                android:layout_width="@dimen/dimen24dp"
+                android:layout_height="@dimen/dimen24dp"
+                android:layout_marginTop="@dimen/dimen16dp"
+                app:cardCornerRadius="@dimen/dimen6dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                android:backgroundTint="@android:color/transparent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/commitSubject">
+
+                <ImageView
+                    android:id="@+id/commitAuthorAvatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/generalImgContentText"
+                    android:scaleType="centerCrop"
+                    tools:src="@tools:sample/avatars" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/commitCommitterAvatarFrame"
+                android:layout_width="@dimen/dimen24dp"
+                android:layout_height="@dimen/dimen24dp"
+                android:layout_marginStart="-10dp"
+                app:cardCornerRadius="@dimen/dimen6dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="@dimen/dimen0dp"
+                android:backgroundTint="@android:color/transparent"
+                app:layout_constraintBottom_toBottomOf="@id/commitAuthorAvatarFrame"
+                app:layout_constraintStart_toEndOf="@id/commitAuthorAvatarFrame"
+                app:layout_constraintTop_toTopOf="@id/commitAuthorAvatarFrame">
+
+                <ImageView
+                    android:id="@+id/commitCommitterAvatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/generalImgContentText"
+                    android:scaleType="centerCrop"
+                    tools:src="@tools:sample/avatars" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/commitAuthorAndCommitter"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/dimen8dp"
+                android:alpha="0.8"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/primaryTextColor"
+                app:layout_constraintBottom_toBottomOf="@id/commitAuthorAvatarFrame"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/commitCommitterAvatarFrame"
+                app:layout_constraintTop_toTopOf="@id/commitAuthorAvatarFrame"
+                tools:text="mian authored 2 hours ago" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.listitem.ListItemCardView>
+
+</com.google.android.material.listitem.ListItemLayout>
